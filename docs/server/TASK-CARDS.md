@@ -1,0 +1,63 @@
+# 可交互任务卡片
+
+服务端 1.11.0、MCP 插件 1.6.0 起支持单选和自定义回复。微信发送问题摘要及“处理任务卡片”链接；按钮位于登录后的手机会话页。发送卡片不会替代普通通知，也不会新建唤醒后台。
+
+## 从 AI 发起
+
+先用 `registerConversation` 保存当前聊天的 `conversation_id`，再调用 `sendTaskCard`：
+
+```json
+{
+  "conversation_id": "已有登记返回的32位ID",
+  "dedup_key": "deployment-plan-20261003",
+  "title": "选择部署方式",
+  "prompt": "两种方案都可行，请选择适合你的方式。",
+  "options": [
+    {"id": "docker", "label": "Docker 部署", "description": "配置统一，后续升级方便。", "recommended": true},
+    {"id": "python", "label": "直接运行 Python", "description": "适合已有 Python 环境的服务器。"}
+  ],
+  "allow_custom": true,
+  "expires_in": 86400
+}
+```
+
+示例 ID 必须替换为本聊天实际登记返回的 ID。每个选项有稳定、互不重复的 ID，2–8 个选项，最多一个推荐项。推荐项不会预选。`expires_in` 范围为 60 秒至 7 天，默认 24 小时。`dry_run=true` 仅校验发送准备情况，不创建卡片、不发微信。
+
+返回原有发送回执和 `task` 对象；保存 `task.id`、会话 ID、去重键及完整原始参数。发送结果不明时先用原参数查询 `getDeliveryStatus`，不能换键盲目重发。重复创建返回同一张卡片，不延长有效期。微信接口接受不等于手机确认收件。
+
+## 手机端处理
+
+选择一个方案，或者选择“自行回复”并填写安排，点击“提交决定”。卡片显示“已答复”，普通会话记录同时保存你的回答。两个设备同时提交时只有一个不同决定能成功；同一决定的重试返回原回执，不重复入箱。关闭页面前保留未提交草稿的提示，草稿仅在当前页面内存中保存。
+
+归档或停用的会话保留卡片并只读；过期、取消的卡片停止接收决定。删除会话同时清理卡片定义、答复和处理结果。卡片正文、决定、结果使用原有服务端主密钥加密保存。链接不包含令牌，也不授予免登录访问。
+
+## AI 接收并更新
+
+用本聊天的 `getMessages` 读取答复，消息中包含可读正文及：
+
+```json
+{
+  "task_response": {
+    "task_id": "实际卡片ID",
+    "title": "选择部署方式",
+    "choice_id": "docker",
+    "choice_label": "Docker 部署",
+    "text": ""
+  }
+}
+```
+
+自行回复时 `choice_id`、`choice_label` 为 null。按任务 ID 对应原问题，再调用 `getTaskCard` 核对；不要仅凭标题匹配。答复进入原聊天的普通收件箱，沿用现有 `message.created` 事件和桌面接收器。因此，已经为该聊天启用的唤醒接入可以继续使用；仅安装 MCP 不会自动唤醒宿主。
+
+状态为 `pending` → `answered` → `processing` → `completed`；简短任务可从已答复直接完成。非终态可以 `cancelled`，待答复超过期限显示 `expired`。客户端读取只更新消息的已读状态，不自动开始或完成任务。实际开始处理后调用 `updateTaskCard(status="processing")`；实际完成后调用 `completed` 并提供 `result`。状态更新在手机会话页刷新显示，不另发微信。
+
+重复更新相同状态和结果是幂等的；终态不可重开，同一状态下改写结果会拒绝。用户的决定不扩大原任务授权，也不替代宿主要求的审批。
+
+## HTTP API
+
+- 客户端创建：`POST /api/task-cards`，Bearer 调用密钥，字段同 MCP 示例。
+- 客户端查询：`GET /api/conversations/{conversation_id}/tasks/{task_id}`。
+- 客户端更新：`POST /api/conversations/{conversation_id}/tasks/{task_id}/state`，传 `status` 和可选 `result`。
+- 手机提交：`POST /chat/api/conversations/{conversation_id}/tasks/{task_id}/answer`，使用手机登录 Cookie、同源 Origin 和 `X-Chat-Request: 1`，传 `request_id`、`choice_id`、`text`。
+
+调用密钥只访问自身会话；手机登录不能当作客户端密钥使用。网页提交不会更新微信回复上下文或顺延空闲心跳。

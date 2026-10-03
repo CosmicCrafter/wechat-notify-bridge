@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, Query
 from wechat_bridge.wechat.protocol import BridgeError
 from wechat_bridge.storage.client_registry import ClientError
 
-from wechat_bridge.api.schemas import ConversationRegistration, ConversationState, Message, Notice
+from wechat_bridge.api.schemas import ConversationRegistration, ConversationState, Message, Notice, TaskCard, TaskUpdate
 
 
 
@@ -100,6 +100,28 @@ def mount_client_api(app, authorize):
         labels = {'info': '通知', 'warning': '需要处理', 'urgent': '紧急提醒'}
         text = f'## {labels[body.level]} · {body.task}\n\n**当前情况**\n\n{body.reason}\n\n**需要你处理**\n\n{body.need_user}'
         return await send(text, body.dedup_key, caller, 'notification', body.dry_run, body.conversation_id)
+
+    @app.post('/api/task-cards')
+    async def task_card(body: TaskCard, caller=Depends(authorize)):
+        definition = body.model_dump(exclude={'dedup_key', 'conversation_id', 'dry_run'})
+        bridge = app.state.bridge
+        return await bridge.send(bridge.store.portal.tasks.summary(definition), body.dedup_key, caller.name,
+                                 kind='task_card', dry_run=body.dry_run, identity=caller,
+                                 conversation_id=body.conversation_id, task_card=definition)
+
+    @app.get('/api/conversations/{conversation_id}/tasks/{task_id}')
+    async def task_read(conversation_id: str, task_id: str, caller=Depends(authorize)):
+        store = app.state.bridge.store
+        store.conversations.get(caller.id, conversation_id)
+        return {'task': store.portal.tasks.get(conversation_id, task_id)}
+
+    @app.post('/api/conversations/{conversation_id}/tasks/{task_id}/state')
+    async def task_update(conversation_id: str, task_id: str, body: TaskUpdate, caller=Depends(authorize)):
+        bridge = app.state.bridge
+        async with bridge.lock:
+            bridge.store.clients.revalidate(caller)
+            bridge.store.conversations.get(caller.id, conversation_id, require_active=True)
+            return bridge.store.portal.tasks.update(conversation_id, task_id, body)
 
     @app.get('/openapi.json')
     def schema(caller=Depends(authorize)):

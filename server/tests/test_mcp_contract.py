@@ -19,12 +19,15 @@ def test_discovery_describes_side_effects_and_rejects_invalid_input_before_api()
     register_tools(mcp, request)
     async def run():
         tools = {tool.name: tool for tool in await mcp.list_tools()}
-        assert len(tools) == 9 and all(tool.title for tool in tools.values())
+        assert len(tools) == 12 and all(tool.title for tool in tools.values())
         assert not tools['getMessages'].annotations.readOnlyHint
         assert tools['getMessages'].annotations.idempotentHint
         assert tools['getDeliveryStatus'].annotations.readOnlyHint
         assert tools['sendMessage'].annotations.openWorldHint
         assert not tools['setConversationActive'].annotations.openWorldHint
+        assert tools['getTaskCard'].annotations.readOnlyHint
+        assert tools['sendTaskCard'].annotations.idempotentHint
+        assert not tools['updateTaskCard'].annotations.openWorldHint
         assert tools['getMessages'].inputSchema['properties']['limit']['maximum'] == 100
         for name, args in [('getMessages', {'limit': 101}), ('getMessages', {'after_id': -1}),
                            ('sendMessage', {'text': 'a'*20001, 'dedup_key': 'event'}),
@@ -34,6 +37,9 @@ def test_discovery_describes_side_effects_and_rejects_invalid_input_before_api()
         assert not calls
         await mcp.call_tool('getMessages', {'conversation_id': 'this-chat', 'limit': 100})
         assert calls[0][2]['conversation_id'] == 'this-chat'
+        await mcp.call_tool('sendTaskCard', {'conversation_id': 'a'*32, 'dedup_key': 'card', 'title': 'Choose',
+            'prompt': 'Select a plan', 'options': [{'id':'a','label':'A'}, {'id':'b','label':'B'}], 'dry_run': True})
+        assert calls[-1][0] == '/api/task-cards' and calls[-1][1]['options'][0]['id'] == 'a'
     asyncio.run(run())
 
 
@@ -63,7 +69,7 @@ def test_api_errors_are_actionable_without_echoing_untrusted_bodies(status, deta
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('path', ['/api/messages', '/api/notifications', '/api/inbox'])
+@pytest.mark.parametrize('path', ['/api/messages', '/api/notifications', '/api/task-cards', '/api/inbox'])
 def test_network_failure_does_not_retry_or_treat_reads_as_sends(path):
     calls = []
     def fail(request):

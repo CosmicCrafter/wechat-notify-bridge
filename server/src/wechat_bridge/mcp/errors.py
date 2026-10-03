@@ -3,8 +3,12 @@ import json
 
 import httpx
 
-SEND_PATHS = {'/api/messages', '/api/notifications'}
+SEND_PATHS = {'/api/messages', '/api/notifications', '/api/task-cards'}
 DETAILS = {
+    'task_not_found': 'Check the original task_id and conversation_id; never guess a task by title.',
+    'task_state_conflict': 'Read getTaskCard first. Update only the current task state; terminal states cannot reopen.',
+    'task_expired': 'The pending card expired. Create a new, clearly scoped decision only if the task still needs it.',
+    'task_already_answered': 'The owner already submitted a decision; read the saved answer instead of changing it.',
     'conversation_closed': 'The conversation is archived. Restore the same ID only when the user resumes it.',
     'conversation_name_conflict': 'An active conversation already has this name. Ask which conversation should stay active before resolving the conflict; do not switch IDs.',
     'conversation_not_found': 'Check the registered conversation ID and current client identity. Do not guess another ID.',

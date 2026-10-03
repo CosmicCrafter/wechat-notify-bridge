@@ -1,6 +1,6 @@
 ---
 name: wechat-notify
-description: 发送本人微信通知、读取微信或手机会话页的文字与图片回复、查询发送回执和管理聊天登记。用于用户要求微信通信或任务已有微信通知授权时；普通任务不自动发通知。
+description: 发送本人微信通知与可选择的任务卡片、读取微信或手机会话页的文字与图片回复、查询发送回执和管理聊天登记。用于用户要求微信通信或任务已有微信通知授权时；普通任务不自动发通知。
 ---
 
 # 微信通知
@@ -19,7 +19,9 @@ description: 发送本人微信通知、读取微信或手机会话页的文字�
 | 用户意图 | 工具与处理 |
 | --- | --- |
 | 发一句话、发正文 | `sendMessage`；指定原文时原样发送 |
-| 汇报任务阻塞或需要决策 | `sendNotification`；说明任务、情况和需要的操作 |
+| 汇报任务阻塞、一般提醒 | `sendNotification`；说明任务、情况和需要的操作 |
+| 让用户选方案或自行回复 | 读 [任务卡片](references/task-cards.md)，调用 `sendTaskCard` |
+| 查询决定或更新处理进度 | `getTaskCard` / `updateTaskCard`；按实际执行情况更新 |
 | 看微信或网页回复 | `getMessages`；传本会话 ID 和对应游标 |
 | 查看回复图片 | 按 [收件与图片](references/inbox.md) 用附件 ID 调用 `getImage` |
 | 查发送结果 | `getDeliveryStatus`；使用原会话 ID 与去重键 |

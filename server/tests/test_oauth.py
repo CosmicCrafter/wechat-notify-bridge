@@ -107,7 +107,7 @@ def test_actual_remote_tools_isolation_and_dry_run(service):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),headers={'Authorization':'Bearer '+token}) as http:
             async with streamable_http_client('https://testserver/mcp',http_client=http) as (read,write,_):
                 async with ClientSession(read,write) as session:
-                    await session.initialize();tools=await session.list_tools();assert len(tools.tools)==9
+                    await session.initialize();tools=await session.list_tools();assert len(tools.tools)==12
                     r=await session.call_tool('getCallerIdentity',{});assert not r.isError
                     assert json.loads(r.content[0].text)['client_id']==c['id']
                     r=await session.call_tool('sendMessage',dict(text='test',dedup_key='dry-test',dry_run=True,conversation_id=cid))

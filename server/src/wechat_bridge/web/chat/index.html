@@ -8,7 +8,7 @@
 </head>
 <body>
   <section id="login" class="login" hidden>
-    <div class="brand"><span class="brand-icon">↗</span> 微信通知桥</div>
+    <div class="page-heading"><div class="brand"><span class="brand-icon">↗</span> 微信通知桥</div><a class="page-link" href="../admin/">管理页 <span aria-hidden="true">→</span></a></div>
     <div class="login-card"><span class="eyebrow">随时接上你的对话</span><h1>消息在微信，<br>对话在这里。</h1><p>查看 AI 的完整消息，直接回复对应聊天。</p>
       <ol class="login-steps"><li>在微信 ClawBot 中发送 <code>/web</code></li><li>输入收到的 8 位一次性登录码</li></ol>
       <form id="login-form"><label for="login-code">登录码</label><input id="login-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{8}" maxlength="8" placeholder="8 位数字" required><button type="submit">进入对话 <span>→</span></button></form>
@@ -17,14 +17,14 @@
   </section>
   <div id="workspace" class="workspace" hidden>
     <aside id="sidebar" class="sidebar">
-      <div class="brand"><span class="brand-icon">↗</span><div>微信通知桥<small>对话空间</small></div></div>
+      <div class="page-heading"><div class="brand"><span class="brand-icon">↗</span><div>微信通知桥<small>对话空间</small></div></div><a class="page-link" href="../admin/">管理页 <span aria-hidden="true">→</span></a></div>
       <div class="sidebar-heading"><h2>我的对话</h2><button id="refresh" class="quiet" aria-label="刷新对话">刷新</button></div>
       <div class="chat-tabs" role="group" aria-label="会话分类"><button id="active-tab" aria-pressed="true">对话</button><button id="archive-tab" aria-pressed="false">已归档</button></div>
       <p class="longpress-hint">长按对话可归档、恢复或删除</p><nav id="chats" aria-label="对话列表"></nav><p id="empty-chats" class="empty-list" hidden>还没有登记的对话。<br>在 AI 客户端使用微信插件<br>登记聊天名称即可开始。</p>
       <footer><span>只有你能访问</span><button id="logout" class="quiet">退出登录</button></footer>
     </aside>
     <main class="conversation">
-      <header class="chat-header"><button id="back" class="quiet back" aria-label="返回对话列表">‹</button><div class="chat-heading"><h1 id="chat-title">选择一个对话</h1><p id="chat-subtitle">让每条消息，都有清楚的来处。</p></div><span id="chat-badge" class="badge" hidden>对话中</span><button id="chat-menu" class="quiet menu-button" aria-label="对话操作" hidden>···</button></header>
+      <header class="chat-header"><button id="back" class="quiet back" aria-label="返回对话列表">‹</button><div class="chat-heading"><h1 id="chat-title">选择一个对话</h1><p id="chat-subtitle">让每条消息，都有清楚的来处。</p></div><span id="chat-badge" class="badge" hidden>对话中</span><button id="chat-menu" class="quiet menu-button" aria-label="对话操作" hidden>···</button><a class="page-link" href="../admin/">管理页 <span aria-hidden="true">→</span></a></header>
       <div id="error" class="error-banner" role="alert" hidden></div>
       <div id="welcome" class="welcome"><span class="welcome-icon">↗</span><h2>从一条消息，继续聊下去。</h2><p>选择左侧对话，或从微信通知中的链接进入。<br>记录保留在这里，回复会送到对应 AI 的收件箱。</p></div>
       <div id="scroll" class="scroll" hidden><div class="history-note">这里记录经过通知桥的消息；旧版本未保存的发送正文无法补回。</div><button id="older" class="history-button" hidden>查看更早的消息</button><div id="messages" class="messages" aria-label="聊天记录"></div><button id="newer" class="history-button" hidden>查看较新的消息</button><p id="empty-messages" class="empty-messages" hidden>还没有消息。写下第一条回复吧。</p></div>

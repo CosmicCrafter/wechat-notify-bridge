@@ -26,3 +26,10 @@
 .image-drafts{gap:12px;padding:0 4px;scrollbar-width:thin}.image-drafts:not(:empty){padding-top:6px;padding-bottom:14px}.image-draft{flex:0 0 78px;margin:0;padding-top:6px}.image-draft img{display:block;width:78px;height:78px;object-fit:cover;border:2px solid white;border-radius:14px;box-shadow:0 2px 8px #1e392215}.image-draft button{right:-5px;top:0;width:28px;height:28px;background:#fff;color:#4e6354;border:1px solid #dfe6dc;box-shadow:0 2px 5px #0001;font-size:20px;line-height:24px}.image-draft button::after{content:'';position:absolute;inset:-7px}
 @media(max-width:700px){.composer{padding:12px 12px max(12px,env(safe-area-inset-bottom))}.compose-row{gap:8px}.compose-row #send{padding:0 14px}.compose-footer{font-size:9px;line-height:1.5}.attachment-options{gap:20px}.attachment-panel{padding-bottom:8px}}
 @media(prefers-reduced-motion:reduce){.attach-toggle svg{transition:none}}
+
+/* Direct navigation remains visible on the list and mobile conversation views. */
+.page-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.page-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 10px;border:1px solid #d8e5da;border-radius:12px;background:#fff;color:var(--green);text-decoration:none;font-size:13px;font-weight:600;white-space:nowrap;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.page-link:hover{background:#edf5ec}.page-link:active{background:#e3efdf}
+.sidebar .page-heading{padding:0 6px}.sidebar .brand{padding:0;gap:10px;font-size:15px}.sidebar .brand-icon{width:34px;height:34px;flex-shrink:0}
+.chat-heading{flex:1;min-width:0}.chat-heading h1,.chat-heading p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chat-header .badge{margin-left:0;flex-shrink:0}

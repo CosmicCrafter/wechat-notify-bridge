@@ -8,6 +8,93 @@
 
 项目分为两个组件：服务器负责长期在线，MCP 插件负责把 API 包装成 AI 可以调用的工具。
 
+## 快速部署与使用
+
+下面以 Linux 服务器、Docker Compose 和 `https://notify.example.com/wechat` 为例。请替换为自己的域名；示例地址不能直接使用。需要 Python 3.12、Git、Docker Compose、已配置域名与证书的 HTTPS 站点，以及手机微信中的 ClawBot 入口。
+
+### 1. 下载并初始化
+
+```bash
+git clone https://github.com/CosmicCrafter/wechat-notify-bridge.git
+cd wechat-notify-bridge/server
+python3 -m venv .venv
+.venv/bin/python -m pip install .
+.venv/bin/python scripts/prepare_secrets.py --web-pairing --base-url https://notify.example.com/wechat
+cp .env.example .env
+```
+
+编辑 `server/.env`，将 `WECHAT_PUBLIC_BASE_URL` 改为与上面一致的实际 HTTPS 地址。初始化生成的 `.private/provisioned/` 包含私有密钥，不提交到 Git；管理员原始密钥位于 `.private/provisioned/admin/admin.json`。已有部署升级时保留原数据和密钥，**不要重新运行初始化命令**。
+
+### 2. 启动并配置 HTTPS
+
+仍在 `server/` 目录执行：
+
+```bash
+mkdir -p .data
+sudo chown -R 10001:10001 .data .private/provisioned/secrets
+sudo chmod 700 .data .private/provisioned/secrets
+sudo chmod 600 .private/provisioned/secrets/*
+docker compose up -d --build
+docker compose ps
+curl http://127.0.0.1:18092/health
+```
+
+将 [Nginx 配置示例](server/deploy/nginx.conf) 中的 location 配置放入已有 HTTPS 站点的 server 块，检查 `nginx -t` 通过后 reload。示例包含 `/wechat/` 和远程 MCP 所需的两个根级 OAuth discovery 路径，图片请求上限为 `6m`。容器默认仅监听本机 `127.0.0.1:18092`，外部客户端通过 HTTPS 访问。
+
+### 3. 扫码绑定并创建 AI 身份
+
+1. 打开 `https://你的域名/wechat/admin/`，使用初始化文件中的 `admin_key` 登录。管理员密钥只用于管理页面，不填到 AI 插件。
+2. 点击“生成二维码”，用手机微信扫一扫并确认；如需验证码，按页面提示输入。
+3. 在微信 ClawBot 聊天框发送一句“测试”，让服务获取微信回复上下文。
+4. 在 Admin 的“AI 客户端”中创建 `codex` 等身份，或在微信发送 `/getkey codex`。多个 AI 客户端分别创建身份，例如 `gpt`、`deepseek`。
+
+### 4. 把 MCP 接入 AI
+
+**远程 MCP：** 在支持 Streamable HTTP 与 OAuth 的宿主中配置 `https://你的域名/wechat/mcp`。首次连接时在微信发送 `/web` 获取手机登录码，登录授权页面、选择刚创建的 AI 身份，再确认授权。远程模式无需将 API 密钥粘贴给 AI。
+
+如果宿主支持本项目的插件包，可从项目根目录生成：
+
+```bash
+server/.venv/bin/python mcp-plugin/tools/build_remote_plugin.py \
+  --base-url https://notify.example.com/wechat \
+  --output dist/wechat-notify-remote.zip
+```
+
+**本机 stdio：** 从项目根目录执行 `python -m pip install -r mcp-plugin/requirements.txt`，将服务地址和该 AI 身份的密钥保存在私有 JSON 文件中：
+
+```json
+{
+  "base_url": "https://notify.example.com/wechat",
+  "api_key": "填入该客户端的密钥，按字符串保存"
+}
+```
+
+将 [MCP 客户端配置示例](mcp-plugin/examples/mcp-client.json) 中的 Python、`http_bridge.py` 和私有配置文件路径改为本机绝对路径，再加入宿主的 MCP 配置。私有文件仅允许本人访问，不放入插件包或仓库。同一个宿主选择远程或本机一种方式，避免同名工具重复。
+
+完整接入步骤见 [MCP 插件说明](mcp-plugin/README.md) 和 [远程授权说明](docs/server/REMOTE-MCP.md)。宿主需实际支持 MCP 工具调用；自动唤醒另见 [桌面接收器](mcp-plugin/DESKTOP-WAKE.md) 和 [云端事件](docs/server/MCP-EVENTS.md)。
+
+### 5. 发出第一条通知
+
+可对已接入 MCP 的 AI 说：
+
+> 请查询微信通知工具的身份，为当前聊天登记简称“系统监控”，然后发送一条“微信通知接入测试”。本任务后续如果发现系统异常、任务失败或需要我确认的问题，请通过微信通知我，写明问题摘要和需要我做的事。
+
+工具调用流程为 `getCallerIdentity` → `registerConversation` → `sendMessage` 或 `sendNotification`。保存登记返回的 `conversation_id`，后续收发、查回执都复用它；同一事件复用原 `dedup_key`，避免重复通知。以手机实际收到测试消息作为接入验收。
+
+你可以直接在微信回复 `[codex-系统监控] 内容`，准确标签以 `/chats` 为准；也可以点击消息下方的会话链接查看完整记录并回复。微信 `/help` 查看指令，`/status` 查看接收状态、最近发送结果与恢复建议。
+
+发送出现 `-2` 时，可先直接从微信 ClawBot 发一条新消息，再检查发送连接。网页回复不会刷新微信上下文，12 小时心跳也不能保证上下文一直有效。接口接受不等于手机收件，结果未知时先查原发送回执，不盲目重发。
+
+详细的备份、升级和故障处理见 [服务器部署说明](server/README.md)。
+
+## 代理配置与私有信息
+
+普通微信通知不要求配置 OpenAI 回调代理。只有启用了云端事件订阅，且服务器无法直连宿主回调地址时，才需要管理员自行提供合适的出站代理。
+
+回调模块通过环境变量 `WECHAT_CALLBACK_PROXY_FILE` 读取管理员提供的只读 JSON 文件，示例见 [回调代理配置](docs/server/MCP-EVENTS.md#可选的回调代理164)。源码没有内置订阅地址、代理节点或真实账号密码；示例中的凭据均为占位符。订阅、节点、代理密码应放在服务器独立私有目录，不提交到 Git，也不打入源码或插件包。
+
+该配置只作用于允许的宿主事件回调域名，不会将微信收发或所有服务流量自动切换到代理。标准 Compose 部署默认不启用它；具体的挂载、环境变量和内部代理连通要求见回调代理说明。
+
 ```text
 wechat-notify-bridge/
 ├── README.md                 项目入口

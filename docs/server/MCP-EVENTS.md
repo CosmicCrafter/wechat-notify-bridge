@@ -32,6 +32,29 @@
 
 代理端口只绑定容器可访问的内部网桥地址，避免暴露到公网；代理凭据和节点订阅配置存于独立私有目录，不放进源码包。代理进程需设置开机启动和异常重启，域名白名单随真实宿主回调主机变化由管理员更新。部署前先验证代理下的 TLS 连接，再验证实际签名回调订阅。
 
+### Docker Compose 中启用配置
+
+标准 `server/compose.yaml` 默认不设置回调代理。准备好管理员控制的代理后，将 JSON 文件保存为服务器上的 `/absolute/private/callback-proxy.json`，限制读取权限，使容器 UID/GID `10001` 可读。该文件包含代理密码；不要将其放入公开仓库。
+
+在 `server/` 的本机私有文件 `.private/compose.callback.yaml` 中添加：
+
+```yaml
+services:
+  wechat-notifier:
+    environment:
+      WECHAT_CALLBACK_PROXY_FILE: /run/callback-proxy.json
+    volumes:
+      - /absolute/private/callback-proxy.json:/run/callback-proxy.json:ro
+```
+
+替换宿主机绝对路径。JSON 中的 `host` 和 `port` 必须能从容器内部访问；容器中的 `127.0.0.1` 不代表宿主机。示例网桥地址仅适用于对应 Docker 网络，实际部署应验证地址、认证和目标域名白名单。然后在 `server/` 中执行：
+
+```bash
+docker compose --project-directory . -f compose.yaml -f .private/compose.callback.yaml up -d --build
+```
+
+该配置仅控制事件回调出站，不改变微信登录、接收与发送路径，也不自动安装代理软件或下载节点订阅。取消代理时使用标准 Compose 配置重建服务即可；不配置代理的服务器需要能够直连实际宿主回调地址。节点导入、出口选择和代理进程维护由管理员负责。
+
 1.6.4 更新：配置受限代理后，回调 TLS 与签名 challenge 验证成功；网页 Work 确认事件任务保存并启用，服务端订阅 active。随后真实微信触发任务自动回复，用户确认手机收件；101 项回归通过。当前只启用固定文本测试回复。
 
 ## 1.8.2 授权隔离修复

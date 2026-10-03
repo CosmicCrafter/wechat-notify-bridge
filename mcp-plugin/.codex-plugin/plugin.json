@@ -1,0 +1,11 @@
+{
+  "name": "wechat-notify-local",
+  "version": "1.5.0",
+  "description": "WeChat notifications, mobile conversations and routed replies through a server API or OAuth-protected remote MCP.",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "微信通知",
+    "shortDescription": "微信通知、文字与图片回复、会话管理"
+  }
+}

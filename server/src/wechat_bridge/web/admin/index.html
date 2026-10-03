@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>微信通知桥 · 连接管理</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="微信通知桥首页"><span class="brand-icon" aria-hidden="true">↗</span><span>微信通知桥<small>WeChat Notify Bridge</small></span></a>
+      <span class="edition">连接管理</span>
+    </header>
+    <main>
+      <div class="intro"><p class="eyebrow">让重要的消息，出现在微信里</p><h1>连接你的微信</h1><p class="lead">扫码一次，由服务器持续接收消息、发送通知，并管理空闲心跳。</p></div>
+      <div id="error" class="error" role="alert" hidden></div>
+      <section id="login" class="card login-card" aria-labelledby="login-title">
+        <div><span class="section-number">01 / 管理员验证</span><h2 id="login-title">先打开你的连接面板</h2><p class="muted">输入部署时生成的管理员密钥。它与 AI 客户端使用的调用密钥不同。</p></div>
+        <form id="login-form"><label for="admin-key">管理员密钥</label><input id="admin-key" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴管理员密钥" required maxlength="256"><button id="login-button" type="submit">进入管理面板 <span aria-hidden="true">→</span></button><p class="hint">密钥仅在当前页面内存中使用，刷新后需重新输入。</p></form>
+      </section>
+      <div id="dashboard" hidden>
+        <div class="dashboard-toolbar"><span><span class="dot"></span> 管理员已验证</span><button id="logout" class="text-button">退出面板</button></div>
+        <div class="columns">
+          <section class="card pairing-card" aria-labelledby="pair-title">
+            <span class="section-number">01 / 微信绑定</span><div class="card-heading"><h2 id="pair-title">扫码连接</h2><span id="pair-badge" class="badge">准备就绪</span></div>
+            <div class="qr-stage"><div id="qr-empty"><div class="scan-icon" aria-hidden="true">⌗</div><strong id="qr-title">准备连接你的微信</strong><p id="qr-description">点击下方按钮，获取专属绑定二维码。</p></div><img id="qr-image" width="256" height="256" alt="微信 ClawBot 绑定二维码" hidden></div>
+            <p id="pair-message" class="pair-message" role="status" aria-live="polite">点击“生成二维码”，开始绑定微信。</p>
+            <p id="expiry" class="hint center" hidden></p>
+            <form id="verify-form" hidden><label for="verify-code">手机微信显示的连接数字</label><div class="inline-input"><input id="verify-code" inputmode="numeric" pattern="[0-9]{1,16}" autocomplete="off" maxlength="16" required><button type="submit">继续连接</button></div></form>
+            <div class="actions"><button id="start-pair">生成二维码</button><button id="cancel-pair" class="secondary" hidden>取消本次扫码</button></div>
+            <div id="rebind-confirm" class="rebind-confirm" role="group" aria-label="确认重新绑定" hidden><p>扫码确认后会更新绑定凭据，请使用原来的微信账号。是否继续？</p><div class="actions"><button id="confirm-rebind">确认重新绑定</button><button id="keep-binding" class="secondary">保留当前绑定</button></div></div>
+            <p id="rebind-note" class="hint" hidden>重新绑定请使用原来的微信账号，历史记录会保留。</p>
+          </section>
+          <aside class="right-column">
+            <section class="card status-card" aria-labelledby="status-title"><span class="section-number">02 / 服务状态</span><div class="card-heading"><h2 id="status-title">等待连接</h2><span id="connection-dot" class="status-dot"></span></div><p id="connection-note" class="muted">绑定后，在 ClawBot 对话发送一句“测试”。</p><dl><div><dt>最近收发</dt><dd id="last-activity">暂无记录</dd></div><div><dt>下次空闲心跳</dt><dd id="next-heartbeat">绑定后开始</dd></div><div><dt>最近接收检查</dt><dd id="last-poll">尚未开始</dd></div><div><dt>累计接收消息</dt><dd id="inbox-count">0 条</dd></div></dl><p id="updated-at" class="hint">状态每 3 秒更新</p></section>
+            <section class="steps" aria-label="连接步骤"><h3>三步，就能开始</h3><ol><li><span>1</span><div><strong>生成二维码</strong><p>用手机微信的“扫一扫”扫描。</p></div></li><li><span>2</span><div><strong>在手机上确认</strong><p>如需连接数字，按页面提示填写。</p></div></li><li><span>3</span><div><strong>发一句“测试”</strong><p>进入 ClawBot 对话，发送消息完成连接。</p></div></li></ol></section>
+          </aside>
+        </div>
+        <section class="card clients-card" aria-labelledby="clients-title">
+          <span class="section-number">03 / AI 客户端</span><div class="card-heading"><h2 id="clients-title">一个微信，连接多个 AI</h2><button id="refresh-clients" class="text-button">刷新列表</button></div>
+          <p class="muted">为每个客户端创建独立密钥，消息会自动标记来源，如 [codex]。也可以在微信发送 <code>/getkey codex</code>。</p>
+          <form id="create-client-form" class="create-client-form"><div><label for="client-name">客户端名称</label><input id="client-name" placeholder="例如 codex、gpt、deepseek" maxlength="32" required autocomplete="off"></div><button type="submit">创建客户端密钥</button></form>
+          <p class="hint">名称支持 1–32 位中英文、数字、下划线和短横线；英文不区分大小写。</p>
+          <div id="issued-key" class="issued-key" hidden><h3>请保存这次生成的密钥</h3><p id="issued-note"></p><label for="key-value">40 位数字密钥（按文本复制）</label><textarea id="key-value" rows="2" readonly spellcheck="false"></textarea><label for="client-config">MCP 客户端配置</label><textarea id="client-config" rows="5" readonly spellcheck="false"></textarea><p class="hint">密钥只在本次创建或重置时显示。填入客户端私有配置文件，勿发到 AI 对话中。</p><button id="dismiss-key" class="secondary">我已保存，隐藏密钥</button></div>
+          <div id="clients-empty" class="clients-empty">尚无客户端。创建第一把密钥，或在微信发送 /getkey codex。</div>
+          <div id="clients-table" class="table-wrap" hidden><table><thead><tr><th>名称 / 消息标记</th><th>状态</th><th>最近调用</th><th>操作</th></tr></thead><tbody id="client-rows"></tbody></table></div>
+          <div id="client-editor" class="client-editor" hidden><h3 id="editor-title"></h3><p id="editor-note"></p><form id="edit-client-form"><div id="rename-field" hidden><label for="rename-client">新名称</label><input id="rename-client" maxlength="32" autocomplete="off"></div><div class="actions"><button id="confirm-client-action" type="submit">确认</button><button id="cancel-client-action" type="button" class="secondary">取消</button></div></form></div>
+          <p id="client-result" class="hint" role="status" aria-live="polite"></p>
+          <details class="command-help"><summary>微信指令速查</summary><dl><div><dt>/getkey codex</dt><dd>创建客户端密钥</dd></div><div><dt>/list</dt><dd>查看客户端列表</dd></div><div><dt>/chats</dt><dd>查看聊天名称和回复标签</dd></div><div><dt>/resetkey codex</dt><dd>重置密钥或重新启用</dd></div><div><dt>/revoke codex</dt><dd>停用客户端</dd></div><div><dt>/rename codex 开发助手</dt><dd>修改名称，密钥不变</dd></div><div><dt>/status</dt><dd>连接与心跳状态</dd></div><div><dt>/web</dt><dd>手机会话页登录码</dd></div><div><dt>/logout</dt><dd>退出所有手机登录</dd></div><div><dt>/help</dt><dd>完整使用说明</dd></div></dl></details>
+        </section>
+        <section class="card clients-card" aria-labelledby="chat-access-title">
+          <span class="section-number">04 / 手机会话页</span><div class="card-heading"><h2 id="chat-access-title">在手机上继续对话</h2><a href="../chat/" target="_blank" rel="noopener noreferrer">打开会话页 ↗</a></div>
+          <p class="muted">消息下方的链接会进入对应聊天。手机首次登录时，在微信发送 <code>/web</code> 获取登录码，也可以在这里生成。</p>
+          <div class="actions"><button id="issue-chat-code">生成一次性登录码</button><button id="revoke-chat-sessions" class="secondary">退出所有手机登录</button></div>
+          <div id="chat-login-code" class="issued-key" hidden><label for="chat-code-value">8 位登录码（10 分钟内有效）</label><input id="chat-code-value" readonly autocomplete="off"><p class="hint">只用于登录手机会话页；新码替换旧码，使用后失效。</p></div>
+          <div id="revoke-chat-confirm" class="client-editor" hidden><p>所有手机会话页将需要重新登录，聊天记录会保留。</p><div class="actions"><button id="confirm-chat-revoke">确认退出所有设备</button><button id="cancel-chat-revoke" class="secondary">取消</button></div></div>
+          <p id="chat-access-result" class="hint" role="status"></p>
+        </section>
+        <div class="footnote"><span class="dot"></span><p>正常沟通时保持安静。连续 12 小时没有有效收发，才尝试发送一条心跳消息；会话失效时会暂停。回复时使用 [客户端-聊天名] 标签指定聊天；未指明目标的消息留在公共收件箱，不会自动唤醒 AI。</p></div>
+      </div>
+    </main>
+    <footer><span>WeChat Notify Bridge</span><span>你的服务器 · 你的连接</span></footer>
+  </div>
+</body>
+</html>

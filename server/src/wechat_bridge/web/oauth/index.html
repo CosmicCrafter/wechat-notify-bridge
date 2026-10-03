@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>连接微信通知</title><link rel="stylesheet" href="../assets/style.css"></head>
+<body><main class="oauth-card">
+<h1>连接微信通知</h1><p id="status">正在读取连接请求…</p>
+<form id="login" hidden><p>请在微信发送 /web，输入回复中的 8 位登录码。</p><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required aria-label="登录码"><button>登录</button></form>
+<section id="consent" hidden><p>此连接可以读取所选客户端的会话和回复，并向你的微信发送消息。</p><p id="callback"></p><label for="client">使用哪个客户端身份？</label><select id="client"></select><p>同一身份下的聊天分别登记名称。撤销、删除或轮换该身份的密钥，会使本次授权失效。</p><button id="allow">允许连接</button> <button id="deny">取消</button></section>
+<a href="../">返回会话页</a></main><script src="app.js"></script></body></html>

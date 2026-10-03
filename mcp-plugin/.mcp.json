@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "wechat-notify": {
+      "type": "stdio",
+      "command": "python",
+      "args": [
+        "${PLUGIN_ROOT}/server/launch.py"
+      ],
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}

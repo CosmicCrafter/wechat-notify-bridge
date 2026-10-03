@@ -1,0 +1,12 @@
+{
+  "name": "wechat-notify-bridge",
+  "interface": {"displayName": "WeChat Notify Bridge"},
+  "plugins": [
+    {
+      "name": "wechat-notify-local",
+      "source": {"source": "local", "path": "./mcp-plugin"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
+    }
+  ]
+}

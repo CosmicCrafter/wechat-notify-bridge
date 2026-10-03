@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f7f4"><title>对话 · 微信通知桥</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/marked.js" defer></script><script src="assets/purify.js" defer></script><script src="assets/app.js" defer></script>
+</head>
+<body>
+  <section id="login" class="login" hidden>
+    <div class="brand"><span class="brand-icon">↗</span> 微信通知桥</div>
+    <div class="login-card"><span class="eyebrow">随时接上你的对话</span><h1>消息在微信，<br>对话在这里。</h1><p>查看 AI 的完整消息，直接回复对应聊天。</p>
+      <ol class="login-steps"><li>在微信 ClawBot 中发送 <code>/web</code></li><li>输入收到的 8 位一次性登录码</li></ol>
+      <form id="login-form"><label for="login-code">登录码</label><input id="login-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{8}" maxlength="8" placeholder="8 位数字" required><button type="submit">进入对话 <span>→</span></button></form>
+      <p id="login-error" class="error" role="alert"></p><p class="hint">登录码 10 分钟内有效。登录后保留 30 天，<br>在微信发送 <code>/logout</code> 可退出所有设备。</p>
+    </div><p class="login-footer">你的服务器 · 你的对话</p>
+  </section>
+  <div id="workspace" class="workspace" hidden>
+    <aside id="sidebar" class="sidebar">
+      <div class="brand"><span class="brand-icon">↗</span><div>微信通知桥<small>对话空间</small></div></div>
+      <div class="sidebar-heading"><h2>我的对话</h2><button id="refresh" class="quiet" aria-label="刷新对话">刷新</button></div>
+      <div class="chat-tabs" role="group" aria-label="会话分类"><button id="active-tab" aria-pressed="true">对话</button><button id="archive-tab" aria-pressed="false">已归档</button></div>
+      <p class="longpress-hint">长按对话可归档、恢复或删除</p><nav id="chats" aria-label="对话列表"></nav><p id="empty-chats" class="empty-list" hidden>还没有登记的对话。<br>在 AI 客户端使用微信插件<br>登记聊天名称即可开始。</p>
+      <footer><span>只有你能访问</span><button id="logout" class="quiet">退出登录</button></footer>
+    </aside>
+    <main class="conversation">
+      <header class="chat-header"><button id="back" class="quiet back" aria-label="返回对话列表">‹</button><div class="chat-heading"><h1 id="chat-title">选择一个对话</h1><p id="chat-subtitle">让每条消息，都有清楚的来处。</p></div><span id="chat-badge" class="badge" hidden>对话中</span><button id="chat-menu" class="quiet menu-button" aria-label="对话操作" hidden>···</button></header>
+      <div id="error" class="error-banner" role="alert" hidden></div>
+      <div id="welcome" class="welcome"><span class="welcome-icon">↗</span><h2>从一条消息，继续聊下去。</h2><p>选择左侧对话，或从微信通知中的链接进入。<br>记录保留在这里，回复会送到对应 AI 的收件箱。</p></div>
+      <div id="scroll" class="scroll" hidden><div class="history-note">这里记录经过通知桥的消息；旧版本未保存的发送正文无法补回。</div><button id="older" class="history-button" hidden>查看更早的消息</button><div id="messages" class="messages" aria-label="聊天记录"></div><button id="newer" class="history-button" hidden>查看较新的消息</button><p id="empty-messages" class="empty-messages" hidden>还没有消息。写下第一条回复吧。</p></div>
+      <form id="composer" class="composer" hidden>
+        <label id="reply-label" class="sr-only" for="reply">回复当前对话</label>
+        <div id="image-drafts" class="image-drafts"></div>
+        <div class="compose-row"><button id="attach-toggle" class="attach-toggle" type="button" aria-label="添加图片" aria-controls="attachment-panel" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button><div class="compose-box"><textarea id="reply" rows="1" maxlength="20000" placeholder="发送消息…"></textarea></div><button id="send" type="submit">发送</button></div>
+        <div id="attachment-panel" class="attachment-panel" hidden><div class="attachment-heading"><span>添加到消息</span><span id="image-count">最多 3 张图片</span></div><div class="attachment-options"><button id="pick-image" type="button" class="attachment-option"><span class="attachment-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg></span><span>相册</span></button><button id="take-photo" type="button" class="attachment-option"><span class="attachment-icon"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6 9.5 3h5L16 6h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="4"/></svg></span><span>拍照</span></button></div></div>
+        <input id="image-files" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden><input id="camera-file" type="file" accept="image/*" capture="environment" hidden>
+        <div class="compose-footer"><span id="compose-note">回复发送到当前对话</span><button id="cancel-pending" type="button" class="quiet" hidden>取消本次重试</button></div>
+      </form>
+    </main>
+  </div>
+  <dialog id="chat-actions" class="action-sheet" aria-labelledby="actions-title"><form method="dialog"><div class="sheet-handle"></div><h2 id="actions-title">对话操作</h2><p id="actions-description">归档保留记录并停止收发，名称可用于新对话。删除会清理通知桥记录，不影响微信和 AI 原聊天。</p><button id="archive-chat" type="button">归档对话</button><button id="delete-chat" type="button" class="danger">删除对话</button><button class="sheet-cancel" value="cancel">取消</button></form></dialog>
+  <dialog id="delete-confirm" class="action-sheet" aria-labelledby="delete-title"><form method="dialog"><div class="sheet-handle"></div><h2 id="delete-title">删除这个对话？</h2><p>清理通知桥内的消息正文，并停止这个对话的后续收发与唤醒。此操作无法撤销。</p><button id="confirm-delete" type="button" class="danger">确认删除</button><button class="sheet-cancel" value="cancel">保留对话</button></form></dialog>
+  <dialog id="image-viewer" class="image-viewer"><button id="close-image" type="button" aria-label="关闭图片">关闭</button><img id="full-image" alt="查看原图"></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

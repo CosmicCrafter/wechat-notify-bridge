@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "wechat-notify": {
+      "command": "/absolute/path/to/python",
+      "args": ["/absolute/path/to/wechat-notify-bridge/mcp-plugin/server/http_bridge.py"],
+      "env": {
+        "WECHAT_NOTIFY_CREDENTIAL_FILE": "/absolute/path/to/private/client.json"
+      }
+    }
+  }
+}

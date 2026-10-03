@@ -1,0 +1,32 @@
+# Runtime credentials, messages and local configuration
+.private/
+.secrets/
+.data/
+data/
+secrets/
+client-credentials/
+.env
+.env.*
+!.env.example
+*.dpapi
+*.enc
+*.key
+*.pem
+*.sqlite*
+*.db
+*.log
+
+# Python and generated packages
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.DS_Store
+Thumbs.db
+.idea/

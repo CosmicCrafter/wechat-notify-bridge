@@ -40,6 +40,10 @@ def test_discovery_describes_side_effects_and_rejects_invalid_input_before_api()
         await mcp.call_tool('sendTaskCard', {'conversation_id': 'a'*32, 'dedup_key': 'card', 'title': 'Choose',
             'prompt': 'Select a plan', 'options': [{'id':'a','label':'A'}, {'id':'b','label':'B'}], 'dry_run': True})
         assert calls[-1][0] == '/api/task-cards' and calls[-1][1]['options'][0]['id'] == 'a'
+        for mode in ['multiple','confirm','input']:
+            await mcp.call_tool('sendTaskCard', {'conversation_id':'a'*32,'dedup_key':mode,'title':'Reply',
+                'prompt':'Please reply','mode':mode, **({'options':[{'id':'a','label':'A'},{'id':'b','label':'B'}]} if mode!='input' else {}), 'dry_run':True})
+            assert calls[-1][1]['mode'] == mode
     asyncio.run(run())
 
 

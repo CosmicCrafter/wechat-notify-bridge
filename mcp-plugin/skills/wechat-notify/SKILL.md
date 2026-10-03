@@ -31,6 +31,8 @@ description: 发送本人微信通知与可选择的任务卡片、读取微信�
 
 ## 发送与回执
 
+优先选择能解决当前问题的最简单形式：通知即可时用普通发送工具；需要单选时保持默认卡片。多选、快捷确认或独立输入才指定对应 `mode`，不要默认增加所有交互。用法见任务卡片参考。
+
 每个发送事件保存 `dedup_key` 和完整参数。重试保持原 `conversation_id`、去重键与正文一致；不能换键、换会话绕过去重。报错或结果不明时先查原回执，按 [错误与恢复](references/recovery.md) 处理。
 
 `dry_run=true` 不发送；`api_accepted`、`no_error_reported` 只表示接口层结果，不能称“手机已收到”。`duplicate=true` 仍需检查 `status`。只有已有人工确认记录 `phone_confirmed` 能证明用户确认收件。

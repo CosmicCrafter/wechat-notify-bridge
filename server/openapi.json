@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Personal WeChat Notification API",
-    "version": "1.11.0"
+    "version": "1.12.0"
   },
   "paths": {
     "/health": {
@@ -905,13 +905,55 @@
             },
             "type": "array",
             "maxItems": 8,
-            "minItems": 2,
             "title": "Options"
           },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "single",
+              "multiple",
+              "confirm",
+              "input"
+            ],
+            "title": "Mode",
+            "default": "single"
+          },
           "allow_custom": {
-            "type": "boolean",
-            "title": "Allow Custom",
-            "default": true
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allow Custom"
+          },
+          "min_choices": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Min Choices",
+            "default": 1
+          },
+          "max_choices": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 8.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Choices"
+          },
+          "input_hint": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Input Hint",
+            "default": ""
           },
           "expires_in": {
             "type": "integer",
@@ -932,8 +974,7 @@
           "conversation_id",
           "dedup_key",
           "title",
-          "prompt",
-          "options"
+          "prompt"
         ],
         "title": "TaskCard"
       },

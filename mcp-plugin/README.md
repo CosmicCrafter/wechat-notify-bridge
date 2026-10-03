@@ -1,8 +1,8 @@
 # 微信通知插件
 
-通过常驻通知桥发送本人微信消息和任务卡片、读取微信和手机网页的文字/图片回复。插件 1.6.0 保留身份 `wechat-notify-local`、Skill 名 `wechat-notify` 与中文显示名“微信通知”。服务器负责登录、数据与心跳，插件不另建微信会话。
+通过常驻通知桥发送本人微信消息和任务卡片、读取微信和手机网页的文字/图片回复。插件 1.7.0 保留身份 `wechat-notify-local`、Skill 名 `wechat-notify` 与中文显示名“微信通知”。服务器负责登录、数据与心跳，插件不另建微信会话。
 
-需要选择方案时，调用 `sendTaskCard`，让用户在手机会话页单选或自行回复。通过 `getMessages` 接收带任务 ID 的决定；用 `getTaskCard` 查询，用 `updateTaskCard` 更新实际处理状态。详见 [任务卡片](../docs/server/TASK-CARDS.md)，服务器需升级至 1.11.0。
+只需通知时调用 `sendMessage`；需要选择方案时调用 `sendTaskCard`，默认单选，也支持按需设置 `mode="multiple"`（多选）、`mode="confirm"`（按钮确认）或 `mode="input"`（独立输入）。通过 `getMessages` 接收带任务 ID 的决定；用 `getTaskCard` 查询，用 `updateTaskCard` 更新实际处理状态。详见 [任务卡片](../docs/server/TASK-CARDS.md)，三种新模式要求服务器 1.12.0，原单选兼容 1.11.0。
 
 ## 选择接入方式
 

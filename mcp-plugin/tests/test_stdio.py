@@ -26,7 +26,15 @@ async def fixture_request(path, payload=None, params=None):
     if path == '/api/inbox':
         return {'messages':[],'conversation_id':params['conversation_id'],'next_after_id':0}
     if path == '/api/task-cards':
-        assert payload['dry_run'] and payload['options'][0]['id']=='a'
+        assert payload['dry_run']
+        mode=payload.get('mode','single')
+        if mode=='single':
+            assert set(payload)=={'conversation_id','dedup_key','title','prompt','options','allow_custom','expires_in','dry_run'}
+            assert payload['allow_custom'] is True
+        if mode=='input':
+            assert payload['options']==[]
+        else:
+            assert payload['options'][0]['id']=='a'
         return {'status':'dry_run_ready'}
     if path == '/api/deliveries':
         from api_errors import failure
@@ -48,6 +56,11 @@ http_bridge.mcp.run(transport='stdio')
                     card=await session.call_tool('sendTaskCard', {'conversation_id':'a'*32,'dedup_key':'card','title':'Choose',
                         'prompt':'Choose a plan','options':[{'id':'a','label':'A'},{'id':'b','label':'B'}],'dry_run':True})
                     assert not card.isError and json.loads(card.content[0].text)['status']=='dry_run_ready'
+                    for mode in ['multiple','confirm','input']:
+                        card=await session.call_tool('sendTaskCard', {'conversation_id':'a'*32,'dedup_key':mode,
+                            'title':'Reply','prompt':'Please reply','mode':mode,'dry_run':True,
+                            **({'options':[{'id':'a','label':'A'},{'id':'b','label':'B'}]} if mode!='input' else {})})
+                        assert not card.isError and json.loads(card.content[0].text)['status']=='dry_run_ready'
                     result=await session.call_tool('getCallerIdentity',{})
                     assert not result.isError
                     value=json.loads(result.content[0].text)

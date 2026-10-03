@@ -29,7 +29,8 @@ const formPickers=(()=>{
         selectedText.textContent=selected?selected.replace(/^(\d+)-(\d+)-(\d+)$/,'$1 年 $2 月 $3 日'):'尚未选择日期';confirm.disabled=!selected;
         panel.replaceChildren();const nav=el('div','calendar-nav');const heading=view==='years'?yearStart+'–'+Math.min(9999,yearStart+19)+' 年':view==='months'?year+' 年':year+' 年 '+month+' 月';
         function focusView(){panel.querySelector('.calendar-unit.chosen,.calendar-month')?.focus();}
-        const center=button(heading+' ⌄','calendar-month',()=>{view=view==='days'?'years':'days';yearStart=Math.min(9980,Math.max(1,year-7));render();focusView();},'选择年份月份：'+heading);
+        const center=button(heading,'calendar-month',()=>{view=view==='days'?'years':'days';yearStart=Math.min(9980,Math.max(1,year-7));render();focusView();},'选择年份月份：'+heading);
+        const arrow=el('span','field-chevron');arrow.setAttribute('aria-hidden','true');center.setAttribute('aria-expanded',String(view!=='days'));center.append(arrow);
         nav.append(button('‹','calendar-arrow',()=>shift(-1),view==='years'?'前二十年':view==='months'?'上一年':'上个月'),center,button('›','calendar-arrow',()=>shift(1),view==='years'?'后二十年':view==='months'?'下一年':'下个月'));panel.append(nav);
         if(view==='years'){const grid=el('div','calendar-years');for(let y=yearStart;y<=Math.min(9999,yearStart+19);y++){const b=button(String(y),'calendar-unit'+(y===year?' chosen':''),()=>{year=y;view='months';render();focusView();});grid.append(b);}panel.append(grid);return;}
         if(view==='months'){const grid=el('div','calendar-months');for(let m=1;m<=12;m++){const b=button(m+' 月','calendar-unit'+(m===month?' chosen':''),()=>{month=m;view='days';render();focusView();});grid.append(b);}panel.append(grid);return;}

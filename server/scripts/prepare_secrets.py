@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 from cryptography.fernet import Fernet
 
 from wechat_bridge.wechat.protocol import validate_base
+from wechat_bridge.storage.client_registry import client_name
 
 
 def validate_public_url(base_url):
@@ -47,10 +48,9 @@ def prepare_admin(output, base_url):
 
 def prepare(credentials, output, base_url, clients):
     validate_public_url(base_url)
+    clients = [client_name(name) for name in clients]
     if len(set(clients)) != len(clients):
         raise ValueError('Use distinct client names')
-    if any(not re.fullmatch(r'[a-z][a-z0-9-]{0,39}', name) for name in clients):
-        raise ValueError('Client names must use lowercase letters, digits and hyphens')
     if credentials is not None:
         for field in ('bot_token', 'user_id', 'context_token', 'base_url'):
             if not isinstance(credentials.get(field), str) or not credentials[field]:

@@ -6,3 +6,4 @@ qrcode==8.2
 pypng==0.20220715.0
 mcp==1.30.0
 Pillow==12.3.0
+PyYAML==6.0.3

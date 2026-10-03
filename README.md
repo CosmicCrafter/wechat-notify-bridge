@@ -95,6 +95,8 @@ server/.venv/bin/python mcp-plugin/tools/build_remote_plugin.py \
 
 该配置只作用于允许的宿主事件回调域名，不会将微信收发或所有服务流量自动切换到代理。标准 Compose 部署默认不启用它；具体的挂载、环境变量和内部代理连通要求见回调代理说明。
 
+服务器 1.10.0 提供简化的 Admin 代理管理：订阅定时更新、优先规则、手动选择、节点检测、流量/到期展示及失败回退。使用 `server/compose.proxy.yaml` 启用可选 Mihomo 容器，按 [订阅与代理管理部署步骤](server/README.md#可选admin-订阅与代理管理1100) 初始化私有配置；也可接入已有 Mihomo。`.env` 提供初始订阅和更新间隔，Admin 保存后以加密持久化设置为准。
+
 ```text
 wechat-notify-bridge/
 ├── README.md                 项目入口

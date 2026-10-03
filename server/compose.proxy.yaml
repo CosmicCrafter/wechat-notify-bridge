@@ -1,0 +1,32 @@
+# Opt-in: docker compose -f compose.yaml -f compose.proxy.yaml up -d --build
+services:
+  wechat-notifier:
+    environment:
+      WECHAT_CALLBACK_PROXY_FILE: /run/proxy/callback-proxy.json
+      WECHAT_PROXY_CONTROL_FILE: /run/proxy/proxy-control.json
+      WECHAT_PROXY_SUBSCRIPTION_URL: "${WECHAT_PROXY_SUBSCRIPTION_URL:-}"
+      WECHAT_PROXY_UPDATE_INTERVAL: "${WECHAT_PROXY_UPDATE_INTERVAL:-21600}"
+      WECHAT_PROXY_CHECK_INTERVAL: "${WECHAT_PROXY_CHECK_INTERVAL:-300}"
+      WECHAT_PROXY_PRIORITIES: '${WECHAT_PROXY_PRIORITIES:-["日本 Pro","美国 Pro","新加坡 Pro"]}'
+    volumes:
+      - ./.private/proxy-bootstrap/callback-proxy.json:/run/proxy/callback-proxy.json:ro
+      - ./.private/proxy-bootstrap/proxy-control.json:/run/proxy/proxy-control.json:ro
+    depends_on:
+      - wechat-proxy
+  wechat-proxy:
+    image: ghcr.io/metacubex/mihomo:v1.19.32
+    command: ["-d", "/runtime", "-f", "/config/mihomo.json"]
+    user: "10001:10001"
+    restart: unless-stopped
+    volumes:
+      - ./.private/proxy-bootstrap/mihomo.json:/config/mihomo.json:ro
+      - ./.private/proxy-bootstrap/runtime:/runtime
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.5

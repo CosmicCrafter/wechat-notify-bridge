@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from wechat_bridge import __version__
 
 NAME = 'message.created'
 VERSION = '2026-07-28'
@@ -189,7 +190,7 @@ class Events:
         principal, identity, oauth_client = await self.auth(token)
         if method == 'server/discover':
             return {'resultType':'complete','supportedVersions':[VERSION,'2025-11-25'],
-                    'serverInfo':{'name':'WeChat Notifications','version':'1.9.1'},'capabilities':{'tools':{},'events':{}}}
+                    'serverInfo':{'name':'WeChat Notifications','version':__version__},'capabilities':{'tools':{},'events':{}}}
         if method == 'events/list':
             return {'events':[self.definition()]}
         if params.get('name') != NAME or set(params.get('arguments', {})) != {'conversation_id'}:

@@ -145,8 +145,11 @@ def execute(store, text):
                      'connecting':'连接中','retrying':'重连中','session_expired':'需重新绑定'}
             return Reply('## 📡 微信通知桥 · 状态\n\n**连接：' + names.get(status['connection_status'], '检查中') + '**\n\n' +
                          '- 最近收发：' + format_time(status['last_activity_at']) +
+                         '\n- 最近微信发言：' + format_time(status['context_received_at']) +
+                         '\n- 此后已推送：' + (str(status['accepted_sends_since_context']) + ' 条（接口接受）' if status['accepted_sends_since_context'] is not None else '尚无上下文记录') +
                          '\n- 下次空闲心跳：' + (format_time(status['next_heartbeat_at']) if status['next_heartbeat_at'] else '等待连接') +
                          ('\n\n**发送提示：** ' + status['send_recovery_hint'] if status['send_recovery_hint'] else '') +
+                         ('\n\n**额度提示：** ' + status['quota_warning'] if status['quota_warning'] else '') +
                          '\n\n> 每次有效微信收发后顺延 12 小时，正常沟通时不发送心跳。\n\n聊天：`/chats` · 客户端：`/list` · 帮助：`/help`')
     except ClientError as exc:
         return Reply(ERRORS[exc.code])

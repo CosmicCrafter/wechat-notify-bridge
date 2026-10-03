@@ -6,6 +6,7 @@ import time
 from cryptography.fernet import Fernet
 from wechat_bridge.storage.client_registry import ClientRegistry
 from wechat_bridge.storage.conversations import Conversations
+from wechat_bridge.storage.send_diagnostics import SendDiagnostics
 from wechat_bridge.services.commands import command_text, execute as execute_command
 from wechat_bridge.services.portal import Portal
 from wechat_bridge.wechat.protocol import BridgeError, INTERVAL, ACCEPTED, validate_base, send_recovery_hint
@@ -41,6 +42,7 @@ class Store:
         if 'route_status' not in columns:
             self.db.execute("ALTER TABLE inbox ADD COLUMN route_status TEXT NOT NULL DEFAULT 'shared'")
         self.portal = Portal(self)
+        self.send_diagnostics = SendDiagnostics(self)
 
     def close(self):
         self.db.close()
@@ -221,7 +223,8 @@ class Store:
     def status(self):
         now = time.time()
         account = self.account()
-        last_send = self.db.execute('SELECT status,error_code,attempted_at FROM outgoing ORDER BY attempted_at DESC LIMIT 1').fetchone()
+        last_send = self.db.execute('SELECT key,status,error_code,attempted_at FROM outgoing ORDER BY attempted_at DESC LIMIT 1').fetchone()
+        diagnostics = self.send_diagnostics.public(last_send['key']) if last_send else None
         ready = bool(account and account.get('context_token'))
         poll = self.get('poll_status', 'starting') if account else 'unbound'
         connection = 'unbound' if not account else (
@@ -243,8 +246,10 @@ class Store:
                 'last_send_status': last_send['status'] if last_send else None,
                 'last_send_error_code': last_send['error_code'] if last_send else None,
                 'last_send_at': last_send['attempted_at'] if last_send else None,
-                'send_recovery_hint': send_recovery_hint(last_send['status'], last_send['error_code']) if last_send else None,
+                'send_recovery_hint': send_recovery_hint(last_send['status'], last_send['error_code'],
+                                                       diagnostics.get('error_category') if diagnostics else None) if last_send else None,
+                'last_send_diagnostics': diagnostics,
+                **self.send_diagnostics.context(now),
                 'inbox_count': self.db.execute("SELECT count(*) FROM inbox WHERE kind='message'").fetchone()[0],
                 'server_time': now, 'keepalive_guaranteed': False}
-
 

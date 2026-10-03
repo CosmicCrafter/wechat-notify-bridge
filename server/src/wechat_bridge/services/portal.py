@@ -105,6 +105,8 @@ class Portal:
         self.db.execute('BEGIN IMMEDIATE')
         try:
             self.db.execute('UPDATE conversations SET deleted=1,active=0 WHERE id=?',(cid,))
+            self.db.execute('DELETE FROM send_diagnostics WHERE outgoing_key IN '
+                            '(SELECT outgoing_key FROM chat_messages WHERE conversation_id=?)', (cid,))
             count=self.db.execute('DELETE FROM chat_messages WHERE conversation_id=?',(cid,)).rowcount
             # Retain only minimal deduplication tombstones, never message bodies.
             empty=self.store.cipher.encrypt(b'{}')

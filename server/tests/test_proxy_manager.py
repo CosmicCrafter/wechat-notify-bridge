@@ -320,3 +320,20 @@ def test_failed_periodic_check_restores_controller_selection(store, control):
         assert value.cache['last_error'] == 'proxy_no_available_node'
         await value.close()
     asyncio.run(run())
+
+
+def test_manual_choice_can_use_node_outside_automatic_priorities(store, control):
+    async def run():
+        nodes = [node('日本 Pro 1'), node('德国 1')]
+        value, state = manager(store, control, nodes, {'日本 Pro 1': 10, '德国 1': 20})
+        await value.update()
+        value.action('select', '德国 1')
+        await value.task
+        assert value.settings['mode'] == 'manual'
+        assert value.cache['current'] == state['selected'] == '德国 1'
+        value.action('select', None)
+        await value.task
+        assert value.settings['mode'] == 'auto'
+        assert value.cache['current'] == state['selected'] == '日本 Pro 1'
+        await value.close()
+    asyncio.run(run())

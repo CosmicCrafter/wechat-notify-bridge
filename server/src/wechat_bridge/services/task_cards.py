@@ -27,15 +27,20 @@ class TaskCards:
 
     @staticmethod
     def summary(definition):
-        text = f"## 需要你决定 · {definition['title']}\n\n{definition['prompt']}\n\n"
+        mode = definition.get('mode', 'single')
+        heading = '需要你补充' if mode == 'input' else '需要你决定'
+        text = f"## {heading} · {definition['title']}\n\n{definition['prompt']}\n\n"
         for option in definition['options']:
             text += f"- **{option['label']}**" + (' · 推荐' if option['recommended'] else '')
             if option['description']:
                 text += '：' + option['description']
             text += '\n'
-        if definition['allow_custom']:
+        if mode == 'multiple':
+            text += f"\n可选 {definition['min_choices']}–{definition['max_choices']} 项。\n"
+        if definition['allow_custom'] and mode != 'input':
             text += '\n也可以输入自己的安排。\n'
-        return text + '\n点击下方链接，选择后提交决定。'
+        action = {'input': '填写后提交回复', 'confirm': '点击对应按钮提交决定'}.get(mode, '选择后提交决定')
+        return text + '\n点击下方链接，' + action + '。'
 
     def create(self, cid, outgoing_key, definition, now):
         # Called inside Bridge.send's outgoing/history transaction.
@@ -59,6 +64,9 @@ class TaskCards:
             status = 'expired'
         return dict(id=row['id'], conversation_id=row['conversation_id'], status=status,
                     title=definition['title'], prompt=definition['prompt'], options=definition['options'],
+                    mode=definition.get('mode', 'single'),
+                    min_choices=definition.get('min_choices', 1), max_choices=definition.get('max_choices', 1),
+                    input_hint=definition.get('input_hint', ''),
                     allow_custom=definition['allow_custom'], created_at=row['created_at'],
                     expires_at=row['expires_at'], answered_at=row['answered_at'], updated_at=row['updated_at'],
                     answer=self.decrypt(row['answer']), result=self.decrypt(row['result']) or '',
@@ -73,12 +81,7 @@ class TaskCards:
         try:
             row = self.row(cid, id)
             definition = self.decrypt(row['encrypted'])
-            option = next((item for item in definition['options'] if item['id'] == body.choice_id), None)
-            if body.choice_id is not None and option is None:
-                raise ClientError('invalid_task_choice', 422)
-            if body.choice_id is None and (not definition['allow_custom'] or not body.text.strip()):
-                raise ClientError('task_answer_required', 422)
-            answer = dict(choice_id=body.choice_id, choice_label=option['label'] if option else None, text=body.text)
+            answer = self.validate_answer(definition, body)
             previous = self.decrypt(row['answer'])
             if previous:
                 if previous != answer:
@@ -92,8 +95,9 @@ class TaskCards:
                     raise ClientError('task_expired', 409)
                 now = time.time()
                 text = f"【任务答复】{definition['title']}\n"
-                if option:
-                    text += '选择：' + option['label'] + '\n'
+                selected = answer.get('choice_labels') or ([answer['choice_label']] if answer['choice_label'] else [])
+                if selected:
+                    text += '选择：' + '、'.join(selected) + '\n'
                 if body.text.strip():
                     text += '回复：' + body.text
                 task_response = dict(task_id=id, title=definition['title'], **answer)
@@ -112,6 +116,36 @@ class TaskCards:
             raise
         # Intentionally leaves the WeChat context and inactivity deadline untouched.
         return dict(task=self.get(cid, id), message=self.store.portal.decode(message), duplicate=duplicate)
+
+    @staticmethod
+    def validate_answer(definition, body):
+        mode = definition.get('mode', 'single')
+        answer = dict(choice_id=None, choice_label=None, text=body.text)
+        if mode == 'multiple':
+            ids = body.choice_ids or []
+            options = {option['id']: option for option in definition['options']}
+            if body.choice_id is not None or len(set(ids)) != len(ids) or any(id not in options for id in ids):
+                raise ClientError('invalid_task_choice', 422)
+            if ids:
+                if not definition['min_choices'] <= len(ids) <= definition['max_choices']:
+                    raise ClientError('task_choice_limit', 422)
+                if body.text and not definition['allow_custom']:
+                    raise ClientError('invalid_task_choice', 422)
+            elif not definition['allow_custom'] or not body.text.strip():
+                raise ClientError('task_answer_required', 422)
+            # Canonical order makes retrying the same set idempotent on another device.
+            selected = [option for option in definition['options'] if option['id'] in ids]
+            answer.update(choice_ids=[item['id'] for item in selected], choice_labels=[item['label'] for item in selected])
+        else:
+            if body.choice_ids:
+                raise ClientError('invalid_task_choice', 422)
+            option = next((item for item in definition['options'] if item['id'] == body.choice_id), None)
+            if body.choice_id is not None and (option is None or mode == 'input'):
+                raise ClientError('invalid_task_choice', 422)
+            if body.choice_id is None and (not definition['allow_custom'] or not body.text.strip()):
+                raise ClientError('task_answer_required', 422)
+            answer.update(choice_id=body.choice_id, choice_label=option['label'] if option else None)
+        return answer
 
     def update(self, cid, id, body):
         self.db.execute('BEGIN IMMEDIATE')

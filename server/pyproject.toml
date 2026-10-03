@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wechat-notify-bridge"
-version = "1.11.0"
+version = "1.12.0"
 description = "Personal WeChat notification API, mobile conversations and MCP bridge"
 requires-python = ">=3.12"
 dynamic = ["dependencies"]

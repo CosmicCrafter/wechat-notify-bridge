@@ -1,5 +1,15 @@
 # 任务卡片
 
+## 按需选择类型
+
+`sendTaskCard` 的 `mode` 默认为 `single`，保持已有单选和自行回复。仅需通知时继续用 `sendMessage` / `sendNotification`，不要求人点击确认。
+
+- `multiple`：2–8 个选项，`min_choices` 默认 1，`max_choices` 默认选项数量；可以勾选多项、统一提交。默认允许附加备注或只输入自己的安排；`allow_custom=false` 同时关闭备注和自行回复。数量限制仅用于此类型，不能用备注绕过最少选择数。
+- `confirm`：2–4 个明确按钮，例如“继续 / 取消 / 暂不处理”，点击即提交。默认不显示自行回复，需要时显式开启。按钮仅回传决定，不能自行执行操作或创建稍后提醒。
+- `input`：只需要一条文字信息时使用；省略 `options`，可用 `input_hint` 设置提示。最多 2000 字符。不要为收集文字伪造 A/B 选项。
+
+多选答复增加 `choice_ids` / `choice_labels` 数组；旧单值字段为 null，`text` 保存备注或自行回复。按服务端实际返回解析，不能把多选误当单选。所有类型仍共享原任务 ID、去重、过期、收件与状态更新规则；同一事件不能换 `mode` 后沿用原去重键。
+
 适用于已有微信通知授权且确实需要本人选择方案的任务。普通正文用 `sendMessage`；一般阻塞提醒用 `sendNotification`。不要把每条通知变成需要确认的卡片。
 
 1. 登记并保存本聊天的 `conversation_id`。调用 `sendTaskCard`，提供 `title`、`prompt`、2–8 个 `options`、`dedup_key`。每个选项包括稳定的 `id`、`label`、可选 `description` 和 `recommended`；最多一个推荐项，页面不会预选。

@@ -103,7 +103,7 @@ def mount_client_api(app, authorize):
 
     @app.post('/api/task-cards')
     async def task_card(body: TaskCard, caller=Depends(authorize)):
-        definition = body.model_dump(exclude={'dedup_key', 'conversation_id', 'dry_run'})
+        definition = body.definition()
         bridge = app.state.bridge
         return await bridge.send(bridge.store.portal.tasks.summary(definition), body.dedup_key, caller.name,
                                  kind='task_card', dry_run=body.dry_run, identity=caller,
@@ -126,4 +126,3 @@ def mount_client_api(app, authorize):
     @app.get('/openapi.json')
     def schema(caller=Depends(authorize)):
         return app.openapi()
-

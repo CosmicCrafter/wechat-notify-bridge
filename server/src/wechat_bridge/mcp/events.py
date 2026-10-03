@@ -235,6 +235,8 @@ class Events:
             if not verified:
                 print('mcp_callback_status='+str(status),flush=True)
                 raise CallbackError('challenge_failed')
+            # Provider authentication may yield; never hold the event lock here.
+            await self.auth(token)
         except BaseException:
             if self.verifications.get(sid) is verification:
                 self.verifications.pop(sid, None)
@@ -246,15 +248,23 @@ class Events:
             existing=self.store.db.execute("SELECT 1 FROM mcp_event_subscriptions WHERE id=? AND status='active'",(sid,)).fetchone()
             if not existing and self.store.db.execute("SELECT count(*) FROM mcp_event_subscriptions WHERE principal=? AND status='active' AND expires>?",(principal,time.time())).fetchone()[0]>=20:
                 raise ValueError('subscription limit')
-            # Recheck identity after outbound I/O, before persisting the subscription.
-            await self.auth(token)
+            # The lock itself may have waited after authentication. Recheck the
+            # local credential generation and OAuth grant without yielding.
+            self.provider.identity(identity.id, identity.key_hash)
+            token_row = None
+            if token.startswith('wna_'):
+                token_row = self.provider.token_row(token, 'access')
+                if (not token_row or token_row['api_client'] != identity.id
+                        or token_row['oauth_client'] != oauth_client
+                        or 'wechat:bridge' not in json.loads(token_row['scopes'])):
+                    raise PermissionError('connection revoked')
             self.store.conversations.get(identity.id,cid,require_active=True)
             old = self.store.db.execute('SELECT * FROM mcp_event_subscriptions WHERE id=?',(sid,)).fetchone()
             cursor = (old['cursor'] if old and old['expires']>time.time() else
                       self.store.db.execute("SELECT COALESCE(MAX(id),0) FROM inbox WHERE conversation_id=?",(cid,)).fetchone()[0])
             value = {'url':url,'secret':secret,'client':identity.id,'key_hash':identity.key_hash,'oauth_client':oauth_client}
             if token.startswith('wna_'):
-                value['grant_id'] = self.provider.token_row(token, 'access')['grant_id']
+                value['grant_id'] = token_row['grant_id']
             if old:
                 previous=json.loads(self.store.cipher.decrypt(old['encrypted']))
                 if previous['secret'] != secret:

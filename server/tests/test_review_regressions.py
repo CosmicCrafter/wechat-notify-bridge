@@ -137,6 +137,56 @@ def prepare_module():
     return module
 
 
+@pytest.mark.parametrize('change', ['unsubscribe', 'revoke_token', 'rotate_key'])
+def test_slow_final_auth_releases_lock_and_rechecks_credentials(service, monkeypatch, change):
+    from test_oauth import grant
+    app, store, client, c, key, *_ = service
+    _, body, _ = grant(service)
+    token = client.post('/token', data=body).json()['access_token']
+    events, provider = app.state.events, app.state.oauth
+    cid = store.conversations.register(c['id'], 'slow-auth', '鉴权')['id']
+    events.sender = lambda *args: (200, json.dumps(args[4]).encode())
+    original = provider.api_identity
+
+    async def run():
+        started, release = asyncio.Event(), asyncio.Event()
+        calls = 0
+
+        async def delayed_identity(value):
+            nonlocal calls
+            calls += 1
+            identity = await original(value)
+            if calls == 2:
+                # Capture a valid identity, then simulate a slow provider returning
+                # that stale result after credentials have been revoked.
+                started.set()
+                await release.wait()
+            return identity
+
+        monkeypatch.setattr(provider, 'api_identity', delayed_identity)
+        args = subscription(cid)
+        task = asyncio.create_task(events.handle('events/subscribe', args, token))
+        try:
+            await asyncio.wait_for(started.wait(), 1)
+            await asyncio.wait_for(events.lock.acquire(), .5)
+            events.lock.release()
+            if change == 'unsubscribe':
+                await asyncio.wait_for(events.handle('events/unsubscribe', args, token), .5)
+            elif change == 'revoke_token':
+                store.db.execute('DELETE FROM oauth_tokens')
+            else:
+                store.clients.rotate(c['id'])
+        finally:
+            release.set()
+            from wechat_bridge.storage.client_registry import ClientError
+            with pytest.raises((ValueError, PermissionError, ClientError)):
+                await task
+        assert not events.verifications
+        assert store.db.execute('SELECT count(*) FROM mcp_event_subscriptions').fetchone()[0] == 0
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('names', [['admin'], ['heartbeat'], ['a' * 33], ['Codex', 'codex']])
 def test_invalid_seed_names_rejected_before_creating_files(tmp_path, names):
     output = tmp_path / 'provisioned'

@@ -141,6 +141,25 @@ class Events:
     def __init__(self, provider, sender=post_webhook):
         self.provider, self.sender = provider, sender
         self.lock = asyncio.Lock()
+        self.callbacks = {}
+        self.verifications = {}
+        self.delivering = set()
+        self.callback_timeout = 15
+        self.max_callbacks = 8
+
+    async def callback(self, key, *args):
+        # Timed-out threads still occupy their slot until the network call exits.
+        # Do not start duplicate calls or grow the executor queue without bound.
+        if key in self.callbacks or len(self.callbacks) >= self.max_callbacks:
+            raise CallbackBusy('busy')
+        task = asyncio.create_task(asyncio.to_thread(self.sender, *args))
+        self.callbacks[key] = task
+        def finished(done):
+            self.callbacks.pop(key, None)
+            if not done.cancelled():
+                done.exception()
+        task.add_done_callback(finished)
+        return await asyncio.wait_for(asyncio.shield(task), self.callback_timeout)
 
     @property
     def store(self):
@@ -186,6 +205,7 @@ class Events:
         async with self.lock:
             self.store.db.execute('DELETE FROM mcp_event_subscriptions WHERE expires<=?', (time.time(),))
             if method == 'events/unsubscribe':
+                self.verifications.pop(sid, None)
                 self.store.db.execute('DELETE FROM mcp_event_subscriptions WHERE id=? AND principal=?',(sid,principal))
                 return {}
             secret = delivery.get('secret')
@@ -197,9 +217,12 @@ class Events:
             if ttl is not None and (isinstance(ttl,bool) or not isinstance(ttl,(int,float)) or ttl <= 0):
                 raise ValueError('invalid ttl')
             ttl = min(86400,max(60,(ttl or 86400000)/1000))
+            verification = object()
+            self.verifications[sid] = verification
+        try:
             challenge = secrets.token_urlsafe(32)
             try:
-                status, raw = await asyncio.to_thread(self.sender,url,secret,sid,'verify_'+secrets.token_hex(16),
+                status, raw = await self.callback(('verify', sid),url,secret,sid,'verify_'+secrets.token_hex(16),
                                                        {'type':'verification','challenge':challenge})
             except Exception as exc:
                 print('mcp_callback_exception='+type(exc).__name__,flush=True)
@@ -212,6 +235,17 @@ class Events:
             if not verified:
                 print('mcp_callback_status='+str(status),flush=True)
                 raise CallbackError('challenge_failed')
+        except BaseException:
+            if self.verifications.get(sid) is verification:
+                self.verifications.pop(sid, None)
+            raise
+        async with self.lock:
+            if self.verifications.get(sid) is not verification:
+                raise ValueError('subscription changed during verification')
+            self.verifications.pop(sid, None)
+            existing=self.store.db.execute("SELECT 1 FROM mcp_event_subscriptions WHERE id=? AND status='active'",(sid,)).fetchone()
+            if not existing and self.store.db.execute("SELECT count(*) FROM mcp_event_subscriptions WHERE principal=? AND status='active' AND expires>?",(principal,time.time())).fetchone()[0]>=20:
+                raise ValueError('subscription limit')
             # Recheck identity after outbound I/O, before persisting the subscription.
             await self.auth(token)
             self.store.conversations.get(identity.id,cid,require_active=True)
@@ -241,36 +275,64 @@ class Events:
             if not row:
                 raise PermissionError('connection revoked')
 
+    async def deliver_one(self, sub):
+        sid = sub['id']
+        if sid in self.delivering:
+            return
+        self.delivering.add(sid)
+        try:
+            await self.deliver_snapshot(sub)
+        finally:
+            self.delivering.discard(sid)
+
+    async def deliver_snapshot(self, sub):
+        async with self.lock:
+            current = self.store.db.execute('SELECT * FROM mcp_event_subscriptions WHERE id=?', (sub['id'],)).fetchone()
+            if not current or tuple(current) != tuple(sub) or sub['expires'] <= time.time():
+                return
+            value=json.loads(self.store.cipher.decrypt(sub['encrypted']))
+            try:
+                self.permitted(value,sub['conversation'])
+            except Exception:
+                self.store.db.execute("UPDATE mcp_event_subscriptions SET status='revoked' WHERE id=?",(sub['id'],))
+                return
+            row=self.store.db.execute("SELECT * FROM inbox WHERE conversation_id=? AND id>? AND kind='message' AND route_status='direct' ORDER BY id LIMIT 1",(sub['conversation'],sub['cursor'])).fetchone()
+            if not row:
+                return
+            body=json.loads(self.store.cipher.decrypt(row['encrypted']))
+            eid='wechat_'+sub['conversation']+'_'+str(row['id'])
+            event={'eventId':eid,'name':NAME,'timestamp':iso(row['received_at']),
+                   'data':{'conversation_id':sub['conversation'],'message_id':row['id'],
+                           'text':str(body.get('text',''))[:20000],'source':body.get('source','wechat')},'cursor':None}
+        try:
+            old=value.get('old_secret') if value.get('rotation_until',0)>time.time() else None
+            status,_=await self.callback(('delivery', sub['id']),value['url'],value['secret'],sub['id'],eid,event,old)
+        except CallbackBusy:
+            return
+        except Exception:
+            status=0
+        async with self.lock:
+            current = self.store.db.execute('SELECT * FROM mcp_event_subscriptions WHERE id=?', (sub['id'],)).fetchone()
+            # A late result must not overwrite refresh, unsubscribe, archive or deletion.
+            if not current or tuple(current) != tuple(sub) or current['expires'] <= time.time():
+                return
+            try:
+                self.permitted(value, sub['conversation'])
+            except Exception:
+                self.store.db.execute("UPDATE mcp_event_subscriptions SET status='revoked' WHERE id=?", (sub['id'],))
+                return
+            if 200 <= status < 300:
+                self.store.db.execute('UPDATE mcp_event_subscriptions SET cursor=?,attempts=0,next_attempt=0 WHERE id=?',(row['id'],sub['id']))
+            else:
+                attempts=sub['attempts']+1
+                terminal=status in (410,413) or (400<=status<500 and status not in (408,429)) or attempts>=6
+                self.store.db.execute('UPDATE mcp_event_subscriptions SET attempts=?,next_attempt=?,status=? WHERE id=?',
+                    (attempts,time.time()+min(300,2**attempts),'failed' if terminal else 'active',sub['id']))
+
     async def tick(self):
         async with self.lock:
             rows=self.store.db.execute("SELECT * FROM mcp_event_subscriptions WHERE status='active' AND expires>? AND next_attempt<=? LIMIT 100",(time.time(),time.time())).fetchall()
-            for sub in rows:
-                value=json.loads(self.store.cipher.decrypt(sub['encrypted']))
-                try:
-                    self.permitted(value,sub['conversation'])
-                except Exception:
-                    self.store.db.execute("UPDATE mcp_event_subscriptions SET status='revoked' WHERE id=?",(sub['id'],))
-                    continue
-                row=self.store.db.execute("SELECT * FROM inbox WHERE conversation_id=? AND id>? AND kind='message' AND route_status='direct' ORDER BY id LIMIT 1",(sub['conversation'],sub['cursor'])).fetchone()
-                if not row:
-                    continue
-                body=json.loads(self.store.cipher.decrypt(row['encrypted']))
-                eid='wechat_'+sub['conversation']+'_'+str(row['id'])
-                event={'eventId':eid,'name':NAME,'timestamp':iso(row['received_at']),
-                       'data':{'conversation_id':sub['conversation'],'message_id':row['id'],
-                               'text':str(body.get('text',''))[:20000],'source':body.get('source','wechat')},'cursor':None}
-                try:
-                    old=value.get('old_secret') if value.get('rotation_until',0)>time.time() else None
-                    status,_=await asyncio.to_thread(self.sender,value['url'],value['secret'],sub['id'],eid,event,old)
-                except Exception:
-                    status=0
-                if 200 <= status < 300:
-                    self.store.db.execute('UPDATE mcp_event_subscriptions SET cursor=?,attempts=0,next_attempt=0 WHERE id=?',(row['id'],sub['id']))
-                else:
-                    attempts=sub['attempts']+1
-                    terminal=status in (410,413) or (400<=status<500 and status not in (408,429)) or attempts>=6
-                    self.store.db.execute('UPDATE mcp_event_subscriptions SET attempts=?,next_attempt=?,status=? WHERE id=?',
-                        (attempts,time.time()+min(300,2**attempts),'failed' if terminal else 'active',sub['id']))
+        await asyncio.gather(*(self.deliver_one(sub) for sub in rows))
 
     async def run(self):
         while True:
@@ -282,6 +344,10 @@ class Events:
 
 
 class CallbackError(Exception):
+    pass
+
+
+class CallbackBusy(CallbackError):
     pass
 
 

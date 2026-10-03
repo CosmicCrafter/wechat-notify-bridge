@@ -97,8 +97,10 @@ class Bridge:
                 link = chat_url(history_cid, message_id)
                 prefix = f'{label}\n\n' if identity else ''
                 action = '处理任务卡片' if task_card else '查看对话并回复'
-                # A single right-aligned table header renders the link at the bubble's right edge.
-                footer = ('\n\n---\n\n| [' + action + ' →](' + link + ') |\n| ---: |') if link else ''
+                # Keep the action outside tables: WeChat can style table links without making them tappable.
+                # Full-width padding shifts a normal link right; WeChat offers no responsive paragraph alignment.
+                padding = '\u3000' * (17 - len(action))
+                footer = ('\n\n---\n\n' + padding + '[' + action + ' →](' + link + ')') if link else ''
                 body = present(text, kind, task_card, now + task_card['expires_in'] if task_card else None)
                 if len(prefix + body + footer) > 2000:
                     if not history_cid or not link:

@@ -41,7 +41,7 @@ def test_create_retry_dry_run_and_content_conflict(portal):
     assert duplicate['task']['expires_at'] == first['task']['expires_at']
     assert first['task']['status'] == 'pending' and first['phone_delivery'] == 'unconfirmed'
     assert calls[0]['msg']['item_list'][0]['text_item']['text'].endswith(
-        '| [处理任务卡片 →](' + first['conversation_url'] + ') |\n| ---: |')
+        '[处理任务卡片 →](' + first['conversation_url'] + ')')
     for changed in ({'allow_custom': False}, {'expires_in': 3600}, {'prompt': '另一个问题'}):
         assert client.post('/api/task-cards', headers=auth, json={**body, **changed}).status_code == 409
     history = client.get(f"/chat/api/conversations/{chats[0]['id']}/messages")

@@ -8,7 +8,7 @@ from wechat_bridge.storage.client_registry import ClientRegistry
 from wechat_bridge.storage.conversations import Conversations
 from wechat_bridge.services.commands import command_text, execute as execute_command
 from wechat_bridge.services.portal import Portal
-from wechat_bridge.wechat.protocol import BridgeError, INTERVAL, ACCEPTED, validate_base
+from wechat_bridge.wechat.protocol import BridgeError, INTERVAL, ACCEPTED, validate_base, send_recovery_hint
 
 class Store:
     def __init__(self, path, key):
@@ -221,6 +221,7 @@ class Store:
     def status(self):
         now = time.time()
         account = self.account()
+        last_send = self.db.execute('SELECT status,error_code,attempted_at FROM outgoing ORDER BY attempted_at DESC LIMIT 1').fetchone()
         ready = bool(account and account.get('context_token'))
         poll = self.get('poll_status', 'starting') if account else 'unbound'
         connection = 'unbound' if not account else (
@@ -239,6 +240,10 @@ class Store:
                 'poll_status': poll,
                 'last_poll_success_at': self.get('last_poll_success_at'),
                 'last_poll_error_code': self.get('last_poll_error_code'),
+                'last_send_status': last_send['status'] if last_send else None,
+                'last_send_error_code': last_send['error_code'] if last_send else None,
+                'last_send_at': last_send['attempted_at'] if last_send else None,
+                'send_recovery_hint': send_recovery_hint(last_send['status'], last_send['error_code']) if last_send else None,
                 'inbox_count': self.db.execute("SELECT count(*) FROM inbox WHERE kind='message'").fetchone()[0],
                 'server_time': now, 'keepalive_guaranteed': False}
 

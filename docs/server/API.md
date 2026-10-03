@@ -66,6 +66,8 @@ HTTP 401 表示鉴权失败，422 表示参数错误，503 表示服务执行异
 
 `/api/status` 的 `caller` 为密钥对应的名称，`client_id` 为稳定客户端 ID。密钥停用或重置后旧密钥返回 HTTP 401，无需重启服务。查询状态会更新客户端“最近调用”时间，但不改变微信空闲心跳计时。
 
+接收状态与发送结果独立。`last_send_status`、`last_send_error_code`、`last_send_at` 表示最近一次发送尝试；`send_recovery_hint` 提供恢复建议。发送回执的 `recovery_hint` 对应本次尝试。`connected` 仅表示接收连接正常，不保证发送或手机收件。错误码 `-2` 本身不能确认具体原因；可先直接在微信 ClawBot 发送一条新消息，再验证发送。网页回复不会更新微信上下文。服务不会自动重发失败或结果未确认的消息，也不会因新入站消息就宣称发送恢复。
+
 ## 读取回复
 
 响应包含 `messages` 和 `next_after_id`。各客户端保存自己的 next_after_id，下次作为 after_id。读取不会删除消息，也不会重置心跳时间。

@@ -6,7 +6,7 @@ import secrets
 import time
 import httpx
 from wechat_bridge.config import chat_url
-from wechat_bridge.wechat.protocol import BridgeError, WeChatError, BASE_INFO, ACCEPTED, validate_base, response_status
+from wechat_bridge.wechat.protocol import BridgeError, WeChatError, BASE_INFO, ACCEPTED, validate_base, response_status, send_recovery_hint
 
 class Bridge:
     def __init__(self, store, transport=None):
@@ -33,6 +33,7 @@ class Bridge:
         message = self.store.db.execute('SELECT id,conversation_id FROM chat_messages WHERE outgoing_key=?', (row['key'],)).fetchone()
         return {'status': row['status'], 'duplicate': duplicate, 'attempted_at': row['attempted_at'],
                 'error_code': row.get('error_code'),
+                'recovery_hint': send_recovery_hint(row['status'], row.get('error_code')),
                 'message_id': message['id'] if message else None,
                 'conversation_url': chat_url(message['conversation_id'], message['id']) if message else None,
                 'phone_delivery': 'confirmed' if row['status'] == 'phone_confirmed' else 'unconfirmed'}

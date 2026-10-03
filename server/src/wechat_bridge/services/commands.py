@@ -143,6 +143,7 @@ def execute(store, text):
             return Reply('## 微信通知桥 · 状态\n\n**连接：' + names.get(status['connection_status'], '检查中') + '**\n\n' +
                          '- 最近收发：' + format_time(status['last_activity_at']) +
                          '\n- 下次空闲心跳：' + (format_time(status['next_heartbeat_at']) if status['next_heartbeat_at'] else '等待连接') +
+                         ('\n\n**发送提示：** ' + status['send_recovery_hint'] if status['send_recovery_hint'] else '') +
                          '\n\n> 每次有效微信收发后顺延 12 小时，正常沟通时不发送心跳。\n\n聊天：`/chats` · 客户端：`/list` · 帮助：`/help`')
     except ClientError as exc:
         return Reply(ERRORS[exc.code])

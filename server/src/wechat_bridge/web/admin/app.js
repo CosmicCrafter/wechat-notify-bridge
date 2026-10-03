@@ -6,7 +6,7 @@ let clients = [], selectedClient = null, lastClientsAt = 0;
 const labels = {
   unbound: ['等待绑定', '生成二维码后，用手机微信扫一扫。'],
   waiting_message: ['等待首条消息', '绑定已保存。请在手机 ClawBot 对话发送一句“测试”。'],
-  connected: ['微信已连接', '服务正在接收消息，可以通过 MCP 或 API 发送通知。'],
+  connected: ['微信接收正常', '服务正在接收微信消息。发送结果以接口回执和手机实际收件为准。'],
   connecting: ['正在连接', '服务正在检查微信连接，稍后会自动更新。'],
   retrying: ['正在重连', '暂时无法接收消息，服务器会自动重试。'],
   session_expired: ['需要重新绑定', '微信会话已失效，心跳已暂停。请使用原账号重新扫码。']
@@ -61,9 +61,14 @@ const date = (value, fallback) => {
 function render() {
   if (!state) return;
   const s = state.service, p = state.pairing;
-  const [title, note] = labels[s.connection_status] || labels.connecting;
+  let [title, note] = labels[s.connection_status] || labels.connecting;
+  const sendWarning = s.connection_status === 'connected' && !!s.send_recovery_hint;
+  if (sendWarning) {
+    title = s.last_send_status === 'api_rejected' ? '接收正常，发送受阻' : '接收正常，发送待确认';
+    note = s.send_recovery_hint + (s.last_send_error_code ? `（错误码：${s.last_send_error_code}）` : '');
+  }
   $('status-title').textContent = title; $('connection-note').textContent = note;
-  $('connection-dot').className = 'status-dot' + (s.connection_status === 'connected' ? ' connected' : ['retrying','session_expired'].includes(s.connection_status) ? ' warning' : '');
+  $('connection-dot').className = 'status-dot' + (sendWarning || ['retrying','session_expired'].includes(s.connection_status) ? ' warning' : s.connection_status === 'connected' ? ' connected' : '');
   $('last-activity').textContent = date(s.last_activity_at, '暂无记录');
   $('next-heartbeat').textContent = date(s.next_heartbeat_at, s.connection_status === 'session_expired' ? '已暂停' : '收到首条消息后开始');
   $('last-poll').textContent = date(s.last_poll_success_at, '尚未开始');

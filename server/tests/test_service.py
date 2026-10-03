@@ -128,6 +128,51 @@ def test_failed_send_does_not_refresh_activity_or_retry(store, failure, status):
     asyncio.run(run())
 
 
+def test_receive_health_does_not_hide_rejected_send_and_next_send_clears_hint(store):
+    from wechat_bridge.services.commands import execute
+    calls = []
+    def handler(request):
+        calls.append(json.loads(request.content))
+        return httpx.Response(200, json={'ret': -2} if len(calls) == 1 else {'ret': 0})
+    async def run():
+        bridge = Bridge(store, httpx.MockTransport(handler))
+        store.ingest({'msgs': []}, time.time())
+        initial = store.status()
+        assert initial['last_send_status'] is None and initial['send_recovery_hint'] is None
+        receipt = await bridge.send('test rejection', 'rejected-send', 'codex')
+        assert receipt['status'] == 'api_rejected' and '微信 ClawBot' in receipt['recovery_hint']
+        status = store.status()
+        assert status['connection_status'] == 'connected'
+        assert status['last_send_status'] == 'api_rejected' and status['last_send_error_code'] == '-2'
+        assert '网页回复不会更新' in status['send_recovery_hint']
+        assert '发送提示' in execute(store, '/status').text
+        assert store.account()['context_token'] not in json.dumps(status, ensure_ascii=False)
+        assert (await bridge.send('test rejection', 'rejected-send', 'codex'))['duplicate']
+        assert len(calls) == 1
+        # Receiving remains distinct from a successful send; a new message alone
+        # must not claim delivery has recovered.
+        store.ingest({'msgs': [incoming(seq=99)]}, time.time())
+        assert store.status()['last_send_status'] == 'api_rejected'
+        result = await bridge.send('new recovery verification', 'new-send', 'codex')
+        assert result['status'] == 'api_accepted' and result['recovery_hint'] is None
+        assert calls[-1]['msg']['context_token'] == 'new-context'
+        assert store.status()['send_recovery_hint'] is None
+        assert store.status()['last_send_status'] == 'api_accepted'
+        await bridge.close()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('status,code,expected', [
+    ('api_rejected', '-14', '重新扫码'),
+    ('api_rejected', '999', '未自动重发'),
+    ('unconfirmed_do_not_retry', 'ReadTimeout', '不要重复发送'),
+    ('attempting', None, '不要重复发送'),
+])
+def test_send_recovery_hints_do_not_conflate_errors(status, code, expected):
+    from wechat_bridge.wechat.protocol import send_recovery_hint
+    assert expected in send_recovery_hint(status, code)
+
+
 def test_heartbeat_due_only_after_12h_and_next_one_after_success(store):
     calls=[]
     def handler(request):

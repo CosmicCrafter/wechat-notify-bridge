@@ -6,6 +6,19 @@ BASE_INFO = {'channel_version': '2.4.9', 'bot_agent': 'WeChatNotifyService/1.0.0
 ACCEPTED = {'api_accepted', 'no_error_reported', 'phone_confirmed'}
 
 
+def send_recovery_hint(status, error_code):
+    if status == 'api_rejected' and str(error_code) == '-2':
+        return ('微信拒绝发送。请直接在微信 ClawBot 聊天框发送一条新消息，再检查发送连接；'
+                '网页回复不会更新微信上下文。错误码 -2 本身不能确定具体原因。')
+    if status == 'api_rejected' and str(error_code) == '-14':
+        return '微信报告会话失效，请使用原账号重新扫码绑定。'
+    if status == 'api_rejected':
+        return '微信拒绝发送，请检查连接和错误码；未自动重发。'
+    if status in ('attempting', 'unconfirmed_do_not_retry'):
+        return '发送结果尚未确认，请先检查回执与实际收件，不要重复发送。'
+    return None
+
+
 class BridgeError(Exception):
     def __init__(self, status, reason):
         self.status, self.reason = status, reason

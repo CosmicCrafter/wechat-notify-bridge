@@ -1,6 +1,6 @@
 """Validated HTTP request models."""
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 class PairStart(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -64,5 +64,60 @@ class Notice(BaseModel):
         if not value.strip():
             raise ValueError('Must not be blank')
         return value
+
+
+class TaskOption(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,32}$')
+    label: str = Field(min_length=1, max_length=80)
+    description: str = Field(default='', max_length=500)
+    recommended: bool = False
+
+    @field_validator('label')
+    @classmethod
+    def nonblank(cls, value):
+        if not value.strip():
+            raise ValueError('Must not be blank')
+        return value
+
+
+class TaskCard(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    conversation_id: str = Field(pattern=r'^[a-f0-9]{32}$')
+    dedup_key: str = Field(min_length=1, max_length=200)
+    title: str = Field(min_length=1, max_length=120)
+    prompt: str = Field(min_length=1, max_length=4000)
+    options: list[TaskOption] = Field(min_length=2, max_length=8)
+    allow_custom: bool = True
+    expires_in: int = Field(default=86400, ge=60, le=604800)
+    dry_run: bool = False
+
+    @field_validator('title', 'prompt', 'dedup_key')
+    @classmethod
+    def nonblank(cls, value):
+        if not value.strip():
+            raise ValueError('Must not be blank')
+        return value
+
+    @model_validator(mode='after')
+    def distinct_options(self):
+        if len({option.id for option in self.options}) != len(self.options):
+            raise ValueError('Option IDs must be distinct')
+        if sum(option.recommended for option in self.options) > 1:
+            raise ValueError('Only one recommended option is allowed')
+        return self
+
+
+class TaskAnswer(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    request_id: str = Field(pattern=r'^[a-zA-Z0-9_-]{16,80}$')
+    choice_id: str | None = Field(default=None, pattern=r'^[a-zA-Z0-9_-]{1,32}$')
+    text: str = Field(default='', max_length=2000)
+
+
+class TaskUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    status: Literal['processing', 'completed', 'cancelled']
+    result: str = Field(default='', max_length=4000)
 
 

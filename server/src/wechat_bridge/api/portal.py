@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from wechat_bridge.storage.images import normalize, MAX_UPLOAD
 
 from wechat_bridge.config import COOKIE, SESSION_SECONDS, public_base, chat_url, WEB
+from wechat_bridge.api.schemas import TaskAnswer
 
 class Login(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -61,7 +62,7 @@ def mount_portal(app, authorize_admin):
 
     @app.get('/chat/assets/{filename}', include_in_schema=False)
     def asset(filename: str):
-        if filename not in ('app.js', 'style.css', 'marked.js', 'purify.js'):
+        if filename not in ('app.js', 'style.css', 'tasks.js', 'tasks.css', 'marked.js', 'purify.js'):
             raise HTTPException(404)
         return FileResponse(WEB / ('vendor' if filename in ('marked.js', 'purify.js') else 'chat') / filename, media_type='text/css' if filename.endswith('.css') else 'text/javascript')
 
@@ -94,6 +95,19 @@ def mount_portal(app, authorize_admin):
         if not body.text.strip() and not body.attachment_ids:raise HTTPException(422,'empty_message')
         async with app.state.bridge.lock:
             return portal().reply(cid, body.text, body.request_id,body.attachment_ids)
+
+    @app.get('/chat/api/conversations/{cid}/tasks', dependencies=[Depends(owner)], include_in_schema=False)
+    async def tasks(cid: str, ids: str = Query(min_length=32, max_length=3299)):
+        portal().owner_chat(cid)
+        values = ids.split(',')
+        if len(values) > 100 or any(len(value) != 32 or any(c not in '0123456789abcdef' for c in value) for value in values):
+            raise HTTPException(422, 'invalid_task_ids')
+        return {'tasks': [portal().tasks.get(cid, id) for id in dict.fromkeys(values)]}
+
+    @app.post('/chat/api/conversations/{cid}/tasks/{task_id}/answer', dependencies=[Depends(owner), Depends(same_origin)], include_in_schema=False)
+    async def task_answer(cid: str, task_id: str, body: TaskAnswer):
+        async with app.state.bridge.lock:
+            return portal().tasks.answer(cid, task_id, body)
 
     @app.post('/chat/api/conversations/{cid}/images', dependencies=[Depends(owner), Depends(same_origin)], include_in_schema=False)
     async def upload_image(cid: str, request: Request):

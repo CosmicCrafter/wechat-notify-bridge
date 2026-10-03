@@ -2,6 +2,7 @@
 import asyncio
 import base64
 import hashlib
+import json
 import secrets
 import time
 import httpx
@@ -31,15 +32,21 @@ class Bridge:
 
     def public_receipt(self, row, duplicate=False):
         message = self.store.db.execute('SELECT id,conversation_id FROM chat_messages WHERE outgoing_key=?', (row['key'],)).fetchone()
-        return {'status': row['status'], 'duplicate': duplicate, 'attempted_at': row['attempted_at'],
+        result = {'status': row['status'], 'duplicate': duplicate, 'attempted_at': row['attempted_at'],
                 'error_code': row.get('error_code'),
                 'recovery_hint': send_recovery_hint(row['status'], row.get('error_code')),
                 'message_id': message['id'] if message else None,
                 'conversation_url': chat_url(message['conversation_id'], message['id']) if message else None,
                 'phone_delivery': 'confirmed' if row['status'] == 'phone_confirmed' else 'unconfirmed'}
+        task = self.store.db.execute('SELECT * FROM task_cards WHERE outgoing_key=?', (row['key'],)).fetchone()
+        if task:
+            result['task'] = self.store.portal.tasks.public(task)
+        return result
 
     async def send(self, text, dedup_key, caller, *, kind='message', dry_run=False, expected_due=None,
-                   identity=None, command_id=None, conversation_id=None):
+                   identity=None, command_id=None, conversation_id=None, task_card=None):
+        if task_card and (not identity or not conversation_id):
+            raise BridgeError(422, 'Task cards require a client identity and conversation')
         if not text.strip() or len(text) > 20000 or not dedup_key.strip() or len(dedup_key) > 200:
             raise BridgeError(422, 'Invalid text or dedup_key')
         if dedup_key.startswith('server-heartbeat-') and caller != 'heartbeat':
@@ -76,7 +83,8 @@ class Bridge:
             if expected_due is not None and (now < self.store.next_heartbeat() or expected_due != self.store.next_heartbeat()):
                 return {'status': 'skipped_new_activity'}
             digest = self.store.digest(dedup_key, identity.id if identity else None, conversation_id)
-            text_hash = hashlib.sha256(text.encode()).hexdigest()
+            fingerprint = json.dumps({'text': text, 'task': task_card}, ensure_ascii=False, sort_keys=True) if task_card else text
+            text_hash = hashlib.sha256(fingerprint.encode()).hexdigest()
             previous = self.store.client_receipt(dedup_key, identity, conversation_id) if identity else self.store.receipt(digest)
             if previous:
                 if previous['message_hash'] != text_hash:
@@ -87,7 +95,8 @@ class Bridge:
             def render_wire(message_id=None):
                 link = chat_url(history_cid, message_id)
                 prefix = f'{label}\n\n' if identity else ''
-                footer = ('\n\n[查看对话并回复](' + link + ')') if link else ''
+                action = '处理任务卡片' if task_card else '查看对话并回复'
+                footer = ('\n\n[' + action + '](' + link + ')') if link else ''
                 body = text
                 if len(prefix + body + footer) > 2000:
                     if not history_cid or not link:
@@ -95,7 +104,8 @@ class Bridge:
                     # A plain, escaped excerpt cannot leave an unclosed code fence or link.
                     import re
                     excerpt = re.sub(r'[\\`*_{}\[\]()<>#+!|~]', '', text[:700]).strip()
-                    body = '## 新消息\n\n' + excerpt + '…\n\n完整内容已保存，点击下方链接查看。'
+                    heading = '需要你决定' if task_card else '新消息'
+                    body = '## ' + heading + '\n\n' + excerpt + '…\n\n完整内容已保存，点击下方链接查看。'
                 return prefix + body + footer
             wire_text = render_wire()
             if dry_run:
@@ -105,7 +115,8 @@ class Bridge:
                 self.store.db.execute('INSERT INTO outgoing VALUES (?,?,?,?,?,?,?,?)',
                     (digest, text_hash, 'attempting', kind, caller, now, None, None))
                 if history_cid:
-                    message_id = self.store.portal.add(history_cid, 'assistant', 'api', text, 'attempting', outgoing_key=digest, at=now)
+                    task_id = self.store.portal.tasks.create(history_cid, digest, task_card, now) if task_card else None
+                    message_id = self.store.portal.add(history_cid, 'assistant', 'api', text, 'attempting', outgoing_key=digest, at=now, task_id=task_id)
                     wire_text = render_wire(message_id)
                 if kind == 'heartbeat':
                     self.store.set('last_heartbeat_attempt_at', now)

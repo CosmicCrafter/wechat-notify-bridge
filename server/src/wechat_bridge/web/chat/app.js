@@ -5,11 +5,12 @@ const imageDrafts = new Map();
 const labels = {legacy:'历史消息 · 当时的读取状态未记录',pending:'已提交 · 等待 AI 读取',client_read:'客户端已读取',attempting:'已保存 · 微信发送结果待确认',api_accepted:'已发送至微信接口',no_error_reported:'微信接口未报错',phone_confirmed:'微信已确认收到',api_rejected:'正文已保存 · 微信提醒发送失败',unconfirmed_do_not_retry:'正文已保存 · 微信提醒结果未确认'};
 const errors = {image_too_large:'图片过大，请选择较小的图片。',invalid_image:'无法读取图片，请选择 JPG、PNG 或 WebP。',image_storage_full:'图片空间已满，请清理不需要的对话。',too_many_pending_images:'待发送图片较多，请稍后再试。',image_not_found:'图片不存在或已清理。',image_already_sent:'图片已经发送，请重新选择。',image_dimensions_unsupported:'图片尺寸或格式不支持，请尝试截图后发送。',conversation_name_conflict:'已有同名有效对话。请先归档同名对话，再恢复这一条。',login_required:'请重新登录。',invalid_login_code:'登录码不正确，请检查微信中的 8 位数字。',login_code_expired:'登录码已过期或尝试次数过多，请在微信重新发送 /web。',conversation_closed:'这个对话已结束或客户端已停用，暂时无法回复。',conversation_not_found:'对话不存在，请从列表重新选择。',message_not_found:'未找到链接指向的消息，请从对话列表进入。',request_id_content_conflict:'本次重试内容不一致，请保留原内容重试。'};
 function error(text=''){ $('error').textContent=text; $('error').hidden=!text; }
+Object.assign(errors,{task_not_found:'这张任务卡片不存在或已清理。',invalid_task_choice:'选项已失效，请重新打开卡片。',task_answer_required:'请选择一个方案，或写下你的安排。',task_already_answered:'这张卡片已经答复，不能重复更改决定。',task_not_pending:'这张卡片已经取消或结束。',task_expired:'这张卡片已过期，请在对话中请 AI 重新发起。',task_state_conflict:'任务状态已变化，请刷新查看。'});
 function loginView(){state.authenticated=false;state.generation++;$('workspace').hidden=true;$('login').hidden=false;}
 async function api(path,body){
   const response=await fetch('api/'+path,{method:body===undefined?'GET':'POST',credentials:'same-origin',cache:'no-store',headers:body===undefined?{}:{'Content-Type':'application/json','X-Chat-Request':'1'},body:body===undefined?undefined:JSON.stringify(body)});
   const data=await response.json().catch(()=>({}));
-  if(!response.ok){if(response.status===401&&path!=='login')loginView();throw new Error(errors[data.detail]||'暂时无法连接，请稍后重试。');}return data;
+  if(!response.ok){if(response.status===401&&path!=='login')loginView();const failure=new Error(errors[data.detail]||'暂时无法连接，请稍后重试。');failure.status=response.status;failure.code=data.detail;throw failure;}return data;
 }
 function date(value){if(!value)return '';const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value*1000)).map(p=>[p.type,p.value]));return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;}
 function el(tag,className,text){const n=document.createElement(tag);if(className)n.className=className;if(text!==undefined)n.textContent=text;return n;}
@@ -36,17 +37,20 @@ function renderChats(){
   }
 }
 function renderMessages(){
+  const focused=document.activeElement?.closest('.task-card')?document.activeElement:null;
+  const focus=focused?{id:focused.id,start:focused.selectionStart,end:focused.selectionEnd}:null;
   const fragment=document.createDocumentFragment();
   for(const m of [...state.messages.values()].sort((a,b)=>a.id-b.id)){
     const n=el('article','message '+m.direction+(m.id===state.anchor?' focused':''));n.id='message-'+m.id;
     const meta=el('div','message-meta');meta.append(el('span','',m.direction==='user'?(m.source==='web'?'你 · 网页':'你 · 微信'):$('chat-title').textContent),el('time','',date(m.created_at)));
-    const bubble=el('div','bubble markdown');markdown(bubble,m.text);
+    const bubble=el('div',m.task?'bubble':'bubble markdown');if(m.task){n.classList.add('task-message');bubble.append(renderTaskCard(m.task));}else markdown(bubble,m.text);
     for(const attachment of m.attachments||[]){const button=el('button','message-image');button.type='button';const img=el('img');img.src=`api/conversations/${m.conversation_id}/images/${attachment.id}`;img.alt='图片附件，点击放大';img.loading='lazy';button.append(img);button.onclick=()=>{$('full-image').src=img.src;$('image-viewer').showModal();};bubble.append(button);}
     const status=el('div','message-state'+(['api_rejected','unconfirmed_do_not_retry'].includes(m.status)?' failed':''),labels[m.status]||'已保存');n.append(meta,bubble,status);fragment.append(n);
   }
   $('messages').replaceChildren(fragment);$('empty-messages').hidden=!!state.messages.size;
+  if(focus){const target=document.getElementById(focus.id);if(target&&!target.disabled){target.focus({preventScroll:true});if(typeof target.setSelectionRange==='function'&&focus.start!==null)target.setSelectionRange(focus.start,focus.end);}}
 }
-function merge(messages){let changed=false;for(const m of messages){const old=state.messages.get(m.id);if(!old||old.text!==m.text||old.status!==m.status){state.messages.set(m.id,m);changed=true;}}if(changed)renderMessages();$('empty-messages').hidden=!!state.messages.size;}
+function merge(messages){let changed=false;for(const m of messages){const old=state.messages.get(m.id);if(!old||old.text!==m.text||old.status!==m.status||JSON.stringify(old.task)!==JSON.stringify(m.task)){state.messages.set(m.id,m);changed=true;}}if(changed)renderMessages();$('empty-messages').hidden=!!state.messages.size;}
 function ids(){const a=[...state.messages.keys()];return {min:a.length?Math.min(...a):0,max:a.length?Math.max(...a):0};}
 async function read(){if(document.hidden||!state.cid||!state.messages.size)return;await api(`conversations/${state.cid}/read`,{message_id:ids().max});}
 async function refreshChats(){const data=await api('conversations');const changed=JSON.stringify(state.chats)!==JSON.stringify(data.conversations);state.chats=data.conversations;if((changed||!state.authenticated)&&!state.pressing&&!document.querySelector('.chat-row.swiped'))renderChats();}
@@ -81,8 +85,9 @@ async function loadPage(older){
 async function poll(){
   if(!state.authenticated||document.hidden||state.polling||state.busy||state.pressing||$('chat-actions').open||$('delete-confirm').open||document.querySelector('.chat-row.swiped'))return;state.polling=true;
   try{
-    await refreshChats();if(!state.cid||state.hasNewer)return;
+    await refreshChats();if(!state.cid)return;
     const generation=state.generation,cid=state.cid,scroll=$('scroll'),top=scroll.scrollTop,nearBottom=scroll.scrollHeight-scroll.clientHeight-top<100;
+    await refreshTaskCards(cid,generation);if(generation!==state.generation||state.hasNewer)return;
     const max=ids().max;const data=await api(`conversations/${cid}/messages?after=${max}`);if(generation!==state.generation)return;
     const recent=max?await api(`conversations/${cid}/messages?before=${max+1}`):{messages:[]};if(generation!==state.generation)return;
     merge([...recent.messages,...data.messages]);state.hasNewer=data.has_newer;$('newer').hidden=!data.has_newer;state.active=data.conversation.active;composeState(state.active);
@@ -90,7 +95,7 @@ async function poll(){
   }catch(e){if(state.authenticated)error(e.message);}finally{state.polling=false;}
 }
 $('login-form').onsubmit=async event=>{event.preventDefault();const b=event.currentTarget.querySelector('button');b.disabled=true;$('login-error').textContent='';try{await api('login',{code:$('login-code').value});$('login-code').value='';await start();}catch(e){$('login-error').textContent=e.message;}finally{b.disabled=false;}};
-$('logout').onclick=async()=>{try{await api('logout',{});state.drafts.clear();state.pending.clear();for(const cid of imageDrafts.keys())clearImages(cid);state.messages.clear();$('messages').replaceChildren();$('reply').value='';loginView();}catch(e){error(e.message);}};
+$('logout').onclick=async()=>{try{await api('logout',{});state.drafts.clear();state.pending.clear();clearTaskDrafts();for(const cid of imageDrafts.keys())clearImages(cid);state.messages.clear();$('messages').replaceChildren();$('reply').value='';loginView();}catch(e){error(e.message);}};
 function showList(){draftSave();state.generation++;state.cid=null;state.messages.clear();$('messages').replaceChildren();$('workspace').classList.remove('has-chat');$('scroll').hidden=true;$('composer').hidden=true;$('welcome').hidden=false;$('chat-menu').hidden=true;$('chat-badge').hidden=true;$('chat-title').textContent='选择一个对话';error();renderChats();}
 function goBack(){if(history.state?.wechatChat)history.back();else{const url=new URL(location.href);url.search='';history.replaceState(null,'',url);showList();}}
 $('back').onclick=goBack;
@@ -134,7 +139,7 @@ $('archive-chat').onclick=async()=>{
 for(const id of ['chat-actions','delete-confirm'])$(id).addEventListener('click',e=>{if(e.target===$(id))$(id).close();});
 $('confirm-delete').onclick=async()=>{
   if(state.busy||!actionChat)return;const cid=actionChat.id;state.busy=true;$('confirm-delete').disabled=true;error();
-  try{await api(`conversations/${cid}/delete`,{});document.querySelectorAll('.chat-row.swiped').forEach(n=>n.classList.remove('swiped'));state.drafts.delete(cid);state.pending.delete(cid);clearImages(cid);if(state.cid===cid){$('reply').value='';const url=new URL(location.href);url.search='';history.replaceState(null,'',url);showList();}await refreshChats();$('delete-confirm').close();$('toast').textContent='对话已删除';$('toast').hidden=false;setTimeout(()=>$('toast').hidden=true,2500);}
+  try{await api(`conversations/${cid}/delete`,{});document.querySelectorAll('.chat-row.swiped').forEach(n=>n.classList.remove('swiped'));state.drafts.delete(cid);state.pending.delete(cid);clearConversationTaskDrafts(cid);clearImages(cid);if(state.cid===cid){$('reply').value='';const url=new URL(location.href);url.search='';history.replaceState(null,'',url);showList();}await refreshChats();$('delete-confirm').close();$('toast').textContent='对话已删除';$('toast').hidden=false;setTimeout(()=>$('toast').hidden=true,2500);}
   catch(e){$('delete-confirm').close();error(e.message);$('toast').textContent=e.message;$('toast').hidden=false;setTimeout(()=>$('toast').hidden=true,5000);}finally{state.busy=false;$('confirm-delete').disabled=false;}
 };
 $('refresh').onclick=()=>refreshChats().catch(e=>error(e.message));
@@ -173,6 +178,6 @@ $('composer').onsubmit=async event=>{
   catch(e){if(generation===state.generation)error(e.message);}finally{state.busy=false;composeState(state.active);}
 };
 $('reply').onkeydown=event=>{if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){event.preventDefault();$('composer').requestSubmit();}};
-window.addEventListener('beforeunload',event=>{if([...state.drafts.values()].some(x=>x.trim())||imageDrafts.size){event.preventDefault();event.returnValue='';}});
+window.addEventListener('beforeunload',event=>{if([...state.drafts.values()].some(x=>x.trim())||imageDrafts.size||taskDirty()){event.preventDefault();event.returnValue='';}});
 async function start(){try{await refreshChats();state.authenticated=true;$('login').hidden=true;$('workspace').hidden=false;if(state.cid)await selectChat(state.cid,state.anchor,false);}catch(e){loginView();if(e.message!=='请重新登录。')$('login-error').textContent=e.message;}}
 start();setInterval(poll,5000);

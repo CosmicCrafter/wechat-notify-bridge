@@ -8,6 +8,7 @@ import time
 
 from wechat_bridge.storage.client_registry import ClientError
 from wechat_bridge.storage.images import Images
+from wechat_bridge.services.task_cards import TaskCards
 
 from wechat_bridge.config import SESSION_SECONDS
 
@@ -25,6 +26,7 @@ class Portal:
           CREATE TABLE IF NOT EXISTS web_reads (conversation_id TEXT PRIMARY KEY, message_id INTEGER NOT NULL);
         ''')
         self.images=Images(store)
+        self.tasks=TaskCards(store)
         self.image_slots=asyncio.Semaphore(1)
         # Only recover text that was actually saved. Old outgoing hashes are not transcripts.
         self.db.execute("INSERT OR IGNORE INTO chat_messages(conversation_id,direction,source,encrypted,created_at,status,inbox_id) "
@@ -32,8 +34,11 @@ class Portal:
             "WHERE kind='message' AND conversation_id IS NOT NULL AND NOT EXISTS "
             "(SELECT 1 FROM chat_messages m WHERE m.inbox_id=inbox.id) ORDER BY id")
 
-    def add(self, cid, direction, source, text, status, *, outgoing_key=None, inbox_id=None, at=None, attachments=None):
-        encrypted = self.store.cipher.encrypt(json.dumps({'text': text,'attachments':attachments or []}, ensure_ascii=False).encode())
+    def add(self, cid, direction, source, text, status, *, outgoing_key=None, inbox_id=None, at=None, attachments=None, task_id=None):
+        content = {'text': text, 'attachments': attachments or []}
+        if task_id:
+            content['task_id'] = task_id
+        encrypted = self.store.cipher.encrypt(json.dumps(content, ensure_ascii=False).encode())
         result = self.db.execute('INSERT INTO chat_messages(conversation_id,direction,source,encrypted,created_at,status,outgoing_key,inbox_id) '
             'VALUES (?,?,?,?,?,?,?,?)', (cid, direction, source, encrypted, at or time.time(), status, outgoing_key, inbox_id))
         return result.lastrowid
@@ -73,6 +78,7 @@ class Portal:
             self.db.execute("UPDATE inbox SET kind='deleted',encrypted=? WHERE conversation_id=?",(empty,cid))
             self.db.execute('DELETE FROM web_reads WHERE conversation_id=?',(cid,))
             self.db.execute('DELETE FROM image_attachments WHERE conversation_id=?',(cid,))
+            self.db.execute('DELETE FROM task_cards WHERE conversation_id=?',(cid,))
             if self.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='mcp_event_subscriptions'").fetchone():
                 self.db.execute('DELETE FROM mcp_event_subscriptions WHERE conversation=?',(cid,))
             self.db.commit()
@@ -81,9 +87,13 @@ class Portal:
         return {'deleted':True,'messages_removed':count}
 
     def decode(self, row):
+        content = json.loads(self.store.cipher.decrypt(row['encrypted']))
+        task_id = content.pop('task_id', None)
+        if task_id:
+            content['task'] = self.tasks.get(row['conversation_id'], task_id)
         return dict(id=row['id'], conversation_id=row['conversation_id'], direction=row['direction'],
                     source=row['source'], created_at=row['created_at'], status=row['status'],
-                    **json.loads(self.store.cipher.decrypt(row['encrypted'])))
+                    **content)
 
     def history(self, cid, before=0, after=0, around=0, limit=50):
         chat = self.owner_chat(cid)

@@ -25,6 +25,9 @@ async def fixture_request(path, payload=None, params=None):
         return {'status':'dry_run_ready','conversation_id':payload['conversation_id']}
     if path == '/api/inbox':
         return {'messages':[],'conversation_id':params['conversation_id'],'next_after_id':0}
+    if path == '/api/task-cards':
+        assert payload['dry_run'] and payload['options'][0]['id']=='a'
+        return {'status':'dry_run_ready'}
     if path == '/api/deliveries':
         from api_errors import failure
         raise failure('network_error', 'Check the connection.', path)
@@ -40,7 +43,11 @@ http_bridge.mcp.run(transport='stdio')
                     await session.initialize()
                     names={tool.name for tool in (await session.list_tools()).tools}
                     assert names=={'getCallerIdentity','getDeliveryStatus','getMessages','sendMessage','sendNotification',
-                                   'registerConversation','listConversations','setConversationActive','getImage'}
+                                   'registerConversation','listConversations','setConversationActive','getImage',
+                                   'sendTaskCard','getTaskCard','updateTaskCard'}
+                    card=await session.call_tool('sendTaskCard', {'conversation_id':'a'*32,'dedup_key':'card','title':'Choose',
+                        'prompt':'Choose a plan','options':[{'id':'a','label':'A'},{'id':'b','label':'B'}],'dry_run':True})
+                    assert not card.isError and json.loads(card.content[0].text)['status']=='dry_run_ready'
                     result=await session.call_tool('getCallerIdentity',{})
                     assert not result.isError
                     value=json.loads(result.content[0].text)

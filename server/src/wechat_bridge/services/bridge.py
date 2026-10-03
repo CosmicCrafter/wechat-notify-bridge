@@ -8,6 +8,7 @@ import time
 import httpx
 from wechat_bridge.config import chat_url
 from wechat_bridge.wechat.protocol import BridgeError, WeChatError, BASE_INFO, ACCEPTED, validate_base, response_status, send_recovery_hint
+from wechat_bridge.services.presentation import present
 
 class Bridge:
     def __init__(self, store, transport=None):
@@ -96,8 +97,8 @@ class Bridge:
                 link = chat_url(history_cid, message_id)
                 prefix = f'{label}\n\n' if identity else ''
                 action = '处理任务卡片' if task_card else '查看对话并回复'
-                footer = ('\n\n[' + action + '](' + link + ')') if link else ''
-                body = text
+                footer = ('\n\n---\n[' + action + ' →](' + link + ')') if link else ''
+                body = present(text, kind, task_card, now + task_card['expires_in'] if task_card else None)
                 if len(prefix + body + footer) > 2000:
                     if not history_cid or not link:
                         raise BridgeError(422, 'Long messages require a conversation and public URL')

@@ -2,6 +2,9 @@
 import json
 import time
 import uuid
+import re
+from datetime import date
+from decimal import Decimal
 
 from wechat_bridge.storage.client_registry import ClientError
 
@@ -17,6 +20,7 @@ class TaskCards:
             expires_at REAL NOT NULL, answered_at REAL, updated_at REAL NOT NULL,
             answer BLOB, result BLOB, inbox_id INTEGER UNIQUE);
           CREATE INDEX IF NOT EXISTS task_cards_conversation ON task_cards(conversation_id);
+          CREATE INDEX IF NOT EXISTS task_cards_pending ON task_cards(status,expires_at);
         ''')
 
     def encrypt(self, value):
@@ -28,18 +32,21 @@ class TaskCards:
     @staticmethod
     def summary(definition):
         mode = definition.get('mode', 'single')
-        heading = '需要你补充' if mode == 'input' else '需要你决定'
+        heading = '需要你补充' if mode in ('input', 'form') else '需要你决定'
         text = f"## {heading} · {definition['title']}\n\n{definition['prompt']}\n\n"
         for option in definition['options']:
             text += f"- **{option['label']}**" + (' · 推荐' if option['recommended'] else '')
             if option['description']:
                 text += '：' + option['description']
             text += '\n'
+        if mode == 'form':
+            for field in definition['fields']:
+                text += '- **' + field['label'] + '**' + (' · 必填' if field['required'] else ' · 选填') + '\n'
         if mode == 'multiple':
             text += f"\n可选 {definition['min_choices']}–{definition['max_choices']} 项。\n"
         if definition['allow_custom'] and mode != 'input':
             text += '\n也可以输入自己的安排。\n'
-        action = {'input': '填写后提交回复', 'confirm': '点击对应按钮提交决定'}.get(mode, '选择后提交决定')
+        action = {'input': '填写后提交回复', 'form': '填写后提交回复', 'confirm': '点击对应按钮提交决定'}.get(mode, '选择后提交决定')
         return text + '\n点击下方链接，' + action + '。'
 
     def create(self, cid, outgoing_key, definition, now):
@@ -67,6 +74,7 @@ class TaskCards:
                     mode=definition.get('mode', 'single'),
                     min_choices=definition.get('min_choices', 1), max_choices=definition.get('max_choices', 1),
                     input_hint=definition.get('input_hint', ''),
+                    fields=definition.get('fields', []),
                     allow_custom=definition['allow_custom'], created_at=row['created_at'],
                     expires_at=row['expires_at'], answered_at=row['answered_at'], updated_at=row['updated_at'],
                     answer=self.decrypt(row['answer']), result=self.decrypt(row['result']) or '',
@@ -100,6 +108,8 @@ class TaskCards:
                     text += '选择：' + '、'.join(selected) + '\n'
                 if body.text.strip():
                     text += '回复：' + body.text
+                for field in answer.get('fields', []):
+                    text += field['label'] + '：' + (field['value'] or '未填写') + '\n'
                 task_response = dict(task_id=id, title=definition['title'], **answer)
                 content = dict(text=text.strip(), item_types=[1], source='web', attachments=[], task_response=task_response)
                 cursor = self.db.execute("INSERT INTO inbox(identity,received_at,message_at,encrypted,kind,conversation_id,route_status) "
@@ -121,6 +131,38 @@ class TaskCards:
     def validate_answer(definition, body):
         mode = definition.get('mode', 'single')
         answer = dict(choice_id=None, choice_label=None, text=body.text)
+        if mode == 'form':
+            if body.choice_id is not None or body.choice_ids or body.text or any(key not in {f['id'] for f in definition['fields']} for key in body.field_values):
+                raise ClientError('invalid_task_fields', 422)
+            values, fields = {}, []
+            for field in definition['fields']:
+                value = body.field_values.get(field['id'], '')
+                if field['required'] and not value.strip():
+                    raise ClientError('task_field_required', 422)
+                if value.strip():
+                    if field['type'] == 'select':
+                        option = next((o for o in field['options'] if o['id'] == value), None)
+                        if option is None:
+                            raise ClientError('invalid_task_fields', 422)
+                    elif field['type'] == 'number':
+                        if not re.fullmatch(r'-?\d{1,12}(?:\.\d{1,6})?', value.strip()):
+                            raise ClientError('invalid_task_fields', 422)
+                        value = format(Decimal(value.strip()).normalize(), 'f')
+                        if value == '-0': value = '0'
+                    elif field['type'] == 'date':
+                        try:
+                            if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value) or date.fromisoformat(value).year < 1:
+                                raise ValueError()
+                        except ValueError:
+                            raise ClientError('invalid_task_fields', 422) from None
+                else:
+                    value = ''
+                values[field['id']] = value
+                label = option['label'] if field['type'] == 'select' and value else value
+                fields.append(dict(id=field['id'], label=field['label'], type=field['type'], value=label))
+            return dict(**answer, field_values=values, fields=fields)
+        if body.field_values:
+            raise ClientError('invalid_task_fields', 422)
         if mode == 'multiple':
             ids = body.choice_ids or []
             options = {option['id']: option for option in definition['options']}

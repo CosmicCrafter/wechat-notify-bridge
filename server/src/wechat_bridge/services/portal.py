@@ -5,6 +5,7 @@ import hmac
 import json
 import secrets
 import time
+import re
 
 from wechat_bridge.storage.client_registry import ClientError
 from wechat_bridge.storage.images import Images
@@ -24,6 +25,7 @@ class Portal:
           CREATE INDEX IF NOT EXISTS chat_timeline ON chat_messages(conversation_id,id);
           CREATE TABLE IF NOT EXISTS web_sessions (token_hash TEXT PRIMARY KEY, expires_at REAL NOT NULL);
           CREATE TABLE IF NOT EXISTS web_reads (conversation_id TEXT PRIMARY KEY, message_id INTEGER NOT NULL);
+          CREATE TABLE IF NOT EXISTS web_preferences (conversation_id TEXT PRIMARY KEY, pinned INTEGER NOT NULL DEFAULT 0);
         ''')
         self.images=Images(store)
         self.tasks=TaskCards(store)
@@ -57,13 +59,44 @@ class Portal:
         for row in rows:
             item = self.owner_chat(row['id'])
             last = self.db.execute('SELECT * FROM chat_messages WHERE id=?', (row['latest'],)).fetchone()
+            content = self.decode(last) if last else {}
+            preview = ('📋 ' + content['task']['title']) if content.get('task') else re.sub(r'[#*`>\n]', '', content.get('text', '')[:150]).strip()
             read = self.db.execute('SELECT message_id FROM web_reads WHERE conversation_id=?', (row['id'],)).fetchone()
             item.update(last_at=last['created_at'] if last else None,
-                        preview=(self.decode(last)['text'][:100] or '[图片]') if last else '还没有消息',
+                        preview=(preview[:100] or '[图片]') if last else '还没有消息',
                         unread=self.db.execute("SELECT count(*) FROM chat_messages WHERE conversation_id=? AND direction='assistant' AND id>?",
                                                (row['id'], read[0] if read else 0)).fetchone()[0])
+            preference = self.db.execute('SELECT pinned FROM web_preferences WHERE conversation_id=?', (row['id'],)).fetchone()
+            item['pinned'] = bool(preference and preference['pinned'])
+            item['pending_tasks'] = self.db.execute("SELECT count(*) FROM task_cards WHERE conversation_id=? AND status='pending' AND expires_at>?",
+                                                   (row['id'], time.time())).fetchone()[0] if item['active'] else 0
             result.append(item)
-        return result
+        return sorted(result, key=lambda item: not item['pinned'])
+
+    def pin(self, cid, pinned):
+        self.owner_chat(cid)
+        self.db.execute('INSERT INTO web_preferences VALUES (?,?) ON CONFLICT(conversation_id) DO UPDATE SET pinned=excluded.pinned',
+                        (cid, int(pinned)))
+        return {'pinned': pinned}
+
+    def pending_tasks(self, before=0, limit=30, search=''):
+        # Read-only aggregation: opening a card must never change its answer/lifecycle.
+        where = "s.deleted=0 AND s.active=1 AND c.enabled=1 AND t.status='pending' AND t.expires_at>?"
+        args = [time.time()]
+        if before:
+            where += ' AND t.rowid<?'
+            args.append(before)
+        if search:
+            pattern = '%' + search.casefold().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+            where += " AND (lower(s.name) LIKE ? ESCAPE '\\' OR lower(c.name) LIKE ? ESCAPE '\\')"
+            args.extend((pattern, pattern))
+        rows = self.db.execute('SELECT t.*,t.rowid AS position,m.id AS message_id FROM task_cards t '
+            'JOIN conversations s ON s.id=t.conversation_id JOIN api_clients c ON c.id=s.client_id '
+            'JOIN chat_messages m ON m.outgoing_key=t.outgoing_key WHERE ' + where + ' ORDER BY t.rowid DESC LIMIT ?',
+            (*args, limit+1)).fetchall()
+        return dict(tasks=[dict(task=self.tasks.public(row), conversation=self.owner_chat(row['conversation_id']),
+                                message_id=row['message_id']) for row in rows[:limit]],
+                    next_before=rows[limit-1]['position'] if len(rows)>limit else None)
 
     def delete_chat(self, cid):
         row=self.db.execute('SELECT deleted FROM conversations WHERE id=?',(cid,)).fetchone()
@@ -77,6 +110,7 @@ class Portal:
             empty=self.store.cipher.encrypt(b'{}')
             self.db.execute("UPDATE inbox SET kind='deleted',encrypted=? WHERE conversation_id=?",(empty,cid))
             self.db.execute('DELETE FROM web_reads WHERE conversation_id=?',(cid,))
+            self.db.execute('DELETE FROM web_preferences WHERE conversation_id=?',(cid,))
             self.db.execute('DELETE FROM image_attachments WHERE conversation_id=?',(cid,))
             self.db.execute('DELETE FROM task_cards WHERE conversation_id=?',(cid,))
             if self.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='mcp_event_subscriptions'").fetchone():
@@ -169,5 +203,3 @@ class Portal:
         self.db.execute('DELETE FROM web_sessions WHERE expires_at<?', (now,))
         self.db.execute('INSERT INTO web_sessions VALUES (?,?)', (hashlib.sha256(token.encode()).hexdigest(), now+SESSION_SECONDS))
         return token
-
-

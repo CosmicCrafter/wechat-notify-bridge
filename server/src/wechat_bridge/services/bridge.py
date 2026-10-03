@@ -3,12 +3,16 @@ import asyncio
 import base64
 import hashlib
 import json
+import logging
 import secrets
 import time
 import httpx
 from wechat_bridge.config import chat_url
 from wechat_bridge.wechat.protocol import BridgeError, WeChatError, BASE_INFO, ACCEPTED, validate_base, response_status, send_recovery_hint
 from wechat_bridge.services.presentation import present
+from wechat_bridge.storage.send_diagnostics import wechat_category, redact_error_message
+
+logger = logging.getLogger(__name__)
 
 class Bridge:
     def __init__(self, store, transport=None):
@@ -17,7 +21,7 @@ class Bridge:
         self.lock = asyncio.Lock()
         self.tasks = []
 
-    async def request(self, endpoint, payload, timeout=20):
+    async def request(self, endpoint, payload, timeout=20, *, diagnostics=None):
         account = self.store.account()
         if account is None:
             raise BridgeError(409, 'wechat_not_bound')
@@ -26,16 +30,28 @@ class Bridge:
                    'X-WECHAT-UIN': base64.b64encode(str(secrets.randbits(32)).encode()).decode()}
         response = await self.http.post(validate_base(account['base_url']) + '/' + endpoint,
                                        json=dict(payload, base_info=BASE_INFO), headers=headers, timeout=timeout)
+        if diagnostics is not None:
+            diagnostics['http_status'] = response.status_code
         response.raise_for_status()
         value = response.json()
+        if diagnostics is not None and isinstance(value, dict):
+            for field in ('ret', 'errcode'):
+                diagnostics['upstream_' + field] = value[field] if type(value.get(field)) is int else None
+            message = value.get('errmsg')
+            if not isinstance(message, str):
+                message = value.get('msg')
+            diagnostics['upstream_error_message'] = redact_error_message(message, account)
         response_status(value)
         return value
 
     def public_receipt(self, row, duplicate=False):
         message = self.store.db.execute('SELECT id,conversation_id FROM chat_messages WHERE outgoing_key=?', (row['key'],)).fetchone()
+        diagnostics = self.store.send_diagnostics.public(row['key'])
         result = {'status': row['status'], 'duplicate': duplicate, 'attempted_at': row['attempted_at'],
                 'error_code': row.get('error_code'),
-                'recovery_hint': send_recovery_hint(row['status'], row.get('error_code')),
+                'recovery_hint': send_recovery_hint(row['status'], row.get('error_code'),
+                                                    diagnostics.get('error_category') if diagnostics else None),
+                'diagnostics': diagnostics,
                 'message_id': message['id'] if message else None,
                 'conversation_url': chat_url(message['conversation_id'], message['id']) if message else None,
                 'phone_delivery': 'confirmed' if row['status'] == 'phone_confirmed' else 'unconfirmed'}
@@ -114,6 +130,10 @@ class Bridge:
             wire_text = render_wire()
             if dry_run:
                 return {'status': 'dry_run_ready', 'sent_now': False, 'network_checked': False}
+            diagnostics = {**self.store.send_diagnostics.context(now),
+                           'request_characters': len(wire_text), 'request_utf8_bytes': len(wire_text.encode()),
+                           'http_status': None, 'error_category': None}
+            diagnostics.pop('quota_warning', None)
             self.store.db.execute('BEGIN IMMEDIATE')
             try:
                 self.store.db.execute('INSERT INTO outgoing VALUES (?,?,?,?,?,?,?,?)',
@@ -122,6 +142,9 @@ class Bridge:
                     task_id = self.store.portal.tasks.create(history_cid, digest, task_card, now) if task_card else None
                     message_id = self.store.portal.add(history_cid, 'assistant', 'api', text, 'attempting', outgoing_key=digest, at=now, task_id=task_id)
                     wire_text = render_wire(message_id)
+                    diagnostics['request_characters'] = len(wire_text)
+                    diagnostics['request_utf8_bytes'] = len(wire_text.encode())
+                self.store.send_diagnostics.save(digest, diagnostics)
                 if kind == 'heartbeat':
                     self.store.set('last_heartbeat_attempt_at', now)
                 self.store.db.commit()
@@ -129,23 +152,42 @@ class Bridge:
                 self.store.db.rollback()
                 raise
             status, error = 'unconfirmed_do_not_retry', None
+            started = time.monotonic()
             try:
                 account = self.store.account()
                 value = await self.request('ilink/bot/sendmessage', {'msg': {
                     'from_user_id': '', 'to_user_id': account['user_id'],
                     'client_id': 'codex-wechat-' + digest[:32], 'message_type': 2, 'message_state': 2,
-                    'context_token': account['context_token'], 'item_list': [{'type': 1, 'text_item': {'text': wire_text}}]}})
+                    'context_token': account['context_token'], 'item_list': [{'type': 1, 'text_item': {'text': wire_text}}]}},
+                    diagnostics=diagnostics)
                 status = response_status(value)
             except WeChatError as exc:
                 status, error = 'api_rejected', str(exc.code)
+                diagnostics['upstream_error_field'] = exc.field
+                diagnostics['error_category'] = wechat_category(exc.code, diagnostics.get('upstream_error_message'))
+            except httpx.TimeoutException as exc:
+                error = type(exc).__name__
+                diagnostics['error_category'] = 'network_timeout'
+            except httpx.HTTPStatusError as exc:
+                error = type(exc).__name__
+                diagnostics['error_category'] = 'http_error'
+            except httpx.TransportError as exc:
+                error = type(exc).__name__
+                diagnostics['error_category'] = 'network_error'
+            except ValueError as exc:
+                error = type(exc).__name__
+                diagnostics['error_category'] = 'invalid_response'
             except Exception as exc:
                 error = type(exc).__name__
+                diagnostics['error_category'] = 'internal_error'
+            diagnostics['duration_ms'] = round((time.monotonic() - started) * 1000)
             self.store.db.execute('BEGIN IMMEDIATE')
             try:
                 finished = time.time()
                 self.store.db.execute('UPDATE outgoing SET status=?,finished_at=?,error_code=? WHERE key=?',
                                       (status, finished, error, digest))
                 self.store.db.execute('UPDATE chat_messages SET status=? WHERE outgoing_key=?', (status, digest))
+                self.store.send_diagnostics.save(digest, diagnostics)
                 if status in ACCEPTED:
                     self.store.touch(finished)
                 if kind == 'heartbeat':
@@ -154,6 +196,10 @@ class Bridge:
             except Exception:
                 self.store.db.rollback()
                 raise
+            if status not in ACCEPTED:
+                logger.warning('WeChat send failed: key=%s category=%s code=%s http=%s context_age=%s accepted_before=%s',
+                               digest, diagnostics.get('error_category'), error, diagnostics.get('http_status'),
+                               diagnostics['context_age_seconds'], diagnostics['accepted_sends_since_context'])
             return self.public_receipt(self.store.receipt(digest))
 
     async def command_once(self):

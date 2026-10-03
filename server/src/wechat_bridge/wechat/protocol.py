@@ -6,9 +6,14 @@ BASE_INFO = {'channel_version': '2.4.9', 'bot_agent': 'WeChatNotifyService/1.0.0
 ACCEPTED = {'api_accepted', 'no_error_reported', 'phone_confirmed'}
 
 
-def send_recovery_hint(status, error_code):
+def send_recovery_hint(status, error_code, category=None):
+    if status == 'api_rejected' and category == 'wechat_rate_limited':
+        return '微信报告发送限流，请减少推送并稍后检查；主动推送额度也可能受限。未自动重发。'
+    if status == 'api_rejected' and category == 'wechat_context_rejected':
+        return '微信报告回复上下文无效或过期，请直接在微信 ClawBot 发一条新消息后检查发送连接；网页回复不会更新微信上下文。未自动重发。'
     if status == 'api_rejected' and str(error_code) == '-2':
-        return ('微信拒绝发送。请直接在微信 ClawBot 聊天框发送一条新消息，再检查发送连接；'
+        return ('微信拒绝发送，可能涉及发送限额、回复上下文或其他上游限制。'
+                '请直接在微信 ClawBot 聊天框发送一条新消息，再检查发送连接；'
                 '网页回复不会更新微信上下文。错误码 -2 本身不能确定具体原因。')
     if status == 'api_rejected' and str(error_code) == '-14':
         return '微信报告会话失效，请使用原账号重新扫码绑定。'
@@ -48,5 +53,3 @@ def response_status(value):
         if value.get(field) not in (None, 0):
             raise WeChatError(field, value[field])
     return 'api_accepted' if value.get('ret') == 0 else 'no_error_reported'
-
-

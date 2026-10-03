@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "wechat-notify-local",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "description": "WeChat notifications, mobile conversations and routed replies through a server API or OAuth-protected remote MCP.",
   "extensions": {
     "com.openai": {

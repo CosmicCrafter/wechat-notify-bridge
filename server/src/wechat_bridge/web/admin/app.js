@@ -73,6 +73,12 @@ function render() {
   $('status-title').textContent = title; $('connection-note').textContent = note;
   $('connection-dot').className = 'status-dot' + (sendWarning || ['retrying','session_expired'].includes(s.connection_status) ? ' warning' : s.connection_status === 'connected' ? ' connected' : '');
   $('last-activity').textContent = date(s.last_activity_at, '暂无记录');
+  $('last-wechat-message').textContent = date(s.context_received_at, '暂无记录');
+  $('accepted-sends').textContent = Number.isInteger(s.accepted_sends_since_context) ? `${s.accepted_sends_since_context} 条（接口接受）` : '尚无上下文记录';
+  $('quota-warning').textContent = s.quota_warning || '';
+  $('quota-warning').hidden = !s.quota_warning;
+  $('send-detail').textContent = s.last_send_diagnostics?.error_summary || '';
+  $('send-detail').hidden = !s.last_send_diagnostics?.error_summary;
   $('next-heartbeat').textContent = date(s.next_heartbeat_at, s.connection_status === 'session_expired' ? '已暂停' : '收到首条消息后开始');
   $('last-poll').textContent = date(s.last_poll_success_at, '尚未开始');
   $('inbox-count').textContent = `${s.inbox_count} 条`;

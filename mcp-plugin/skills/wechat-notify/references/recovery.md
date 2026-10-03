@@ -18,4 +18,8 @@
 
 api_accepted / no_error_reported 可表述为“已提交微信接口，手机收件尚未确认”。phone_confirmed 仅引用已有人工确认记录；Skill 不自行产生该状态。duplicate=true 必须同时检查 status。
 
+服务器 1.14.0 起的回执可包含 `diagnostics`。用 `error_category` 和固定 `error_summary` 区分明确限流、上下文错误、会话失效、网络超时和未识别拒绝；`wechat_prepare_failed` 或没有错误说明的 `-2` 不能断言 token 已过期。旧回执可能没有诊断，不能补猜历史原因。
+
+状态中的 `accepted_sends_since_context` 是本地观察的接口接受条数，不是微信剩余额度。`quota_warning` 出现时在当前宿主提醒用户减少碎片推送、直接在微信发言；不要为了提示额度额外发一条微信并继续消耗发送机会。接收正常不等于主动推送正常，新微信发言也不代表历史失败通知已补发。
+
 已有明确授权的正常调用无需重复确认；只有缺失身份、路由或业务决定需要澄清。

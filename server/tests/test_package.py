@@ -10,7 +10,7 @@ from wechat_bridge import __version__
 def test_packaged_assets_and_version():
     for file in ('admin/index.html', 'admin/app.js', 'admin/style.css',
                  'chat/index.html', 'chat/app.js', 'chat/style.css', 'chat/experience.css', 'chat/drafts.js',
-                 'chat/tasks.js', 'chat/tasks.css', 'chat/forms.css',
+                 'chat/tasks.js', 'chat/tasks.css', 'chat/forms.css', 'chat/field-pickers.js', 'chat/field-pickers.css',
                  'oauth/index.html', 'oauth/app.js', 'vendor/marked.js',
                  'vendor/purify.js', 'vendor/vendor-lock.json'):
         assert (WEB / file).is_file(), file

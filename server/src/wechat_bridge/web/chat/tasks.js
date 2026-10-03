@@ -1,6 +1,8 @@
 'use strict';
 const taskDrafts = new Map(), taskPending = new Map(), taskErrors = new Map();
 const taskLabels = {pending:'待你决定',answered:'已答复',processing:'处理中',completed:'已完成',cancelled:'已取消',expired:'已过期'};
+let fieldPickerScript=null;
+function loadFieldPickers(){if(typeof formPickers!=='undefined')return Promise.resolve();if(fieldPickerScript)return fieldPickerScript;fieldPickerScript=new Promise((resolve,reject)=>{const script=el('script');script.src='assets/field-pickers.js';script.onload=resolve;script.onerror=()=>{script.remove();fieldPickerScript=null;reject(new Error('选择面板加载失败，请重试或刷新页面。'));};document.head.append(script);});return fieldPickerScript;}
 
 function taskDirty(){return [...taskDrafts.values()].some(d=>d.choice_id!==undefined||d.choice_ids.length||d.text.trim())||taskPending.size>0;}
 function clearTaskDrafts(){taskDrafts.clear();taskPending.clear();taskErrors.clear();}
@@ -106,11 +108,15 @@ function renderFormCard(task,card,draft){
   const submit=el('button','task-submit',pending?'重试提交':'提交表单');submit.type='submit';
   const feedback=el('p','task-feedback');feedback.setAttribute('role','status');
   function refresh(){submit.disabled=state.busy||!task.can_answer||(!pending&&!taskCanSubmit(task,draft));feedback.textContent=taskErrors.get(task.id)||(browserDrafts.failed?'浏览器存储不可用，草稿暂未保存；离开前请复制。':'');feedback.hidden=!feedback.textContent;}
-  for(const field of task.fields){const group=el('div','task-field'),id='task-'+task.id+'-field-'+field.id,label=el('label','',field.label);label.htmlFor=id;label.append(el('span','field-required',field.required?'必填':'选填'));
-    const input=el(field.type==='select'?'select':'input');input.id=id;input.name=field.id;input.required=field.required;
-    if(field.type==='select'){input.append(new Option('请选择…',''));for(const option of field.options)input.append(new Option(option.label,option.id));}
-    else{input.type=field.type==='number'?'text':field.type;input.maxLength=1000;input.placeholder=field.placeholder;if(field.type==='number')input.inputMode='decimal';}
-    input.value=draft.field_values[field.id]||'';input.oninput=()=>{draft.field_values[field.id]=input.value;taskDrafts.set(task.id,draft);persistTask(task.id,draft);refresh();};group.append(label,input);fields.append(group);
+  for(const field of task.fields){const group=el('div','task-field'),id='task-'+task.id+'-field-'+field.id,label=el('label','',field.label);label.htmlFor=id;label.id=id+'-label';label.append(el('span','field-required',field.required?'必填':'选填'));
+    const picker=['select','date'].includes(field.type),input=el(picker?'button':'input');input.id=id;input.name=field.id;
+    function save(value){draft.field_values[field.id]=value;taskDrafts.set(task.id,draft);persistTask(task.id,draft);taskErrors.delete(task.id);refresh();}
+    if(picker){if(!document.getElementById('picker-style')){const css=el('link');css.id='picker-style';css.rel='stylesheet';css.href='assets/field-pickers.css';document.head.append(css);}input.type='button';input.className='field-trigger';input.setAttribute('aria-haspopup','dialog');input.setAttribute('aria-labelledby',label.id);input.setAttribute('aria-expanded','false');
+      const value=el('span','field-value'),icon=el('span','field-icon'+(field.type==='date'?' calendar-icon':''),field.type==='date'?'':'⌄');value.id=id+'-value';input.setAttribute('aria-describedby',value.id);icon.setAttribute('aria-hidden','true');input.append(value,icon);
+      function showValue(){const saved=draft.field_values[field.id]||'';value.textContent=field.type==='select'?(field.options.find(o=>o.id===saved)?.label||'请选择…'):(saved?saved.replace(/^(\d+)-(\d+)-(\d+)$/,'$1 年 $2 月 $3 日'):'选择日期');input.classList.toggle('is-empty',!saved);}
+      input.onclick=async()=>{const generation=state.generation;input.disabled=true;try{await loadFieldPickers();if(!input.isConnected||generation!==state.generation||state.busy)return;input.setAttribute('aria-expanded','true');const selected=await formPickers.open(field,draft.field_values[field.id]||'');if(selected!==null&&input.isConnected&&generation===state.generation){save(selected);showValue();}}catch(e){taskErrors.set(task.id,e.message);refresh();}finally{input.disabled=state.busy||!!taskPending.get(task.id)||!task.can_answer;input.setAttribute('aria-expanded','false');if(input.isConnected)input.focus({preventScroll:true});}};showValue();
+    }else{input.type='text';input.required=field.required;input.maxLength=1000;input.placeholder=field.placeholder;if(field.type==='number')input.inputMode='decimal';input.value=draft.field_values[field.id]||'';input.oninput=()=>save(input.value);}
+    group.append(label,input);fields.append(group);
   }
   form.append(fields,feedback,submit,el('p','task-deadline','有效期至 '+date(task.expires_at)));form.onsubmit=event=>{event.preventDefault();submitTaskCard(task,draft);};card.append(form);if(!task.can_answer)card.append(el('p','task-note','对话已归档或停用，表单暂时只读。'));refresh();return card;
 }

@@ -13,7 +13,7 @@ DIRECTORIES = ('docs', 'scripts', 'server/src/wechat_bridge', 'server/tests', 's
 SUFFIXES = {'.py', '.md', '.json', '.yaml', '.yml', '.toml', '.html', '.css', '.js', '.txt', '.conf'}
 TOP_FILES = ('README.md', '.gitignore', '.gitattributes', '.github/workflows/test.yml', 'pytest.ini', 'server/README.md',
              'server/pyproject.toml', 'server/requirements.txt', 'server/requirements-dev.txt',
-             'server/Dockerfile', 'server/.dockerignore', 'server/compose.yaml',
+             'server/Dockerfile', 'server/.dockerignore', 'server/compose.yaml', 'server/compose.proxy.yaml',
              'server/.env.example', 'server/openapi.json', 'mcp-plugin/README.md',
              'mcp-plugin/DESKTOP-WAKE.md', 'mcp-plugin/requirements.txt',
              'mcp-plugin/plugin.json', 'mcp-plugin/mcp.json', 'mcp-plugin/.mcp.json')

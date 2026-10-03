@@ -97,6 +97,37 @@ docker compose up -d --build
 
 ## 运行与维护
 
+### 可选：Admin 订阅与代理管理（1.10.0）
+
+普通通知无需启用此功能。云端事件回调需要代理时，在 `server/` 中运行：
+
+```bash
+.venv/bin/python scripts/prepare_proxy.py
+sudo chown -R 10001:10001 .private/proxy-bootstrap
+sudo chmod 700 .private/proxy-bootstrap .private/proxy-bootstrap/runtime
+sudo chmod 600 .private/proxy-bootstrap/*.json
+docker compose -f compose.yaml -f compose.proxy.yaml up -d --build
+```
+
+此命令生成独立代理与控制接口的随机凭据，并使用 Mihomo 容器。两个代理端口只在 Compose 内部网络开放，不发布到公网。首次下载镜像需要服务器能访问镜像仓库。已有代理可通过 `prepare_proxy.py --import-config <私有配置> --import-callback <私有回调JSON> --controller-url <内部控制地址> --controller-bind <内部监听地址>` 接入；输出到新目录，先备份旧配置后再更新代理进程，不覆盖原凭据。
+
+可以在私有 `.env` 中设置初始值：
+
+```dotenv
+WECHAT_PROXY_SUBSCRIPTION_URL=https://subscription.example.com/private-feed
+WECHAT_PROXY_UPDATE_INTERVAL=21600
+WECHAT_PROXY_CHECK_INTERVAL=300
+WECHAT_PROXY_PRIORITIES='["日本 Pro","美国 Pro","新加坡 Pro"]'
+```
+
+间隔单位为秒；默认每 6 小时更新订阅、每 5 分钟检查连接。也可留空订阅地址，在 Admin 的“回调代理订阅”填写并保存。支持包含 `proxies` 的 Clash / Mihomo YAML，不导入订阅中的路由、监听器、规则或控制接口。订阅最多 2 MiB、300 个节点，禁止 YAML 别名与非公网地址，不跟随订阅下载重定向，验证 HTTPS 证书。
+
+Admin 显示订阅来源、更新时间、流量与到期信息（订阅返回这些元数据时），以及节点类型、延迟和实际回调目标检测结果。可立即更新、测试连接或固定节点。每行优先规则为一组关键词，组内全部匹配，不区分英文大小写；默认日本 Pro → 美国 Pro → 新加坡 Pro。留空规则时自动选择可用节点，同一优先组保留正常节点，失败时切换；恢复更高优先组后可回到该组。手动模式固定选择，不自动跳到其他节点。
+
+Admin 保存的设置与节点缓存使用服务器主密钥加密持久化，优先于 `.env` 初始值；原始订阅地址和节点凭据不回显。修改 `.env` 不覆盖已保存的 Admin 设置。暂停自动管理会保留当前代理，不停止 Mihomo；仍可手动更新和检测。下载或新节点验证失败保留旧配置，自动更新失败至少等待 5 分钟再尝试。新增订阅不会使发送失败的微信消息自动重发。
+
+管理接口仅接受管理员密钥，AI 客户端与普通手机页面不能读取或修改代理配置。只允许受信任的回调域名出站，微信收发继续沿原路径。源码和插件包不包含真实订阅与代理配置。
+
 - 只运行一个 worker 和一个服务实例，避免多个进程同时接收同一微信账号。
 - `.data/` 保存数据库；入站正文、微信凭据和上下文已加密。客户端长期只存密钥哈希；待发送的指令回复暂时加密保存，尝试发送后清除正文。登记会话的出站正文也加密保存在消息时间线；未登记会话的旧式发送仍只存哈希与结果。
 - `clients.json` 中的旧客户端只导入一次。后续以数据库为准；停用、重置、改名或删除后，重启不会重新启用文件里的旧密钥。

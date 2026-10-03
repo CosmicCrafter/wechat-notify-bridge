@@ -29,6 +29,7 @@ function dropQr() {
   $('qr-image').removeAttribute('src'); $('qr-image').hidden = true; $('qr-empty').hidden = false;
 }
 function logout() {
+  proxyFormLoaded = false; proxySelectionDirty = false; proxyState = null; $('proxy-url').value = '';
   $('chat-login-code').hidden = true; $('chat-code-value').value = ''; $('revoke-chat-confirm').hidden = true;
   generation++; key = ''; state = null; clearInterval(timer); timer = null; dropQr();
   $('admin-key').value = ''; $('verify-code').value = '';
@@ -95,6 +96,7 @@ async function refresh() {
     const result = await api('status');
     if (current !== generation || !key) return;
     state = result; render();
+    await loadProxy(current);
     if (Date.now() - lastClientsAt > 10000) await loadClients();
     const p = state.pairing, version = `${p.session_id}/${p.qr_version}`;
     if (p.qr_available && qrVersion !== version) {
@@ -234,3 +236,99 @@ $('confirm-chat-revoke').onclick = async () => {
     $('chat-login-code').hidden = true; $('chat-code-value').value = ''; $('chat-access-result').textContent = '已退出所有手机登录。';
   } catch (e) { showError(e.message); }
 };
+
+let proxyState = null, proxyFormLoaded = false, proxySelectionDirty = false;
+const proxyErrors = {
+  proxy_manager_not_configured: '代理管理尚未启用，请按部署说明配置 Mihomo 和私有控制文件。',
+  proxy_control_configuration_invalid: '代理控制配置无法读取，请检查私有控制文件和权限。',
+  proxy_operation_running: '正在处理上一次操作，请稍候。',
+  invalid_proxy_settings: '请检查订阅地址、更新间隔和优先规则。',
+  invalid_subscription_url: '订阅地址必须是公网 HTTPS 地址，不含用户名、密码或片段。',
+  subscription_address_not_public: '订阅或节点地址必须指向公网。',
+  subscription_download_failed: '订阅下载失败，请检查地址、证书或网络。保留上次可用配置。',
+  subscription_too_large: '订阅超过 2 MiB，请使用较小的 Clash / Mihomo 节点订阅。',
+  invalid_subscription_content: '订阅内容无法导入，请提供 Clash / Mihomo YAML 节点订阅。',
+  subscription_has_no_supported_nodes: '订阅中没有支持的节点类型。',
+  proxy_controller_unavailable: '无法连接 Mihomo 控制接口，请检查代理服务与私有配置。',
+  proxy_no_available_node: '当前规则下没有可用节点，请检查订阅、优先规则或手动选择。',
+  proxy_subscription_required: '请先保存订阅地址。',
+  proxy_node_not_found: '该节点已不存在，请刷新列表。',
+  proxy_operation_failed: '代理操作未完成，请检查连接后重试。',
+  proxy_rollback_failed: '恢复旧代理配置失败，请管理员检查代理服务；不要继续更新配置。'
+};
+Object.assign(errors, proxyErrors);
+const trafficSize = value => {
+  if (value === undefined || value === null) return '—';
+  return value >= 2**40 ? `${(value/2**40).toFixed(2)} TiB` : `${(value/2**30).toFixed(2)} GiB`;
+};
+async function loadProxy(current = generation) {
+  const result = await api('proxy');
+  if (current !== generation || !key) return;
+  proxyState = result; renderProxy();
+}
+function renderProxy() {
+  const p = proxyState;
+  if (!p) return;
+  const disabled = !p.available || p.busy;
+  for (const id of ['proxy-update','proxy-check','proxy-save','proxy-select']) $(id).disabled = disabled;
+  $('proxy-source').textContent = p.subscription_configured ? `${p.subscription_label} · ${p.source === 'admin' ? 'Admin 配置' : '.env 初始值'}` : '未配置订阅';
+  $('proxy-updated').textContent = date(p.last_update_at, '尚未成功更新');
+  $('proxy-next').textContent = p.enabled ? date(p.next_update_at, '等待配置') : '自动更新已暂停';
+  const usage = p.usage || {}, used = (usage.upload || 0) + (usage.download || 0);
+  $('proxy-traffic').textContent = usage.total ? `${trafficSize(used)} / ${trafficSize(usage.total)}` : '订阅未提供';
+  $('proxy-expire').textContent = date(usage.expire, '订阅未提供');
+  $('proxy-usage-wrap').hidden = !usage.total;
+  const percent = usage.total ? Math.min(100, used / usage.total * 100) : 0;
+  $('proxy-usage').value = percent; $('proxy-usage-label').textContent = `${percent.toFixed(0)}%`;
+  const node = p.nodes.find(n => n.name === p.current_node);
+  $('proxy-current-name').textContent = p.current_node || '尚未选择节点';
+  $('proxy-current-type').textContent = node ? `${node.type}${node.udp ? ' · UDP' : ''}` : '等待可用节点';
+  $('proxy-current-delay').textContent = node?.delay ? `${node.delay} ms` : '—';
+  $('proxy-current-delay').classList.toggle('measured', !!node?.delay && !p.last_error);
+  $('proxy-last-check').textContent = `最近检测：${date(p.last_check_at, '尚未检测')}`;
+  $('proxy-rule-summary').textContent = p.priorities.length ? `优先级：${p.priorities.join(' → ')}` : '无优先规则：自动选择可用节点，同一组内保持正常节点。';
+  $('proxy-result').textContent = p.busy ? '正在更新或检测，请稍候…' : p.last_error ? proxyErrors[p.last_error] || '代理操作未完成。' : !p.available ? proxyErrors.proxy_manager_not_configured : p.current_node ? '已完成节点检测与回调目标连接验证。' : '保存订阅后，点击更新订阅。';
+  $('proxy-result').classList.toggle('proxy-warning', !!p.last_error || !p.available);
+  if (!proxyFormLoaded) {
+    $('proxy-update-hours').value = Math.max(1, Math.round(p.update_interval/3600));
+    $('proxy-check-minutes').value = Math.max(1, Math.round(p.check_interval/60));
+    $('proxy-priorities').value = p.priorities.join('\n'); $('proxy-enabled').checked = p.enabled;
+    proxyFormLoaded = true;
+  }
+  if (!proxySelectionDirty) {
+    $('proxy-mode').value = p.mode;
+    const options = p.nodes.map(n => {
+      const option = document.createElement('option'); option.value = n.name;
+      option.textContent = `${n.name}${n.delay ? ` · ${n.delay} ms` : ' · 未测或不可用'}`;
+      return option;
+    });
+    if (!options.length) { const option = document.createElement('option'); option.value = ''; option.textContent = '暂无节点'; options.push(option); }
+    $('proxy-node').replaceChildren(...options); $('proxy-node').value = p.manual_node || p.current_node || options[0].value;
+  }
+  $('proxy-node').disabled = disabled || $('proxy-mode').value === 'auto';
+}
+async function proxyAction(action) {
+  const current = generation;
+  try {
+    const result = await action();
+    if (current !== generation || !key) return;
+    proxyState = result; renderProxy();
+  } catch (error) {
+    if (current === generation && key) showError(error.message);
+  }
+}
+$('proxy-settings-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const body = {subscription_url: $('proxy-url').value.trim() || null, enabled: $('proxy-enabled').checked,
+    update_interval: Number($('proxy-update-hours').value)*3600, check_interval: Number($('proxy-check-minutes').value)*60,
+    priorities: $('proxy-priorities').value.split('\n').map(x=>x.trim()).filter(Boolean)};
+  proxyAction(async () => { const result = await api('proxy/config', body); $('proxy-url').value = ''; return result; });
+});
+$('proxy-update').onclick = () => proxyAction(() => api('proxy/update', {}));
+$('proxy-check').onclick = () => proxyAction(() => api('proxy/check', {}));
+$('proxy-mode').onchange = () => { proxySelectionDirty = true; $('proxy-node').disabled = $('proxy-mode').value === 'auto'; };
+$('proxy-node').onchange = () => { proxySelectionDirty = true; };
+$('proxy-select').onclick = () => proxyAction(async () => {
+  const result = await api('proxy/select', {name: $('proxy-mode').value === 'auto' ? null : $('proxy-node').value});
+  proxySelectionDirty = false; return result;
+});

@@ -9,6 +9,8 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 
 from wechat_bridge.services.bridge import Bridge
 from wechat_bridge.wechat.protocol import BridgeError
@@ -20,6 +22,9 @@ from wechat_bridge.mcp.server import mount_remote_mcp
 
 from wechat_bridge.api.admin import mount_admin
 from wechat_bridge.api.clients import mount_client_api
+from wechat_bridge.api.proxy import mount_proxy
+from wechat_bridge.services.proxy import ProxyManager
+from wechat_bridge import __version__
 
 
 def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, pairing=None):
@@ -43,6 +48,9 @@ def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, 
         bridge.store.clients.seed(clients or {})
         app.state.admin_hash = admin_hash
         app.state.pairing = pairing
+        app.state.proxy = ProxyManager(bridge.store)
+        if run_workers:
+            app.state.proxy.start()
         if run_workers:
             await bridge.start()
         if app.state.oauth:
@@ -58,6 +66,7 @@ def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, 
                     await stack.enter_async_context(remote_mcp.session_manager.run())
                 yield
         finally:
+            await app.state.proxy.close()
             if event_task:
                 event_task.cancel()
                 await asyncio.gather(event_task, return_exceptions=True)
@@ -67,11 +76,18 @@ def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, 
             if owned:
                 bridge.store.close()
 
-    app = FastAPI(title='Personal WeChat Notification API', version='1.9.1',
+    app = FastAPI(title='Personal WeChat Notification API', version=__version__,
                   docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan,
                   servers=([{'url': os.environ['WECHAT_PUBLIC_BASE_URL']}]
                            if os.environ.get('WECHAT_PUBLIC_BASE_URL') else []))
     bearer = HTTPBearer(auto_error=False)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request, exc):
+        if request.url.path.startswith('/admin/api/proxy'):
+            from fastapi.responses import JSONResponse
+            return JSONResponse({'detail': 'invalid_proxy_settings'}, status_code=422)
+        return await request_validation_exception_handler(request, exc)
 
     @app.middleware('http')
     async def protect_browser_responses(request: Request, call_next):
@@ -112,10 +128,11 @@ def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, 
         return JSONResponse({'detail': exc.code}, status_code=exc.status)
 
     mount_admin(app, authorize_admin)
+    mount_proxy(app, authorize_admin)
 
     @app.get('/health')
     def health():
-        return {'status': 'ok', 'version': '1.9.1'}
+        return {'status': 'ok', 'version': __version__}
 
     mount_client_api(app, authorize)
 

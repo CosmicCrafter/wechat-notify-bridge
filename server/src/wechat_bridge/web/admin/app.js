@@ -29,16 +29,18 @@ function dropQr() {
   $('qr-image').removeAttribute('src'); $('qr-image').hidden = true; $('qr-empty').hidden = false;
 }
 function logout() {
-  proxyFormLoaded = false; proxySelectionDirty = false; proxyState = null; $('proxy-url').value = '';
+  proxyPendingGeneration = null;
+  proxyFormLoaded = false; proxySelectionDirty = false; proxyOptionsSignature = ''; proxyState = null; $('proxy-url').value = '';
   $('chat-login-code').hidden = true; $('chat-code-value').value = ''; $('revoke-chat-confirm').hidden = true;
   generation++; key = ''; state = null; clearInterval(timer); timer = null; dropQr();
   $('admin-key').value = ''; $('verify-code').value = '';
   $('rebind-confirm').hidden = true;
   hideIssued(); clients = []; selectedClient = null; lastClientsAt = 0;
   $('client-editor').hidden = true; $('client-rows').replaceChildren(); $('client-name').value = '';
-  $('dashboard').hidden = true; $('login').hidden = false; showError();
+  $('dashboard').hidden = true; $('login').hidden = false; showError(); showPage();
 }
 async function api(path, body, binary = false) {
+  const requestGeneration = generation;
   const headers = {Authorization: `Bearer ${key}`};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const response = await fetch(`api/${path}`, {
@@ -47,7 +49,7 @@ async function api(path, body, binary = false) {
   });
   if (!response.ok) {
     const result = await response.json().catch(() => ({}));
-    if (response.status === 401) { logout(); throw new Error('管理员密钥不正确或已失效，请重新输入。'); }
+    if (response.status === 401) { if (requestGeneration === generation) logout(); throw new Error('管理员密钥不正确或已失效，请重新输入。'); }
     throw new Error(errors[result.detail] || (response.status === 404 ? '二维码已更新，请稍候。' : '操作暂未完成，请稍后重试。'));
   }
   return binary ? response.blob() : response.json();
@@ -123,7 +125,7 @@ $('login-form').addEventListener('submit', async event => {
   await act(async () => {
     await refresh();
     if (!state) throw new Error('连接状态暂未加载，请重新输入密钥。');
-    $('login').hidden = true; $('dashboard').hidden = false;
+    $('login').hidden = true; $('dashboard').hidden = false; showPage();
     clearInterval(timer); timer = setInterval(() => { if (!busy) refresh().catch(error => showError(error instanceof TypeError ? '连接中断，正在等待服务器恢复。' : error.message)); }, 3000);
   });
   $('login-button').disabled = false;
@@ -237,7 +239,26 @@ $('confirm-chat-revoke').onclick = async () => {
   } catch (e) { showError(e.message); }
 };
 
-let proxyState = null, proxyFormLoaded = false, proxySelectionDirty = false;
+let proxyState = null, proxyFormLoaded = false, proxySelectionDirty = false, proxyOptionsSignature = '';
+let proxyPendingGeneration = null;
+const pages = {
+  overview: ['连接你的微信', '让重要的消息，出现在微信里', '扫码一次，由服务器持续接收消息、发送通知，并管理空闲心跳。'],
+  subscription: ['订阅管理', '回调代理 / 订阅', '管理订阅地址、更新周期和节点优先规则。'],
+  nodes: ['节点选择', '回调代理 / 节点', '从订阅节点中自由选择，或让服务器按优先规则自动切换。']
+};
+function showPage() {
+  const name = key && Object.hasOwn(pages, location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+  for (const panel of document.querySelectorAll('[data-page]')) panel.hidden = panel.dataset.page !== name;
+  for (const link of document.querySelectorAll('[data-page-link]')) {
+    if (link.dataset.pageLink === name) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
+  const [title, eyebrow, description] = pages[name];
+  $('page-title').textContent = title; $('page-eyebrow').textContent = eyebrow; $('page-description').textContent = description;
+  document.title = `微信通知桥 · ${name === 'overview' ? '连接管理' : title}`;
+}
+window.addEventListener('hashchange', () => { showPage(); window.scrollTo(0, 0); });
+showPage();
 const proxyErrors = {
   proxy_manager_not_configured: '代理管理尚未启用，请按部署说明配置 Mihomo 和私有控制文件。',
   proxy_control_configuration_invalid: '代理控制配置无法读取，请检查私有控制文件和权限。',
@@ -269,7 +290,7 @@ async function loadProxy(current = generation) {
 function renderProxy() {
   const p = proxyState;
   if (!p) return;
-  const disabled = !p.available || p.busy;
+  const disabled = !p.available || p.busy || proxyPendingGeneration === generation;
   for (const id of ['proxy-update','proxy-check','proxy-save','proxy-select']) $(id).disabled = disabled;
   $('proxy-source').textContent = p.subscription_configured ? `${p.subscription_label} · ${p.source === 'admin' ? 'Admin 配置' : '.env 初始值'}` : '未配置订阅';
   $('proxy-updated').textContent = date(p.last_update_at, '尚未成功更新');
@@ -287,34 +308,48 @@ function renderProxy() {
   $('proxy-current-delay').classList.toggle('measured', !!node?.delay && !p.last_error);
   $('proxy-last-check').textContent = `最近检测：${date(p.last_check_at, '尚未检测')}`;
   $('proxy-rule-summary').textContent = p.priorities.length ? `优先级：${p.priorities.join(' → ')}` : '无优先规则：自动选择可用节点，同一组内保持正常节点。';
-  $('proxy-result').textContent = p.busy ? '正在更新或检测，请稍候…' : p.last_error ? proxyErrors[p.last_error] || '代理操作未完成。' : !p.available ? proxyErrors.proxy_manager_not_configured : p.current_node ? '已完成节点检测与回调目标连接验证。' : '保存订阅后，点击更新订阅。';
-  $('proxy-result').classList.toggle('proxy-warning', !!p.last_error || !p.available);
+  const message = p.busy || proxyPendingGeneration === generation ? '正在更新或检测，请稍候…' : p.last_error ? proxyErrors[p.last_error] || '代理操作未完成。' : !p.available ? proxyErrors.proxy_manager_not_configured : p.current_node ? '已完成节点检测与回调目标连接验证。' : '保存订阅后，点击更新订阅。';
+  for (const id of ['proxy-result','proxy-subscription-result']) {
+    $(id).textContent = message; $(id).classList.toggle('proxy-warning', !!p.last_error || !p.available);
+  }
+  $('proxy-selection-mode').textContent = p.mode === 'manual' ? '当前使用：手动固定节点' : '当前使用：自动按优先规则选择';
   if (!proxyFormLoaded) {
     $('proxy-update-hours').value = Math.max(1, Math.round(p.update_interval/3600));
     $('proxy-check-minutes').value = Math.max(1, Math.round(p.check_interval/60));
     $('proxy-priorities').value = p.priorities.join('\n'); $('proxy-enabled').checked = p.enabled;
     proxyFormLoaded = true;
   }
-  if (!proxySelectionDirty) {
-    $('proxy-mode').value = p.mode;
+  const selection = proxySelectionDirty ? $('proxy-node').value : p.mode === 'manual' ? p.manual_node : '';
+  const signature = JSON.stringify(p.nodes);
+  if (signature !== proxyOptionsSignature) {
+    const automatic = document.createElement('option'); automatic.value = ''; automatic.textContent = '自动按优先规则选择';
     const options = p.nodes.map(n => {
       const option = document.createElement('option'); option.value = n.name;
-      option.textContent = `${n.name}${n.delay ? ` · ${n.delay} ms` : ' · 未测或不可用'}`;
+      option.textContent = `${n.name}${n.delay ? ` · ${n.delay} ms` : ' · 暂无测速结果'}`;
       return option;
     });
-    if (!options.length) { const option = document.createElement('option'); option.value = ''; option.textContent = '暂无节点'; options.push(option); }
-    $('proxy-node').replaceChildren(...options); $('proxy-node').value = p.manual_node || p.current_node || options[0].value;
+    $('proxy-node').replaceChildren(automatic, ...options); proxyOptionsSignature = signature;
   }
-  $('proxy-node').disabled = disabled || $('proxy-mode').value === 'auto';
+  $('proxy-node').value = selection || '';
+  if ($('proxy-node').value !== (selection || '')) { $('proxy-node').value = ''; proxySelectionDirty = false; }
+  $('proxy-node').disabled = disabled || !p.nodes.length;
 }
-async function proxyAction(action) {
+async function proxyAction(action, accepted = () => {}) {
+  if (proxyPendingGeneration === generation) return;
   const current = generation;
+  proxyPendingGeneration = current; renderProxy(); showError();
   try {
     const result = await action();
     if (current !== generation || !key) return;
+    accepted();
     proxyState = result; renderProxy();
   } catch (error) {
     if (current === generation && key) showError(error.message);
+  } finally {
+    if (proxyPendingGeneration === current) {
+      proxyPendingGeneration = null;
+      if (current === generation && key) renderProxy();
+    }
   }
 }
 $('proxy-settings-form').addEventListener('submit', event => {
@@ -322,13 +357,10 @@ $('proxy-settings-form').addEventListener('submit', event => {
   const body = {subscription_url: $('proxy-url').value.trim() || null, enabled: $('proxy-enabled').checked,
     update_interval: Number($('proxy-update-hours').value)*3600, check_interval: Number($('proxy-check-minutes').value)*60,
     priorities: $('proxy-priorities').value.split('\n').map(x=>x.trim()).filter(Boolean)};
-  proxyAction(async () => { const result = await api('proxy/config', body); $('proxy-url').value = ''; return result; });
+  proxyAction(() => api('proxy/config', body), () => { $('proxy-url').value = ''; });
 });
 $('proxy-update').onclick = () => proxyAction(() => api('proxy/update', {}));
 $('proxy-check').onclick = () => proxyAction(() => api('proxy/check', {}));
-$('proxy-mode').onchange = () => { proxySelectionDirty = true; $('proxy-node').disabled = $('proxy-mode').value === 'auto'; };
 $('proxy-node').onchange = () => { proxySelectionDirty = true; };
-$('proxy-select').onclick = () => proxyAction(async () => {
-  const result = await api('proxy/select', {name: $('proxy-mode').value === 'auto' ? null : $('proxy-node').value});
-  proxySelectionDirty = false; return result;
-});
+$('proxy-select').onclick = () => proxyAction(() => api('proxy/select', {name: $('proxy-node').value || null}),
+  () => { proxySelectionDirty = false; });

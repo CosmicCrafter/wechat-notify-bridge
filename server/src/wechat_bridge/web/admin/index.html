@@ -15,7 +15,7 @@
       <span class="edition">连接管理</span>
     </header>
     <main>
-      <div class="intro"><p class="eyebrow">让重要的消息，出现在微信里</p><h1>连接你的微信</h1><p class="lead">扫码一次，由服务器持续接收消息、发送通知，并管理空闲心跳。</p></div>
+      <div class="intro"><p class="eyebrow" id="page-eyebrow">让重要的消息，出现在微信里</p><h1 id="page-title">连接你的微信</h1><p class="lead" id="page-description">扫码一次，由服务器持续接收消息、发送通知，并管理空闲心跳。</p></div>
       <div id="error" class="error" role="alert" hidden></div>
       <section id="login" class="card login-card" aria-labelledby="login-title">
         <div><span class="section-number">01 / 管理员验证</span><h2 id="login-title">先打开你的连接面板</h2><p class="muted">输入部署时生成的管理员密钥。它与 AI 客户端使用的调用密钥不同。</p></div>
@@ -23,6 +23,8 @@
       </section>
       <div id="dashboard" hidden>
         <div class="dashboard-toolbar"><span><span class="dot"></span> 管理员已验证</span><button id="logout" class="text-button">退出面板</button></div>
+        <nav class="admin-navigation" aria-label="管理页面"><a href="#overview" data-page-link="overview" aria-current="page">连接管理</a><a href="#subscription" data-page-link="subscription">订阅管理</a><a href="#nodes" data-page-link="nodes">节点选择</a></nav>
+        <section id="page-overview" class="admin-page" data-page="overview" aria-label="连接管理">
         <div class="columns">
           <section class="card pairing-card" aria-labelledby="pair-title">
             <span class="section-number">01 / 微信绑定</span><div class="card-heading"><h2 id="pair-title">扫码连接</h2><span id="pair-badge" class="badge">准备就绪</span></div>
@@ -59,28 +61,30 @@
           <div id="revoke-chat-confirm" class="client-editor" hidden><p>所有手机会话页将需要重新登录，聊天记录会保留。</p><div class="actions"><button id="confirm-chat-revoke">确认退出所有设备</button><button id="cancel-chat-revoke" class="secondary">取消</button></div></div>
           <p id="chat-access-result" class="hint" role="status"></p>
         </section>
-        <div class="proxy-layout" aria-label="回调代理管理">
+        <div class="footnote"><span class="dot"></span><p>正常沟通时保持安静。连续 12 小时没有有效收发，才尝试发送一条心跳消息；会话失效时会暂停。回复时使用 [客户端-聊天名] 标签指定聊天；未指明目标的消息留在公共收件箱，不会自动唤醒 AI。</p></div>
+        </section>
+        <section id="page-subscription" class="admin-page proxy-page" data-page="subscription" aria-label="订阅管理" hidden>
           <section class="card proxy-card" aria-labelledby="proxy-subscription-title">
             <div class="card-heading"><div class="proxy-heading"><span class="proxy-icon" aria-hidden="true">↥</span><div><span class="section-number">05 / 订阅</span><h2 id="proxy-subscription-title">回调代理订阅</h2></div></div><button id="proxy-update" class="secondary" type="button">更新订阅</button></div>
             <dl class="proxy-facts"><div><dt>订阅来源</dt><dd id="proxy-source">未配置</dd></div><div><dt>最近更新</dt><dd id="proxy-updated">暂无记录</dd></div><div><dt>下次更新</dt><dd id="proxy-next">暂无记录</dd></div><div><dt>已用 / 总量</dt><dd id="proxy-traffic">订阅未提供</dd></div><div><dt>到期时间</dt><dd id="proxy-expire">订阅未提供</dd></div></dl>
             <div class="proxy-usage" id="proxy-usage-wrap" hidden><span id="proxy-usage-label"></span><progress id="proxy-usage" max="100" value="0" aria-label="订阅已用流量"></progress></div>
-            <details id="proxy-settings"><summary>订阅与自动管理设置</summary><form id="proxy-settings-form" class="proxy-settings-form">
+            <div id="proxy-settings" class="proxy-settings"><h3>订阅与自动管理设置</h3><form id="proxy-settings-form" class="proxy-settings-form">
               <label for="proxy-url">订阅地址</label><input id="proxy-url" type="password" autocomplete="new-password" spellcheck="false" maxlength="4096" placeholder="HTTPS 订阅地址；留空保留已保存地址">
               <p class="hint">地址中的令牌只写入私有加密配置，保存后不回显。仅导入 Clash / Mihomo YAML 中的节点。</p>
               <div class="proxy-field-grid"><div><label for="proxy-update-hours">订阅更新间隔（小时）</label><input id="proxy-update-hours" type="number" min="1" max="168" step="1" value="6" required></div><div><label for="proxy-check-minutes">连接检测间隔（分钟）</label><input id="proxy-check-minutes" type="number" min="1" max="60" step="1" value="5" required></div></div>
               <label for="proxy-priorities">节点优先规则</label><textarea id="proxy-priorities" rows="3" maxlength="808" placeholder="日本 Pro&#10;美国 Pro&#10;新加坡 Pro"></textarea><p class="hint">每行一组，按顺序选择；同一行的关键词需全部匹配，英文不区分大小写。留空时从可用节点中自动选择。</p>
               <label class="proxy-checkbox"><input id="proxy-enabled" type="checkbox" checked>启用定时更新与连接检测</label><p class="hint">关闭自动管理会保留当前代理配置，不停止代理进程。Admin 保存后优先于 .env 初始值。</p><button type="submit" id="proxy-save">保存设置</button>
-            </form></details>
+            </form></div><p id="proxy-subscription-result" class="pair-message" role="status" aria-live="polite"></p><div class="proxy-page-links"><a href="#nodes">前往节点选择 →</a></div>
           </section>
+        </section>
+        <section id="page-nodes" class="admin-page proxy-page" data-page="nodes" aria-label="节点选择" hidden>
           <section class="card proxy-card" aria-labelledby="proxy-current-title">
             <div class="card-heading"><div class="proxy-heading"><span class="proxy-icon proxy-icon-green" aria-hidden="true">◇</span><div><span class="section-number">06 / 当前节点</span><h2 id="proxy-current-title">节点与连接</h2></div></div><button id="proxy-check" class="secondary" type="button">测试连接</button></div>
             <div class="proxy-current"><div><strong id="proxy-current-name">尚未选择节点</strong><p class="hint" id="proxy-current-type">等待配置</p></div><span id="proxy-current-delay" class="proxy-delay">—</span></div>
-            <label for="proxy-mode">选择方式</label><select id="proxy-mode"><option value="auto">按优先规则自动选择</option><option value="manual">手动固定节点</option></select>
-            <label for="proxy-node">节点</label><select id="proxy-node"><option value="">暂无节点</option></select><div class="actions"><button id="proxy-select" type="button">应用选择</button></div>
-            <p class="hint" id="proxy-rule-summary"></p><p class="hint" id="proxy-last-check">尚未检测</p><p class="pair-message" id="proxy-result" role="status" aria-live="polite"></p><p class="hint">仅用于云端事件回调；微信收发不走这条代理。普通节点测速后还会验证真实回调目标的 HTTPS 可达性。</p>
+            <p class="hint" id="proxy-selection-mode"></p><label for="proxy-node">选择节点</label><select id="proxy-node"><option value="">自动按优先规则选择</option></select><p class="hint">选择任意节点后点击“应用选择”，会固定使用该节点；选择“自动按优先规则选择”可恢复自动切换。</p><div class="actions"><button id="proxy-select" type="button">应用选择</button></div>
+            <p class="hint" id="proxy-rule-summary"></p><p class="hint" id="proxy-last-check">尚未检测</p><p class="pair-message" id="proxy-result" role="status" aria-live="polite"></p><p class="hint">仅用于云端事件回调；微信收发不走这条代理。应用前会验证目标连接，不可用时保留原选择。</p><div class="proxy-page-links"><a href="#subscription">← 管理订阅与优先规则</a></div>
           </section>
-        </div>
-        <div class="footnote"><span class="dot"></span><p>正常沟通时保持安静。连续 12 小时没有有效收发，才尝试发送一条心跳消息；会话失效时会暂停。回复时使用 [客户端-聊天名] 标签指定聊天；未指明目标的消息留在公共收件箱，不会自动唤醒 AI。</p></div>
+        </section>
       </div>
     </main>
     <footer><span>WeChat Notify Bridge</span><span>你的服务器 · 你的连接</span></footer>

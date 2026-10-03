@@ -296,6 +296,10 @@ class ProxyManager:
             return False
 
     async def choose(self, nodes):
+        selected = await self.rpc('GET', '/proxies/' + GROUP)
+        previous = selected.get('now') or self.cache.get('current') or 'REJECT'
+        if previous not in {n['name'] for n in nodes} | {'REJECT'}:
+            previous = 'REJECT'
         tiers = node_tiers(nodes, self.settings['priorities'])
         if self.settings['mode'] == 'manual':
             tiers = [[n for n in nodes if n['name'] == self.settings['manual_node']]]
@@ -305,17 +309,24 @@ class ProxyManager:
                 value = await self.delay(node)
                 self.cache.setdefault('delays', {})[node['name']] = value
                 return node, value
-        for tier in tiers:
-            measured = await asyncio.gather(*(measure(n) for n in tier))
-            alive = [(n, d) for n, d in measured if d is not None]
-            alive.sort(key=lambda item: (item[0]['name'] != self.cache.get('current'), item[1]))
-            for node, value in alive:
-                await self.rpc('PUT', '/proxies/' + GROUP, json={'name': node['name']})
-                if await self.verify_selected():
-                    self.cache['current'] = node['name']
-                    return node['name']
-                self.cache['delays'][node['name']] = None
-        fail('proxy_no_available_node', 502)
+        try:
+            for tier in tiers:
+                measured = await asyncio.gather(*(measure(n) for n in tier))
+                alive = [(n, d) for n, d in measured if d is not None]
+                alive.sort(key=lambda item: (item[0]['name'] != self.cache.get('current'), item[1]))
+                for node, value in alive:
+                    await self.rpc('PUT', '/proxies/' + GROUP, json={'name': node['name']})
+                    if await self.verify_selected():
+                        self.cache['current'] = node['name']
+                        return node['name']
+                    self.cache['delays'][node['name']] = None
+            fail('proxy_no_available_node', 502)
+        except BaseException:
+            try:
+                await asyncio.shield(self.rpc('PUT', '/proxies/' + GROUP, json={'name': previous}))
+            except Exception:
+                self.cache['last_error'] = 'proxy_rollback_failed'
+            raise
 
     async def update(self):
         url = self.settings['subscription_url']

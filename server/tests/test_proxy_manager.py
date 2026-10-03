@@ -298,11 +298,25 @@ def test_core_restart_restores_cached_runtime(store, control):
         await value.update()
         original = value.rpc
         async def restarted(method, path, **kwargs):
-            if method == 'GET' and path == '/proxies/' + GROUP:
+            if method == 'GET' and path == '/proxies/' + GROUP and len(state['loads']) == 1:
                 raise BridgeError(502, 'proxy_controller_unavailable')
             return await original(method, path, **kwargs)
         value.rpc = restarted
         await value.check()
         assert len(state['loads']) == 2 and value.cache['current'] == '日本 Pro 1'
+        await value.close()
+    asyncio.run(run())
+
+
+def test_failed_periodic_check_restores_controller_selection(store, control):
+    async def run():
+        value, state = manager(store, control, [node('日本 Pro 1'), node('美国 Pro 1')],
+                               {'日本 Pro 1': 10, '美国 Pro 1': 20})
+        await value.update()
+        previous = state['selected']
+        value.verify_selected = AsyncMock(return_value=False)
+        await value.job(value.check)
+        assert state['selected'] == value.cache['current'] == previous
+        assert value.cache['last_error'] == 'proxy_no_available_node'
         await value.close()
     asyncio.run(run())

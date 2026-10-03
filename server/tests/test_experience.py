@@ -100,4 +100,5 @@ def test_wire_presentation_does_not_change_canonical_notification_hash(portal):
     assert store.client_receipt('styled',store.clients.authenticate(auth['Authorization'][7:]),chats[0]['id'])['message_hash']==hashlib.sha256(canonical.encode()).hexdigest()
     wire=calls[-1]['msg']['item_list'][0]['text_item']['text']
     assert '⚠️ 测试提醒' in wire and '**需要你的帮助**' in wire
+    assert wire.endswith('| [查看对话并回复 →](' + r['conversation_url'] + ') |\n| ---: |')
     assert client.post('/api/notifications',headers=auth,json=body).json()['duplicate']

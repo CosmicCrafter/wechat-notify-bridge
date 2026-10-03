@@ -29,6 +29,7 @@ function dropQr() {
   $('qr-image').removeAttribute('src'); $('qr-image').hidden = true; $('qr-empty').hidden = false;
 }
 function logout() {
+  proxyPendingGeneration = null;
   proxyFormLoaded = false; proxySelectionDirty = false; proxyOptionsSignature = ''; proxyState = null; $('proxy-url').value = '';
   $('chat-login-code').hidden = true; $('chat-code-value').value = ''; $('revoke-chat-confirm').hidden = true;
   generation++; key = ''; state = null; clearInterval(timer); timer = null; dropQr();
@@ -39,6 +40,7 @@ function logout() {
   $('dashboard').hidden = true; $('login').hidden = false; showError(); showPage();
 }
 async function api(path, body, binary = false) {
+  const requestGeneration = generation;
   const headers = {Authorization: `Bearer ${key}`};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const response = await fetch(`api/${path}`, {
@@ -47,7 +49,7 @@ async function api(path, body, binary = false) {
   });
   if (!response.ok) {
     const result = await response.json().catch(() => ({}));
-    if (response.status === 401) { logout(); throw new Error('管理员密钥不正确或已失效，请重新输入。'); }
+    if (response.status === 401) { if (requestGeneration === generation) logout(); throw new Error('管理员密钥不正确或已失效，请重新输入。'); }
     throw new Error(errors[result.detail] || (response.status === 404 ? '二维码已更新，请稍候。' : '操作暂未完成，请稍后重试。'));
   }
   return binary ? response.blob() : response.json();
@@ -238,7 +240,7 @@ $('confirm-chat-revoke').onclick = async () => {
 };
 
 let proxyState = null, proxyFormLoaded = false, proxySelectionDirty = false, proxyOptionsSignature = '';
-let proxyRequestPending = false;
+let proxyPendingGeneration = null;
 const pages = {
   overview: ['连接你的微信', '让重要的消息，出现在微信里', '扫码一次，由服务器持续接收消息、发送通知，并管理空闲心跳。'],
   subscription: ['订阅管理', '回调代理 / 订阅', '管理订阅地址、更新周期和节点优先规则。'],
@@ -288,7 +290,7 @@ async function loadProxy(current = generation) {
 function renderProxy() {
   const p = proxyState;
   if (!p) return;
-  const disabled = !p.available || p.busy || proxyRequestPending;
+  const disabled = !p.available || p.busy || proxyPendingGeneration === generation;
   for (const id of ['proxy-update','proxy-check','proxy-save','proxy-select']) $(id).disabled = disabled;
   $('proxy-source').textContent = p.subscription_configured ? `${p.subscription_label} · ${p.source === 'admin' ? 'Admin 配置' : '.env 初始值'}` : '未配置订阅';
   $('proxy-updated').textContent = date(p.last_update_at, '尚未成功更新');
@@ -306,7 +308,7 @@ function renderProxy() {
   $('proxy-current-delay').classList.toggle('measured', !!node?.delay && !p.last_error);
   $('proxy-last-check').textContent = `最近检测：${date(p.last_check_at, '尚未检测')}`;
   $('proxy-rule-summary').textContent = p.priorities.length ? `优先级：${p.priorities.join(' → ')}` : '无优先规则：自动选择可用节点，同一组内保持正常节点。';
-  const message = p.busy || proxyRequestPending ? '正在更新或检测，请稍候…' : p.last_error ? proxyErrors[p.last_error] || '代理操作未完成。' : !p.available ? proxyErrors.proxy_manager_not_configured : p.current_node ? '已完成节点检测与回调目标连接验证。' : '保存订阅后，点击更新订阅。';
+  const message = p.busy || proxyPendingGeneration === generation ? '正在更新或检测，请稍候…' : p.last_error ? proxyErrors[p.last_error] || '代理操作未完成。' : !p.available ? proxyErrors.proxy_manager_not_configured : p.current_node ? '已完成节点检测与回调目标连接验证。' : '保存订阅后，点击更新订阅。';
   for (const id of ['proxy-result','proxy-subscription-result']) {
     $(id).textContent = message; $(id).classList.toggle('proxy-warning', !!p.last_error || !p.available);
   }
@@ -332,19 +334,22 @@ function renderProxy() {
   if ($('proxy-node').value !== (selection || '')) { $('proxy-node').value = ''; proxySelectionDirty = false; }
   $('proxy-node').disabled = disabled || !p.nodes.length;
 }
-async function proxyAction(action) {
-  if (proxyRequestPending) return;
+async function proxyAction(action, accepted = () => {}) {
+  if (proxyPendingGeneration === generation) return;
   const current = generation;
-  proxyRequestPending = true; renderProxy(); showError();
+  proxyPendingGeneration = current; renderProxy(); showError();
   try {
     const result = await action();
     if (current !== generation || !key) return;
+    accepted();
     proxyState = result; renderProxy();
   } catch (error) {
     if (current === generation && key) showError(error.message);
   } finally {
-    proxyRequestPending = false;
-    if (current === generation && key) renderProxy();
+    if (proxyPendingGeneration === current) {
+      proxyPendingGeneration = null;
+      if (current === generation && key) renderProxy();
+    }
   }
 }
 $('proxy-settings-form').addEventListener('submit', event => {
@@ -352,12 +357,10 @@ $('proxy-settings-form').addEventListener('submit', event => {
   const body = {subscription_url: $('proxy-url').value.trim() || null, enabled: $('proxy-enabled').checked,
     update_interval: Number($('proxy-update-hours').value)*3600, check_interval: Number($('proxy-check-minutes').value)*60,
     priorities: $('proxy-priorities').value.split('\n').map(x=>x.trim()).filter(Boolean)};
-  proxyAction(async () => { const result = await api('proxy/config', body); $('proxy-url').value = ''; return result; });
+  proxyAction(() => api('proxy/config', body), () => { $('proxy-url').value = ''; });
 });
 $('proxy-update').onclick = () => proxyAction(() => api('proxy/update', {}));
 $('proxy-check').onclick = () => proxyAction(() => api('proxy/check', {}));
 $('proxy-node').onchange = () => { proxySelectionDirty = true; };
-$('proxy-select').onclick = () => proxyAction(async () => {
-  const result = await api('proxy/select', {name: $('proxy-node').value || null});
-  proxySelectionDirty = false; return result;
-});
+$('proxy-select').onclick = () => proxyAction(() => api('proxy/select', {name: $('proxy-node').value || null}),
+  () => { proxySelectionDirty = false; });

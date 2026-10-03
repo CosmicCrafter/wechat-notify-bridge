@@ -72,7 +72,7 @@ def mount_portal(app, authorize_admin):
 
     @app.get('/chat/assets/{filename}', include_in_schema=False)
     def asset(filename: str):
-        if filename not in ('app.js', 'style.css', 'experience.css', 'tasks.js', 'tasks.css', 'forms.css', 'drafts.js', 'marked.js', 'purify.js'):
+        if filename not in ('app.js', 'style.css', 'experience.css', 'tasks.js', 'tasks.css', 'forms.css', 'field-pickers.js', 'field-pickers.css', 'drafts.js', 'marked.js', 'purify.js'):
             raise HTTPException(404)
         return FileResponse(WEB / ('vendor' if filename in ('marked.js', 'purify.js') else 'chat') / filename, media_type='text/css' if filename.endswith('.css') else 'text/javascript')
 

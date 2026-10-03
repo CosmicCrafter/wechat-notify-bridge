@@ -115,7 +115,7 @@ async function loadPage(older){
   merge(data.messages);if(older){$('older').hidden=!data.has_older;scroll.scrollTop=top+scroll.scrollHeight-height;}else{state.hasNewer=data.has_newer;$('newer').hidden=!data.has_newer;await read();}
 }
 async function poll(){
-  if(!state.authenticated||document.hidden||state.polling||state.busy||state.pressing||$('chat-actions').open||$('delete-confirm').open||$('rename-dialog').open||document.querySelector('.chat-row.swiped'))return;state.polling=true;
+  if(!state.authenticated||document.hidden||state.polling||state.busy||state.pressing||$('chat-actions').open||$('delete-confirm').open||$('rename-dialog').open||document.querySelector('dialog.field-sheet[open],.chat-row.swiped'))return;state.polling=true;
   try{
     await refreshChats();if(state.taskTab&&!$('workspace').classList.contains('has-chat')&&taskList.length<=30&&$('chats').scrollTop<80)await refreshTaskList();if(!state.cid)return;
     const generation=state.generation,cid=state.cid,scroll=$('scroll'),top=scroll.scrollTop,nearBottom=scroll.scrollHeight-scroll.clientHeight-top<100;

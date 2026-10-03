@@ -25,3 +25,19 @@ let e=browser();e.open('owner-A');assert.equal(e.get('old'),undefined);fail=true
 '''
     path = Path(__file__).parents[1]/'src/wechat_bridge/web/chat/drafts.js'
     subprocess.run([node, '-e', script, str(path)], check=True, capture_output=True, text=True)
+
+
+def test_calendar_leap_years_early_years_and_iso_validation():
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('Node is required for the calendar contract test')
+    script = r'''
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const ctx=vm.createContext({Date,Intl});vm.runInContext(fs.readFileSync(process.argv[1],'utf8')+';this.p=formPickers',ctx);const p=ctx.p;
+assert.equal(p.days(2024,2),29);assert.equal(p.days(1900,2),28);assert.equal(p.days(2000,2),29);
+assert.equal(p.days(1,2),28);assert.equal(p.days(9999,12),31);assert.equal(p.weekday(2026,10),3);
+assert.equal(p.iso(1,2,3),'0001-02-03');assert.equal(p.parts('2026-02-30'),null);assert.equal(p.parts('2026-13-01'),null);assert.equal(p.parts('0000-01-01'),null);assert.equal(p.parts('2026-1-1'),null);
+assert.equal(p.parts('2024-02-29').day,29);assert.equal(p.parts('0001-01-01').year,1);
+'''
+    path = Path(__file__).parents[1]/'src/wechat_bridge/web/chat/field-pickers.js'
+    subprocess.run([node, '-e', script, str(path)], check=True, capture_output=True, text=True)

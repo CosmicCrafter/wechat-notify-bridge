@@ -93,6 +93,18 @@ class Conversations:
         self.db.execute('UPDATE conversations SET active=? WHERE client_id=? AND id=?', (int(active), client_id, id))
         return self.public(self.get(client_id, id))
 
+    def rename(self, client_id, id, name):
+        if not re.fullmatch(r'[a-zA-Z0-9_\-\u4e00-\u9fff]{1,20}', name):
+            raise ClientError('invalid_conversation_name', 422)
+        row = self.get(client_id, id)
+        name = name.casefold()
+        if row['active'] and self.db.execute(
+            'SELECT 1 FROM conversations WHERE client_id=? AND name=? AND active=1 AND deleted=0 AND id<>?',
+            (client_id, name, id)).fetchone():
+            raise ClientError('conversation_name_conflict', 409)
+        self.db.execute('UPDATE conversations SET name=? WHERE id=?', (name, id))
+        return self.public(self.get(client_id, id))
+
     def resolve(self, tag):
         tag = tag.casefold()
         matches = [row for row in self.rows() if tag in (row['caller'].casefold(),

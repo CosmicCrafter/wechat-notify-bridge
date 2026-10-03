@@ -1,6 +1,6 @@
 """Shared MCP tool schemas; backend decides transport and credentials."""
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from mcp.types import ToolAnnotations
 from mcp.server.fastmcp.utilities.types import Image
 import base64
@@ -23,6 +23,33 @@ class CardOption(BaseModel):
     label: str = Field(min_length=1, max_length=80)
     description: str = Field(default='', max_length=500)
     recommended: bool = False
+
+
+class FieldChoice(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,32}$')
+    label: str = Field(min_length=1, max_length=80)
+
+
+class CardField(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str = Field(pattern=r'^[a-zA-Z0-9_-]{1,32}$')
+    label: str = Field(min_length=1, max_length=80)
+    type: Literal['text', 'select', 'number', 'date'] = 'text'
+    required: bool = True
+    placeholder: str = Field(default='', max_length=200)
+    options: list[FieldChoice] = Field(default_factory=list, max_length=8)
+
+    @model_validator(mode='after')
+    def validate_field(self):
+        if not self.label.strip() or any(not option.label.strip() for option in self.options):
+            raise ValueError('Field labels must not be blank')
+        if self.type == 'select':
+            if len(self.options) < 2 or len({option.id for option in self.options}) != len(self.options):
+                raise ValueError('Select fields need 2-8 distinct options')
+        elif self.options:
+            raise ValueError('Only select fields accept options')
+        return self
 
 def register_tools(mcp, request):
     @mcp.tool(title='查看回复图片', annotations=READ)
@@ -129,14 +156,17 @@ def register_tools(mcp, request):
                            allow_custom: bool | None = None,
                            expires_in: Annotated[int, Field(ge=60, le=604800)] = 86400,
                            dry_run: bool = False,
-                           mode: Literal['single', 'multiple', 'confirm', 'input'] = 'single',
+                           mode: Literal['single', 'multiple', 'confirm', 'input', 'form'] = 'single',
                            min_choices: Annotated[int, Field(ge=1, le=8)] = 1,
                            max_choices: Annotated[int, Field(ge=1, le=8)] | None = None,
-                           input_hint: Annotated[str, Field(max_length=200)] = '') -> dict:
+                           input_hint: Annotated[str, Field(max_length=200)] = '',
+                           fields: Annotated[list[CardField], Field(max_length=5)] | None = None) -> dict:
         """Send an authorized, optional interaction card to the paired owner. Ordinary notices should use sendMessage/sendNotification.
         Default single: 2-8 exclusive options plus custom reply. Multiple: 2-8 options, min/max_choices and optional text.
         Confirm: 2-4 quick decision buttons (one tap submits, custom reply off by default). Input: text only, omit options.
-        allow_custom defaults true except confirm. Choice limits only apply to multiple, input_hint only to input.
+        Form: 1-5 fields (text/select/number/date), omit card options; each field has a unique ID and required flag.
+        Field values return in task_response.field_values; number/date values are strings. Prefer 2-3 fields.
+        allow_custom defaults true except confirm/form; form does not allow custom text. Choice limits only apply to multiple, input_hint only to input.
         Use unique stable option IDs, clear labels/reasons; never preselect. Single/confirm allow at most one recommendation.
         WeChat receives a summary and authenticated mobile link. The buttons appear on the mobile conversation page.
         Save returned task.id with this conversation_id and original dedup_key/parameters; retries cannot change content.
@@ -146,7 +176,7 @@ def register_tools(mcp, request):
         Installation does not authorize task alerts. API acceptance does not prove phone delivery."""
         payload = dict(conversation_id=conversation_id, dedup_key=dedup_key,
             title=title, prompt=prompt, options=[option.model_dump() for option in options or []],
-            allow_custom=allow_custom if allow_custom is not None else mode != 'confirm',
+            allow_custom=allow_custom if allow_custom is not None else mode not in ('confirm', 'form'),
             expires_in=expires_in, dry_run=dry_run)
         # Default single requests keep the 1.11 HTTP contract as well as its dedup fingerprint.
         if mode != 'single':
@@ -157,6 +187,8 @@ def register_tools(mcp, request):
             payload['max_choices'] = max_choices
         if input_hint:
             payload['input_hint'] = input_hint
+        if fields is not None:
+            payload['fields'] = [field.model_dump() for field in fields]
         return await request('/api/task-cards', payload)
 
     @mcp.tool(title='查询微信任务卡片', annotations=READ)

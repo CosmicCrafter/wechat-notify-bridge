@@ -39,6 +39,16 @@ class ArchiveChat(BaseModel):
     archived: bool
 
 
+class RenameChat(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str = Field(pattern=r'^[a-zA-Z0-9_\-\u4e00-\u9fff]{1,20}$')
+
+
+class PinChat(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    pinned: bool
+
+
 def mount_portal(app, authorize_admin):
     def portal(): return app.state.bridge.store.portal
 
@@ -62,7 +72,7 @@ def mount_portal(app, authorize_admin):
 
     @app.get('/chat/assets/{filename}', include_in_schema=False)
     def asset(filename: str):
-        if filename not in ('app.js', 'style.css', 'tasks.js', 'tasks.css', 'marked.js', 'purify.js'):
+        if filename not in ('app.js', 'style.css', 'experience.css', 'tasks.js', 'tasks.css', 'forms.css', 'drafts.js', 'marked.js', 'purify.js'):
             raise HTTPException(404)
         return FileResponse(WEB / ('vendor' if filename in ('marked.js', 'purify.js') else 'chat') / filename, media_type='text/css' if filename.endswith('.css') else 'text/javascript')
 
@@ -82,7 +92,27 @@ def mount_portal(app, authorize_admin):
         return {'authenticated': False}
 
     @app.get('/chat/api/conversations', dependencies=[Depends(owner)], include_in_schema=False)
-    async def chats(): return {'conversations': portal().chats()}
+    async def chats():
+        store = portal().store
+        account = store.account() or {}
+        scope = store.digest('browser-drafts') if account else 'unbound'
+        return {'conversations': portal().chats(), 'draft_scope': scope}
+
+    @app.get('/chat/api/tasks', dependencies=[Depends(owner)], include_in_schema=False)
+    async def pending_tasks(before: int = Query(0, ge=0), limit: int = Query(30, ge=1, le=50), q: str = Query('', max_length=80)):
+        return portal().pending_tasks(before, limit, q.strip())
+
+    @app.post('/chat/api/conversations/{cid}/pin', dependencies=[Depends(owner), Depends(same_origin)], include_in_schema=False)
+    async def pin(cid: str, body: PinChat):
+        async with app.state.bridge.lock:
+            return portal().pin(cid, body.pinned)
+
+    @app.post('/chat/api/conversations/{cid}/rename', dependencies=[Depends(owner), Depends(same_origin)], include_in_schema=False)
+    async def rename(cid: str, body: RenameChat):
+        async with app.state.bridge.lock:
+            portal().owner_chat(cid)
+            row = portal().db.execute('SELECT client_id FROM conversations WHERE id=?', (cid,)).fetchone()
+            return {'conversation': portal().store.conversations.rename(row['client_id'], cid, body.name)}
 
     @app.get('/chat/api/conversations/{cid}/messages', dependencies=[Depends(owner)], include_in_schema=False)
     async def messages(cid: str, before: int = Query(0, ge=0), after: int = Query(0, ge=0),

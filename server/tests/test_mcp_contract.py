@@ -44,6 +44,16 @@ def test_discovery_describes_side_effects_and_rejects_invalid_input_before_api()
             await mcp.call_tool('sendTaskCard', {'conversation_id':'a'*32,'dedup_key':mode,'title':'Reply',
                 'prompt':'Please reply','mode':mode, **({'options':[{'id':'a','label':'A'},{'id':'b','label':'B'}]} if mode!='input' else {}), 'dry_run':True})
             assert calls[-1][1]['mode'] == mode
+        await mcp.call_tool('sendTaskCard', {'conversation_id':'a'*32,'dedup_key':'form','title':'Fields',
+            'prompt':'Please fill','mode':'form','fields':[{'id':'name','label':'Name'}],'dry_run':True})
+        assert calls[-1][1]['mode']=='form' and not calls[-1][1]['allow_custom']
+        assert calls[-1][1]['fields'][0]['type']=='text'
+        assert 'fields' not in next(payload for path,payload,_ in calls if path=='/api/task-cards' and payload['dedup_key']=='card')
+        before=len(calls)
+        with pytest.raises(Exception):
+            await mcp.call_tool('sendTaskCard', {'conversation_id':'a'*32,'dedup_key':'bad','title':'Bad','prompt':'Bad',
+                'mode':'form','fields':[{'id':'x','label':'Choice','type':'select'}]})
+        assert len(calls)==before
     asyncio.run(run())
 
 

@@ -1,6 +1,7 @@
 """Validated HTTP request models."""
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from wechat_bridge.mcp.tools import CardField
 
 class PairStart(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -88,7 +89,8 @@ class TaskCard(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     prompt: str = Field(min_length=1, max_length=4000)
     options: list[TaskOption] = Field(default_factory=list, max_length=8)
-    mode: Literal['single', 'multiple', 'confirm', 'input'] = 'single'
+    mode: Literal['single', 'multiple', 'confirm', 'input', 'form'] = 'single'
+    fields: list[CardField] = Field(default_factory=list, max_length=5)
     allow_custom: bool | None = None
     min_choices: int = Field(default=1, ge=1, le=8)
     max_choices: int | None = Field(default=None, ge=1, le=8)
@@ -106,11 +108,16 @@ class TaskCard(BaseModel):
     @model_validator(mode='after')
     def distinct_options(self):
         if self.allow_custom is None:
-            self.allow_custom = self.mode != 'confirm'
+            self.allow_custom = self.mode not in ('confirm', 'form')
+        if self.mode == 'form':
+            if self.options or self.allow_custom or not self.fields or len({f.id for f in self.fields}) != len(self.fields):
+                raise ValueError('Forms require distinct fields, no card options or custom reply')
+        elif self.fields:
+            raise ValueError('Fields only apply to form cards')
         if self.mode == 'input':
             if self.options or not self.allow_custom:
                 raise ValueError('Input cards require text and no options')
-        elif not 2 <= len(self.options) <= (4 if self.mode == 'confirm' else 8):
+        elif self.mode != 'form' and not 2 <= len(self.options) <= (4 if self.mode == 'confirm' else 8):
             raise ValueError('Choice cards require 2-8 options; confirm allows 2-4')
         if len({option.id for option in self.options}) != len(self.options):
             raise ValueError('Option IDs must be distinct')
@@ -135,6 +142,8 @@ class TaskCard(BaseModel):
             value.update(min_choices=self.min_choices, max_choices=self.max_choices)
         if self.mode == 'input':
             value['input_hint'] = self.input_hint
+        if self.mode == 'form':
+            value['fields'] = [field.model_dump() for field in self.fields]
         return value
 
 
@@ -144,10 +153,10 @@ class TaskAnswer(BaseModel):
     choice_id: str | None = Field(default=None, pattern=r'^[a-zA-Z0-9_-]{1,32}$')
     choice_ids: list[Annotated[str, Field(pattern=r'^[a-zA-Z0-9_-]{1,32}$')]] | None = Field(default=None, max_length=8)
     text: str = Field(default='', max_length=2000)
+    field_values: dict[Annotated[str, Field(pattern=r'^[a-zA-Z0-9_-]{1,32}$')], Annotated[str, Field(max_length=1000)]] = Field(default_factory=dict, max_length=5)
 
 
 class TaskUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
     status: Literal['processing', 'completed', 'cancelled']
     result: str = Field(default='', max_length=4000)
-

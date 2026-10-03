@@ -5,13 +5,13 @@ import math
 
 from wechat_bridge.storage.client_registry import ClientError
 
-HELP = '''## 微信通知桥 · 使用帮助
+HELP = '''## 🧭 微信通知桥 · 使用帮助
 
-**一个微信，连接你的 AI。**
+**一个微信，接收通知、答复任务。**
 
 **对话与状态**
 
-- `/web` — 获取手机会话页登录码，查看记录并直接回复
+- `/web` — 登录手机会话页，查看待办、完整记录并直接回复
 - `/chats [页码]` — 查看聊天名称和回复标签
 - `/status` — 查看连接与空闲心跳
 - `/help` — 查看本说明
@@ -30,7 +30,10 @@ HELP = '''## 微信通知桥 · 使用帮助
 点击消息下方的“查看对话并回复”，无需手写标签。
 也可以在微信发送 `[codex-名称] 内容`，准确标签见 `/chats`。
 
-> 未带标签的微信消息留在公共收件箱。回复由对应 AI 主动读取，暂不自动唤醒。
+> 未带标签的微信消息留在公共收件箱。接入端已配置唤醒或回调时会自动处理，否则需要主动读取。
+
+---
+手机页支持 **待我处理、搜索、置顶和改名**；长按对话打开操作，草稿保存在当前浏览器。
 
 名称支持 1–32 位中英文、数字、下划线和短横线，英文不区分大小写。密钥只填入对应客户端的私有配置。'''
 
@@ -106,12 +109,12 @@ def execute(store, text):
             if not 1 <= page <= pages: return Reply(f'页码范围为 1–{pages}。')
             if not chats: return Reply('还没有登记的聊天，请在 AI 客户端使用微信插件登记聊天名称。')
             from wechat_bridge.config import chat_url
-            lines = [f'## 聊天列表 · {page}/{pages} 页']
+            lines = [f'## 💬 聊天列表\n\n> 第 {page}/{pages} 页']
             for chat in chats[(page-1)*5:page*5]:
                 link = chat_url(chat['id'])
                 lines.append(f'- **{chat["caller"]} · {chat["name"]}**\n  `{chat["reply_tag"]}`' +
                              (f' · [进入对话]({link})' if link else ''))
-            lines.append('点击进入对话即可回复；也可在微信发送 `[标签] 内容`。\n\n> 消息由对应 AI 主动读取，暂不自动唤醒。')
+            lines.append('---\n点击进入对话即可回复；也可在微信发送 `[标签] 内容`。\n\n> 是否自动处理取决于接入端的唤醒或回调配置。')
             return Reply('\n\n'.join(lines))
         if command == '/getkey' and len(args) == 1:
             return issue_reply(registry.create(args[0]))
@@ -131,7 +134,7 @@ def execute(store, text):
                 return Reply(f'页码范围为 1–{pages}，例如 /list 1。')
             if not clients:
                 return Reply('还没有客户端。发送 /getkey codex 创建第一把密钥。')
-            lines = [f'## 客户端列表 · {page}/{pages} 页']
+            lines = [f'## 🔑 客户端列表\n\n> 第 {page}/{pages} 页']
             for client in clients[(page-1)*10:page*10]:
                 lines.append(f'- **[{client["name"]}]** · {"启用" if client["enabled"] else "停用"}\n  最近调用：{format_time(client["last_seen_at"])}')
             lines.append('查看聊天：`/chats` · 使用帮助：`/help`\n\n> 列表不显示密钥。')
@@ -140,7 +143,7 @@ def execute(store, text):
             status = store.status()
             names = {'unbound':'未绑定','waiting_message':'等待首条消息','connected':'已连接',
                      'connecting':'连接中','retrying':'重连中','session_expired':'需重新绑定'}
-            return Reply('## 微信通知桥 · 状态\n\n**连接：' + names.get(status['connection_status'], '检查中') + '**\n\n' +
+            return Reply('## 📡 微信通知桥 · 状态\n\n**连接：' + names.get(status['connection_status'], '检查中') + '**\n\n' +
                          '- 最近收发：' + format_time(status['last_activity_at']) +
                          '\n- 下次空闲心跳：' + (format_time(status['next_heartbeat_at']) if status['next_heartbeat_at'] else '等待连接') +
                          ('\n\n**发送提示：** ' + status['send_recovery_hint'] if status['send_recovery_hint'] else '') +

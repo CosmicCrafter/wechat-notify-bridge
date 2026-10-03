@@ -11,6 +11,19 @@
 | 一次选几个项目 | `multiple` | 2–8 个选项；`min_choices` 默认 1，`max_choices` 默认选项数；勾选后统一提交 |
 | 快速表明决定 | `confirm` | 2–4 个按钮，点击即提交；默认关闭自行回复 |
 | 补充一条信息 | `input` | 不传选项；直接填写文本后提交，`input_hint` 可设置占位提示 |
+| 补充几项信息 | `form` | 服务端 1.13.0 / 插件 1.8.0；1–5 个字段，建议 2–3 个；按需填写后统一提交 |
+
+### 轻量表单
+
+`mode="form"` 时省略卡片级 `options`，使用 `fields`，默认关闭 `allow_custom`，不能设置多选数量或 `input_hint`。每个字段有唯一 `id`、`label`、`type`（`text` 默认 / `select` / `number` / `date`）、`required`（默认 true）、可选 `placeholder`；只有 `select` 使用 2–8 个 `{id,label}` 选项，不预选任何值。字段最多 5 个，文本值最多 1000 字符。
+
+```json
+{"mode":"form","fields":[{"id":"name","label":"名称"},{"id":"environment","label":"环境","type":"select","options":[{"id":"test","label":"测试"},{"id":"live","label":"生产"}]},{"id":"date","label":"日期","type":"date","required":false}]}
+```
+
+手机提交 `field_values` 字典，所有值为字符串：选择字段用选项 ID，日期为有效的 `YYYY-MM-DD`，数字为十进制（最多 12 位整数、6 位小数，不接受指数、NaN 或无限值）。空选填字段规范为 `""`。服务端验证并规范化数字；同一决定的重复提交只入箱一次。
+
+`task_response.field_values` 返回按字段 ID 对应的原值，`task_response.fields` 返回带字段名称、类型和展示值的数组。仍包含 `task_id`、`title`、`choice_id=null`、`choice_label=null`、`text=""`。使用 `field_values` 处理程序逻辑，展示值仅用于阅读。原有卡片答复字段不变。
 
 这些类型共用发送、去重、收件箱、过期和状态更新机制，不增加工具、数据库表、定时器或唤醒轮询。手机端只在加载含任务卡片的记录时下载交互 JS/CSS；普通会话不下载。完成、取消、过期的卡片不参与额外的任务状态轮询。原单选卡片的去重指纹保持兼容。
 

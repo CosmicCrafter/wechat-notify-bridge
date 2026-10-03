@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Personal WeChat Notification API",
-    "version": "1.12.0"
+    "version": "1.13.0"
   },
   "paths": {
     "/health": {
@@ -705,6 +705,58 @@
   },
   "components": {
     "schemas": {
+      "CardField": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,32}$",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "select",
+              "number",
+              "date"
+            ],
+            "title": "Type",
+            "default": "text"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": true
+          },
+          "placeholder": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Placeholder",
+            "default": ""
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChoice"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Options"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "CardField"
+      },
       "ConversationRegistration": {
         "properties": {
           "conversation_key": {
@@ -747,6 +799,28 @@
           "active"
         ],
         "title": "ConversationState"
+      },
+      "FieldChoice": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,32}$",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "FieldChoice"
       },
       "HTTPValidationError": {
         "properties": {
@@ -913,10 +987,19 @@
               "single",
               "multiple",
               "confirm",
-              "input"
+              "input",
+              "form"
             ],
             "title": "Mode",
             "default": "single"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/CardField"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Fields"
           },
           "allow_custom": {
             "anyOf": [

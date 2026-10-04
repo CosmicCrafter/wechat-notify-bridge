@@ -9,7 +9,7 @@ import time
 import httpx
 from wechat_bridge.config import chat_url
 from wechat_bridge.wechat.protocol import BridgeError, WeChatError, BASE_INFO, ACCEPTED, validate_base, response_status, send_recovery_hint
-from wechat_bridge.services.presentation import present, push_budget_footer
+from wechat_bridge.services.presentation import present, push_budget_counter
 from wechat_bridge.storage.send_diagnostics import wechat_category, redact_error_message
 
 logger = logging.getLogger(__name__)
@@ -110,17 +110,20 @@ class Bridge:
             if not account.get('context_token'):
                 raise BridgeError(409, 'waiting_for_first_wechat_message')
             context_diagnostics = self.store.send_diagnostics.context(now)
-            budget_footer = push_budget_footer(context_diagnostics['accepted_sends_since_context'])
+            budget_counter = push_budget_counter(context_diagnostics['accepted_sends_since_context'])
             def render_wire(message_id=None):
                 link = chat_url(history_cid, message_id)
                 prefix = f'{label}\n\n' if identity else ''
                 action = '处理任务卡片' if task_card else '查看对话并回复'
                 # Keep the action outside tables: WeChat can style table links without making them tappable.
                 # Full-width padding shifts a normal link right; WeChat offers no responsive paragraph alignment.
-                padding = '\u3000' * (17 - len(action))
-                footer = '\n\n---\n\n' + budget_footer
+                counter_width = sum(2 if ord(char) > 127 else 1 for char in budget_counter)
+                padding = '\u3000' * max(0, 17 - len(action) - (counter_width + 2) // 2)
+                footer = '\n\n---\n\n'
                 if link:
-                    footer += '\n\n' + padding + '[' + action + ' →](' + link + ')'
+                    footer += padding + budget_counter + ' [' + action + ' →](' + link + ')'
+                else:
+                    footer += budget_counter
                 body = present(text, kind, task_card, now + task_card['expires_in'] if task_card else None)
                 if len(prefix + body + footer) > 2000:
                     if not history_cid or not link:

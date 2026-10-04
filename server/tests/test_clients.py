@@ -232,8 +232,8 @@ def test_admin_and_wechat_share_clients_and_api_cannot_manage_keys(store):
         assert client.post('/api/messages',headers=auth,json=body).json()['status']=='api_accepted'
         assert client.get('/api/deliveries?dedup_key=task-1',headers=gp).json()['status']=='not_found'
         assert client.post('/api/messages',headers=gp,json=body).json()['status']=='api_accepted'
-        assert sent[0]['msg']['item_list'][0]['text_item']['text']=='[codex]\n\nsame event'
-        assert sent[1]['msg']['item_list'][0]['text_item']['text']=='[gpt]\n\nsame event'
+        assert sent[0]['msg']['item_list'][0]['text_item']['text'].split('\n\n---\n\n',1)[0]=='[codex]\n\nsame event'
+        assert sent[1]['msg']['item_list'][0]['text_item']['text'].split('\n\n---\n\n',1)[0]=='[gpt]\n\nsame event'
         notice={'task':'test','reason':'reason','need_user':'choice','source':'gpt','dedup_key':'notice'}
         assert client.post('/api/notifications',headers=auth,json=notice).status_code==200
         assert sent[-1]['msg']['item_list'][0]['text_item']['text'].startswith('[codex]\n')

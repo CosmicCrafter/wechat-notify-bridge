@@ -133,13 +133,13 @@ def test_labels_and_receipts_follow_chat_identity_and_never_resend_when_label_ch
     def send(chat,headers=auth):
         return client.post('/api/messages',headers=headers,json={'text':'one event','dedup_key':'same','conversation_id':chat})
     assert send(a['id']).json()['status']=='api_accepted'
-    assert calls[-1]['msg']['item_list'][0]['text_item']['text']=='[codex]\n\none event'
+    assert calls[-1]['msg']['item_list'][0]['text_item']['text'].split('\n\n---\n\n',1)[0]=='[codex]\n\none event'
     b=register(client,auth,'two','开发')
     assert send(a['id']).json()['duplicate'] is True
     assert len(calls)==1
     assert client.get('/api/deliveries',headers=auth,params={'dedup_key':'same','conversation_id':b['id']}).json()['status']=='not_found'
     assert send(b['id']).json()['status']=='api_accepted'
-    assert calls[-1]['msg']['item_list'][0]['text_item']['text']=='[codex-开发]\n\none event'
+    assert calls[-1]['msg']['item_list'][0]['text_item']['text'].split('\n\n---\n\n',1)[0]=='[codex-开发]\n\none event'
     assert send(None).json()['detail']=='conversation_required'
     assert send(a['id'],gpt).status_code==404
     assert len(calls)==2

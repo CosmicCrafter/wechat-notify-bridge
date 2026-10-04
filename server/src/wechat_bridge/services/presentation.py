@@ -2,6 +2,16 @@
 from wechat_bridge.services.commands import format_time
 
 
+def push_budget_footer(accepted_before):
+    """Project the observed ten-push budget; never claim a server quota query."""
+    if type(accepted_before) is not int or accepted_before < 0:
+        return '> 通知额度 (未知/10) · 请给 Bot 发句话刷新。'
+    remaining = max(0, 10 - accepted_before - 1)
+    hint = ('归零前请给 Bot 发句话，以免后续收不到。' if remaining else
+            '请先给 Bot 发句话，否则后续通知可能收不到。')
+    return f'> 通知额度 ({remaining}/10) · {hint}'
+
+
 def present(text, kind, task=None, due=None):
     if task:
         mode = task.get('mode', 'single')

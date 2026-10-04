@@ -9,7 +9,7 @@ import time
 import httpx
 from wechat_bridge.config import chat_url
 from wechat_bridge.wechat.protocol import BridgeError, WeChatError, BASE_INFO, ACCEPTED, validate_base, response_status, send_recovery_hint
-from wechat_bridge.services.presentation import present
+from wechat_bridge.services.presentation import present, push_budget_footer
 from wechat_bridge.storage.send_diagnostics import wechat_category, redact_error_message
 
 logger = logging.getLogger(__name__)
@@ -109,6 +109,8 @@ class Bridge:
                 return self.public_receipt(previous, duplicate=True)
             if not account.get('context_token'):
                 raise BridgeError(409, 'waiting_for_first_wechat_message')
+            context_diagnostics = self.store.send_diagnostics.context(now)
+            budget_footer = push_budget_footer(context_diagnostics['accepted_sends_since_context'])
             def render_wire(message_id=None):
                 link = chat_url(history_cid, message_id)
                 prefix = f'{label}\n\n' if identity else ''
@@ -116,7 +118,9 @@ class Bridge:
                 # Keep the action outside tables: WeChat can style table links without making them tappable.
                 # Full-width padding shifts a normal link right; WeChat offers no responsive paragraph alignment.
                 padding = '\u3000' * (17 - len(action))
-                footer = ('\n\n---\n\n' + padding + '[' + action + ' →](' + link + ')') if link else ''
+                footer = '\n\n---\n\n' + budget_footer
+                if link:
+                    footer += '\n\n' + padding + '[' + action + ' →](' + link + ')'
                 body = present(text, kind, task_card, now + task_card['expires_in'] if task_card else None)
                 if len(prefix + body + footer) > 2000:
                     if not history_cid or not link:
@@ -130,7 +134,7 @@ class Bridge:
             wire_text = render_wire()
             if dry_run:
                 return {'status': 'dry_run_ready', 'sent_now': False, 'network_checked': False}
-            diagnostics = {**self.store.send_diagnostics.context(now),
+            diagnostics = {**context_diagnostics,
                            'request_characters': len(wire_text), 'request_utf8_bytes': len(wire_text.encode()),
                            'http_status': None, 'error_category': None}
             diagnostics.pop('quota_warning', None)

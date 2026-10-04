@@ -62,6 +62,8 @@ HTTP 200 不等于发送成功：必须检查响应的 status，duplicate=true �
 
 1.14.0 起，新发送回执包含 `diagnostics`：上下文时间/年龄、发送前的本地已接受计数、请求字符/UTF-8 字节数、上游 HTTP 状态与 `ret`/`errcode`、请求用时、固定错误分类和说明。上游任意错误文本不回显；旧回执为 `null`。`/api/status` 增加 `context_received_at`、`context_age_seconds`、`accepted_sends_since_context`、`quota_warning` 与 `last_send_diagnostics`；本地计数并非微信剩余额度。详见 [推送限制与诊断](DELIVERY-RELIABILITY.md)。
 
+1.14.1 起微信展示内容附加本地剩余提示，例如 `(5/10)`；按发送前计数估算发送成功后剩余条数。它与消息链接一样属于展示层，不进入原正文、内容哈希或网页历史。归零前在微信 Bot 直接发普通消息即可刷新，无需 AI 标签；网页回复不刷新微信上下文。接口、认证与去重协议保持兼容。
+
 HTTP 401 表示鉴权失败，422 表示参数错误，503 表示服务执行异常。结果不明时先查原 dedup_key，不要换键重发。
 
 首次绑定前发送返回 409 / `wechat_not_bound`；已绑定但未收到首条微信消息时返回 409 / `waiting_for_first_wechat_message`。`/api/status` 增加 `bound`、`context_ready`、`connection_status`。未能开始心跳计时或微信会话已过期时，`next_heartbeat_at` 为 null。

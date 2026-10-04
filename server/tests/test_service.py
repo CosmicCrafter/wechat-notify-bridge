@@ -106,7 +106,7 @@ def test_success_updates_timer_and_duplicate_never_sends_again(store):
         assert calls[0]['msg']['to_user_id'] == 'test-owner'
         wire = calls[0]['msg']['item_list'][0]['text_item']['text']
         assert wire.split('\n\n---\n\n', 1)[0] == 'plain message'
-        assert '通知额度 (9/10)' in wire
+        assert wire.endswith('(9/10)')
         await bridge.close()
     asyncio.run(run())
 

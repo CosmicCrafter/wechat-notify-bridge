@@ -95,8 +95,8 @@ def test_budget_is_observed_warning_not_hard_quota_and_new_wechat_message_resets
         for n in range(8):
             result = await bridge.send('test', 'budget-' + str(n), 'codex' if n % 2 else 'gpt')
             assert result['diagnostics']['accepted_sends_since_context'] == n
-            assert f'通知额度 ({9 - n}/10)' in calls[-1]
-            assert '归零前请给 Bot 发句话' in calls[-1]
+            assert f'({9 - n}/10)' in calls[-1]
+            assert '通知额度' not in calls[-1] and '归零前' not in calls[-1]
         status = store.status()
         assert status['accepted_sends_since_context'] == 8 and status['quota_warning']
         assert '不是微信剩余额度' in status['quota_warning']
@@ -106,7 +106,7 @@ def test_budget_is_observed_warning_not_hard_quota_and_new_wechat_message_resets
         # Unknown server policy must not become a fabricated local 10-send limit.
         for n in range(8, 12):
             assert (await bridge.send('test', 'budget-' + str(n), 'codex'))['status'] == 'api_accepted'
-            assert f'通知额度 ({max(0, 9 - n)}/10)' in calls[-1]
+            assert f'({max(0, 9 - n)}/10)' in calls[-1]
         assert store.status()['accepted_sends_since_context'] == 12
         now = time.time()
         store.ingest({'msgs': [incoming(seq=99, at=now)]}, now)
@@ -114,7 +114,7 @@ def test_budget_is_observed_warning_not_hard_quota_and_new_wechat_message_resets
         assert store.account()['context_token'] == 'new-context'
         assert store.inbox(0, 20)[-1]['conversation_id'] is None
         await bridge.send('after ordinary Bot message', 'fresh-budget', 'codex')
-        assert '通知额度 (9/10)' in calls[-1]
+        assert '(9/10)' in calls[-1]
         await bridge.close()
     asyncio.run(run())
 
@@ -131,7 +131,7 @@ def test_footer_does_not_charge_rejected_or_duplicate_sends(store):
         assert (await bridge.send('first', 'footer-first', 'codex'))['duplicate']
         await bridge.send('second accepted', 'footer-second', 'gpt')
         assert len(calls) == 3
-        assert '通知额度 (8/10)' in calls[-1]
+        assert '(8/10)' in calls[-1]
         assert store.status()['accepted_sends_since_context'] == 2
         await bridge.close()
     asyncio.run(run())
@@ -149,7 +149,7 @@ def test_footer_never_fabricates_remaining_budget_for_legacy_context(store):
         bridge = Bridge(store, httpx.MockTransport(handler))
         result = await bridge.send('legacy', 'legacy-budget', 'codex')
         assert result['diagnostics']['accepted_sends_since_context'] is None
-        assert '通知额度 (未知/10)' in calls[-1] and '(9/10)' not in calls[-1]
+        assert '(未知/10)' in calls[-1] and '(9/10)' not in calls[-1]
         await bridge.close()
     asyncio.run(run())
 

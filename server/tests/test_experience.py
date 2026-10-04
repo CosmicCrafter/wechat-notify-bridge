@@ -101,4 +101,6 @@ def test_wire_presentation_does_not_change_canonical_notification_hash(portal):
     wire=calls[-1]['msg']['item_list'][0]['text_item']['text']
     assert '⚠️ 测试提醒' in wire and '**需要你的帮助**' in wire
     assert wire.endswith('[查看对话并回复 →](' + r['conversation_url'] + ')')
+    footer = wire.rsplit('\n\n---\n\n', 1)[1].lstrip('\u3000')
+    assert footer.startswith('(未知/10) [查看对话并回复 →](') and '\n' not in footer
     assert client.post('/api/notifications',headers=auth,json=body).json()['duplicate']

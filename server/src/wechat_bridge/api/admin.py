@@ -7,6 +7,12 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 
 from wechat_bridge.config import WEB
 from wechat_bridge.api.schemas import PairStart, ClientName, PairSession, PairVerify
+from pydantic import Field
+
+
+class ClientCreate(ClientName):
+    bot_ids:list[str]|None=Field(default=None,max_length=32)
+    default_bot_id:str|None=None
 
 WEB = WEB / 'admin'
 
@@ -14,7 +20,8 @@ WEB = WEB / 'admin'
 def mount_admin(app, authorize_admin):
     @app.get('/admin/api/clients', dependencies=[Depends(authorize_admin)], include_in_schema=False)
     async def client_list():
-        return {'clients': app.state.bridge.store.clients.list(),
+        store=app.state.bridge.store
+        return {'clients':[dict(client,**store.bots.grants(client['id'])) for client in store.clients.list()],
                 'base_url': os.environ.get('WECHAT_PUBLIC_BASE_URL', '')}
 
     async def change_client(operation, *args):
@@ -28,8 +35,19 @@ def mount_admin(app, authorize_admin):
             return {'client': result}
 
     @app.post('/admin/api/clients', dependencies=[Depends(authorize_admin)], include_in_schema=False)
-    async def client_create(body: ClientName):
-        return await change_client('create', body.name)
+    async def client_create(body:ClientCreate):
+        bridge=app.state.bridge
+        async with bridge.lock:
+            bridge.store.db.execute('BEGIN IMMEDIATE')
+            try:
+                client,key=bridge.store.clients.create(body.name)
+                if body.bot_ids is not None:
+                    bridge.store.bots.set_grants(client['id'],body.bot_ids,body.default_bot_id)
+                result=dict(client,**bridge.store.bots.grants(client['id']))
+                bridge.store.db.commit()
+            except Exception:
+                bridge.store.db.rollback(); raise
+            return {'client':result,'api_key':key,'base_url':os.environ.get('WECHAT_PUBLIC_BASE_URL','')}
 
     @app.post('/admin/api/clients/{client_id}/rotate', dependencies=[Depends(authorize_admin)], include_in_schema=False)
     async def client_rotate(client_id: str):
@@ -66,6 +84,9 @@ def mount_admin(app, authorize_admin):
     @app.get('/admin/style.css', include_in_schema=False)
     def admin_style():
         return FileResponse(WEB / 'style.css', media_type='text/css')
+
+    @app.get('/admin/bots.js',include_in_schema=False)
+    def bot_script(): return FileResponse(WEB/'bots.js',media_type='text/javascript')
 
     @app.get('/admin/api/status', dependencies=[Depends(authorize_admin)], include_in_schema=False)
     async def admin_status():

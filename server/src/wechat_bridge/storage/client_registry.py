@@ -92,6 +92,7 @@ class ClientRegistry:
         id = uuid.uuid4().hex
         self.db.execute('INSERT INTO api_clients(id,name,key_hash,created_at) VALUES (?,?,?,?)',
                         (id, name, digest, time.time()))
+        if getattr(self,'on_create',None): self.on_create(id)
         return self.public(self.get(id)), key
 
     def rotate(self, id):
@@ -116,6 +117,9 @@ class ClientRegistry:
             self.db.execute("UPDATE command_replies SET status='deleted',encrypted_reply=NULL,issued_hash=NULL "
                             "WHERE client_id=? AND status='pending'", (id,))
             self.db.execute('DELETE FROM api_clients WHERE id=?', (id,))
+            if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='client_bot_grants'").fetchone():
+                self.db.execute('DELETE FROM client_bot_grants WHERE client_id=?',(id,))
+                self.db.execute('DELETE FROM client_bot_defaults WHERE client_id=?',(id,))
             self.db.execute('UPDATE conversations SET active=0 WHERE client_id=?', (id,))
             self.db.commit()
             return client

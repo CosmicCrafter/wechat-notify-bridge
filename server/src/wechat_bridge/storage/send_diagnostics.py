@@ -57,8 +57,9 @@ class SendDiagnostics:
         account = self.store.account() or {}
         received = account.get('context_received_at')
         received = received if isinstance(received, (int, float)) and received > 0 else None
-        count = self.db.execute('SELECT count(*) FROM outgoing WHERE attempted_at>=? AND status IN (?,?,?)',
-                                (received, *sorted(ACCEPTED))).fetchone()[0] if received else None
+        count = self.db.execute("SELECT count(*) FROM outgoing WHERE attempted_at>=? AND status IN (?,?,?) AND "
+            "coalesce((SELECT bot_id FROM outgoing_bots WHERE outgoing_key=outgoing.key),'default')=?",
+            (received,*sorted(ACCEPTED),self.store.bot_id)).fetchone()[0] if received else None
         return {'context_received_at': received,
                 'context_age_seconds': round(max(0, now - received), 1) if received else None,
                 'accepted_sends_since_context': count,

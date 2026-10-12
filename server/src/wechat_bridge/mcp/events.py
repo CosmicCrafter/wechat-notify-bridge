@@ -181,7 +181,7 @@ class Events:
         return access.client_id + ':' + identity.id, identity, access.client_id
 
     def definition(self):
-        return {'name':NAME, 'description':'A new message from the paired owner in a specific WeChat or mobile web conversation. Subscribe only to the conversation registered for this chat.',
+        return {'name':NAME,'description':'A new owner reply in this registered conversation from an authorized WeChat/Feishu bot or the authenticated web page.',
                 'delivery':['webhook'],
                 'inputSchema':{'type':'object','properties':{'conversation_id':{'type':'string','description':'Registered conversation ID owned by this client.'}},'required':['conversation_id'],'additionalProperties':False},
                 'payloadSchema':{'type':'object','properties':{'conversation_id':{'type':'string'},'message_id':{'type':'integer'},'text':{'type':'string'},'source':{'type':'string'}},'required':['conversation_id','message_id','text','source'],'additionalProperties':False}}
@@ -307,7 +307,8 @@ class Events:
             except Exception:
                 self.store.db.execute("UPDATE mcp_event_subscriptions SET status='revoked' WHERE id=?",(sub['id'],))
                 return
-            row=self.store.db.execute("SELECT * FROM inbox WHERE conversation_id=? AND id>? AND kind='message' AND route_status='direct' ORDER BY id LIMIT 1",(sub['conversation'],sub['cursor'])).fetchone()
+            clause,ids=self.store.bots.scope(value['client'])
+            row=self.store.db.execute("SELECT * FROM inbox WHERE conversation_id=? AND id>? AND kind='message' AND route_status='direct' AND "+clause+' ORDER BY id LIMIT 1',(sub['conversation'],sub['cursor'],*ids)).fetchone()
             if not row:
                 return
             body=json.loads(self.store.cipher.decrypt(row['encrypted']))

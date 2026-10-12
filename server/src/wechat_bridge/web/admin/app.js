@@ -4,6 +4,7 @@ let key = '', state = null, busy = false, updating = false, generation = 0;
 let qrUrl = '', qrVersion = '', timer = null;
 let clients = [], selectedClient = null, lastClientsAt = 0;
 const labels = {
+  disabled:['Bot 已停用','到 Bot 管理页启用后恢复收发，历史记录保留。'],
   unbound: ['等待绑定', '生成二维码后，用手机微信扫一扫。'],
   waiting_message: ['等待首条消息', '绑定已保存。请在手机 ClawBot 对话发送一句“测试”。'],
   connected: ['微信接收正常', '服务正在接收微信消息。发送结果以接口回执和手机实际收件为准。'],
@@ -12,6 +13,8 @@ const labels = {
   session_expired: ['需要重新绑定', '微信会话已失效，心跳已暂停。请使用原账号重新扫码。']
 };
 const errors = {
+  incomplete_feishu_configuration: '启用飞书前请填写 App ID、本人 Open ID、App Secret、Verification Token 和 Encrypt Key。',
+  feishu_owner_mismatch: '已有飞书应用与本人绑定不能替换，可修改 Secret 和回调密钥。',
   admin_not_configured: '服务器尚未配置管理员密钥，请按部署说明添加管理员配置后重启。',
   confirm_rebind_required: '已有绑定，请确认后重新绑定。',
   pairing_retry_later: '请稍等几秒再生成二维码。',
@@ -29,6 +32,8 @@ function dropQr() {
   $('qr-image').removeAttribute('src'); $('qr-image').hidden = true; $('qr-empty').hidden = false;
 }
 function logout() {
+  if (typeof resetBots==='function') resetBots();
+  feishuLoaded = false; $('feishu-form').reset(); $('feishu-result').textContent = ''; $('feishu-callback').value = '';
   proxyPendingGeneration = null;
   proxyFormLoaded = false; proxySelectionDirty = false; proxyOptionsSignature = ''; proxyState = null; $('proxy-url').value = '';
   $('chat-login-code').hidden = true; $('chat-code-value').value = ''; $('revoke-chat-confirm').hidden = true;
@@ -104,6 +109,8 @@ async function refresh() {
     const result = await api('status');
     if (current !== generation || !key) return;
     state = result; render();
+    if (typeof loadBots==='function') await loadBots(current);
+    if (location.hash==='#feishu') await loadFeishu(current);
     await loadProxy(current);
     if (Date.now() - lastClientsAt > 10000) await loadClients();
     const p = state.pairing, version = `${p.session_id}/${p.qr_version}`;
@@ -178,6 +185,11 @@ async function loadClients() {
       const cell = document.createElement('td'); cell.textContent = text; row.append(cell);
     }
     const actions = document.createElement('td'); actions.className = 'client-actions';
+    const permissions=document.createElement('td');
+    permissions.textContent=(client.bot_ids||['default']).map(id=>typeof botName==='function'?botName(id):id).join('、')||'未授权';
+    row.append(permissions);
+    const grantButton=document.createElement('button'); grantButton.type='button'; grantButton.className='text-button'; grantButton.textContent='Bot 权限';
+    grantButton.onclick=()=>openBotGrants(client); actions.append(grantButton);
     for (const [action, label] of [['rename','改名'], ['rotate',client.enabled ? '重置密钥' : '重新启用'], ['revoke','停用'], ['delete','删除密钥']]) {
       if (action === 'revoke' && !client.enabled) continue;
       const button = document.createElement('button'); button.type = 'button'; button.className = 'text-button';
@@ -208,7 +220,8 @@ function openClientEditor(client, action) {
 $('create-client-form').addEventListener('submit', event => {
   event.preventDefault(); const name = $('client-name').value.trim();
   act(async () => {
-    hideIssued(); const result = await api('clients', {name}); showIssued(result);
+    hideIssued(); const scope=typeof createBotScope==='function'?createBotScope():{};
+    const result=await api('clients',{name,...scope}); showIssued(result);
     $('client-name').value = ''; $('client-result').textContent = `已创建 [${result.client.name}]。`;
     await loadClients();
   });
@@ -248,12 +261,15 @@ $('confirm-chat-revoke').onclick = async () => {
 let proxyState = null, proxyFormLoaded = false, proxySelectionDirty = false, proxyOptionsSignature = '';
 let proxyPendingGeneration = null;
 const pages = {
+  bots:['Bot 管理','通知桥 / 通信连接','统一管理微信与飞书 Bot，每个连接独立收发、保存上下文和状态。'],
+  keys:['Key 授权','通知桥 / 调用权限','为程序或 AI 创建 Key，并关联允许调用的 Bot 与默认 Bot。'],
+  feishu: ['连接你的飞书', '微信与飞书 / 通知通道', '用飞书应用机器人收发消息和处理任务卡片。按需启用，共用会话与回复记录。'],
   overview: ['连接你的微信', '让重要的消息，出现在微信里', '扫码一次，由服务器持续接收消息、发送通知，并管理空闲心跳。'],
   subscription: ['订阅管理', '回调代理 / 订阅', '管理订阅地址、更新周期和节点优先规则。'],
   nodes: ['节点选择', '回调代理 / 节点', '从订阅节点中自由选择，或让服务器按优先规则自动切换。']
 };
 function showPage() {
-  const name = key && Object.hasOwn(pages, location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+  const name=key?(Object.hasOwn(pages,location.hash.slice(1))?location.hash.slice(1):'bots'):'bots';
   for (const panel of document.querySelectorAll('[data-page]')) panel.hidden = panel.dataset.page !== name;
   for (const link of document.querySelectorAll('[data-page-link]')) {
     if (link.dataset.pageLink === name) link.setAttribute('aria-current', 'page');
@@ -261,10 +277,39 @@ function showPage() {
   }
   const [title, eyebrow, description] = pages[name];
   $('page-title').textContent = title; $('page-eyebrow').textContent = eyebrow; $('page-description').textContent = description;
-  document.title = `微信通知桥 · ${name === 'overview' ? '连接管理' : title}`;
+  document.title=`通知桥 · ${title}`;
 }
 window.addEventListener('hashchange', () => { showPage(); window.scrollTo(0, 0); });
 showPage();
+let feishuLoaded = false;
+async function loadFeishu(current = generation) {
+  if (feishuLoaded || !key) return;
+  const id=typeof selectedBotId==='string'&&selectedBotId?selectedBotId:'feishu-default';
+  const result=await api(`bots/${encodeURIComponent(id)}/feishu`);
+  if(current!==generation||!key||(selectedBotId||'feishu-default')!==id)return;
+  $('feishu-app-id').value = result.app_id;
+  $('feishu-owner').value = result.owner_open_id;
+  $('feishu-enabled').checked = result.enabled;
+  $('feishu-callback').value = result.callback_url || '';
+  $('feishu-badge').textContent = result.enabled ? '已启用' : '未启用';
+  $('feishu-result').textContent = result.last_event_at ? `最近接收：${date(result.last_event_at)}` : result.configured ? '配置已保存，等待飞书回调。' : '';
+  feishuLoaded = true;
+}
+$('feishu-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  const current = generation;
+  const targetBotId=selectedBotId||'feishu-default';
+  $('feishu-save').disabled = true; showError();
+  try {
+    await api(`bots/${encodeURIComponent(targetBotId)}/feishu`,{enabled:$('feishu-enabled').checked,
+      app_id:$('feishu-app-id').value.trim(), owner_open_id:$('feishu-owner').value.trim(),
+      app_secret:$('feishu-secret').value.trim(), verification_token:$('feishu-token').value.trim(), encrypt_key:$('feishu-encrypt').value.trim()});
+    if(current!==generation||!key||(selectedBotId||'feishu-default')!==targetBotId)return;
+    for (const id of ['feishu-secret','feishu-token','feishu-encrypt']) $(id).value = '';
+    feishuLoaded = false; await loadFeishu(current);
+  } catch (error) { if (current === generation && key) showError(error.message); }
+  finally { $('feishu-save').disabled = false; }
+});
 const proxyErrors = {
   proxy_manager_not_configured: '代理管理尚未启用，请按部署说明配置 Mihomo 和私有控制文件。',
   proxy_control_configuration_invalid: '代理控制配置无法读取，请检查私有控制文件和权限。',

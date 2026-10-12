@@ -1,11 +1,13 @@
 ---
 name: wechat-notify
-description: 发送本人微信通知与可选择的任务卡片、读取微信或手机会话页的文字与图片回复、查询发送回执和管理聊天登记。用于用户要求微信通信或任务已有微信通知授权时；普通任务不自动发通知。
+description: 发送本人微信或飞书通知与可选择的任务卡片，读取通道与手机会话页回复，查询回执和管理聊天。用于用户要求通知通信或任务已有通知授权时；普通任务不自动发通知。
 ---
 
 # 微信通知
 
 使用本插件的 MCP 工具连接通知桥。服务器负责微信登录、持久化和空闲心跳；Skill 负责当前聊天的身份、工具选择和结果解释。工具命名空间由宿主决定，根据所属插件识别工具，避免误用同名飞书工具。
+
+需要选择 Bot 或飞书通信时，先读 [Bot 与权限](references/channels.md)，按当前 Key 的授权列表选择 `bot_id`；省略时采用 Key 的默认 Bot。其他旧飞书插件可能只有发送能力，不擅自同时推送。已有 Key 仍默认原微信 Bot，聊天身份不变。
 
 ## 当前聊天身份
 
@@ -22,7 +24,7 @@ description: 发送本人微信通知与可选择的任务卡片、读取微信�
 | 汇报任务阻塞、一般提醒 | `sendNotification`；说明任务、情况和需要的操作 |
 | 让用户选方案或自行回复 | 读 [任务卡片](references/task-cards.md)，调用 `sendTaskCard` |
 | 查询决定或更新处理进度 | `getTaskCard` / `updateTaskCard`；按实际执行情况更新 |
-| 看微信或网页回复 | `getMessages`；传本会话 ID 和对应游标 |
+| 看微信、飞书或网页回复 | `getMessages`；传本会话 ID 和对应游标 |
 | 查看回复图片 | 按 [收件与图片](references/inbox.md) 用附件 ID 调用 `getImage` |
 | 查发送结果 | `getDeliveryStatus`；使用原会话 ID 与去重键 |
 | 查看会话、归档或恢复 | `listConversations` / `setConversationActive`；先读会话参考 |
@@ -33,7 +35,7 @@ description: 发送本人微信通知与可选择的任务卡片、读取微信�
 
 优先选择能解决当前问题的最简单形式：通知即可时用普通发送工具；需要单选时保持默认卡片。多选、快捷确认、独立输入或收集几项信息的轻量表单，才指定对应 `mode`，不要默认增加所有交互。表单建议 2–3 个字段。用法见任务卡片参考。
 
-每个发送事件保存 `dedup_key` 和完整参数。重试保持原 `conversation_id`、去重键与正文一致；不能换键、换会话绕过去重。报错或结果不明时先查原回执，按 [错误与恢复](references/recovery.md) 处理。
+每个发送事件保存返回的 Bot ID、`dedup_key` 和完整参数。重试保持原 Bot、`conversation_id`、去重键与正文一致；不能换键、换会话或换 Bot 绕过去重。结果不明时先查原回执，按 [错误与恢复](references/recovery.md) 处理。
 
 `dry_run=true` 不发送；`api_accepted`、`no_error_reported` 只表示接口层结果，不能称“手机已收到”。`duplicate=true` 仍需检查 `status`。只有已有人工确认记录 `phone_confirmed` 能证明用户确认收件。
 

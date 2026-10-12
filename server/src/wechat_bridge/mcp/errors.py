@@ -5,6 +5,11 @@ import httpx
 
 SEND_PATHS = {'/api/messages', '/api/notifications', '/api/task-cards'}
 DETAILS = {
+    'bot_access_denied':'This key is not granted the selected bot. Ask the owner to change its grants in Admin; never bypass the scope.',
+    'bot_required':'Read getCallerIdentity.bots and specify one authorized bot_id. No message was sent; do not broadcast.',
+    'bot_disabled':'The selected bot is disabled. Ask the owner to enable it; never switch bots to retry without authorization.',
+    'bot_platform_conflict':'The supplied bot_id and channel refer to different platforms. Use the original authorized bot and correct the filter.',
+    'bot_not_found':'Check the bot_id returned by getCallerIdentity; do not guess IDs.',
     'task_not_found': 'Check the original task_id and conversation_id; never guess a task by title.',
     'task_state_conflict': 'Read getTaskCard first. Update only the current task state; terminal states cannot reopen.',
     'task_expired': 'The pending card expired. Create a new, clearly scoped decision only if the task still needs it.',
@@ -14,6 +19,7 @@ DETAILS = {
     'conversation_not_found': 'Check the registered conversation ID and current client identity. Do not guess another ID.',
     'conversation_required': 'Register this chat and pass its conversation_id.',
     'wechat_not_bound': 'The owner must pair WeChat in the administrator page.',
+    'feishu_not_enabled': 'The owner must configure and enable Feishu in Admin. Do not switch channels to resend without authorization.',
     'image_not_found': 'The attachment is unavailable. Do not claim to have seen it.',
     'invalid_client_key': 'Reconnect OAuth or update the private local configuration; never paste credentials into chat.',
     'dedup_key already belongs to different content': 'Keep the original conversation, dedup_key and payload. Do not change the key to resend.',
@@ -51,7 +57,7 @@ def failure(code, advice, path, status=None):
         data['http_status'] = status
     if path in SEND_PATHS:
         data['delivery'] = 'unconfirmed'
-        data['next_action'] = 'Query getDeliveryStatus with the original conversation_id and dedup_key before deciding whether to retry.'
+        data['next_action'] = 'Query getDeliveryStatus with the original bot_id, conversation_id and dedup_key before deciding whether to retry.'
     return ValueError(json.dumps(data, ensure_ascii=False))
 
 

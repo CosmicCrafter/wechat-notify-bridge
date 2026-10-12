@@ -83,7 +83,7 @@ class TaskCards:
     def get(self, cid, id):
         return self.public(self.row(cid, id))
 
-    def answer(self, cid, id, body):
+    def answer(self, cid, id, body, *, source='web',bot_id=None):
         self.store.portal.owner_chat(cid, writable=True)
         self.db.execute('BEGIN IMMEDIATE')
         try:
@@ -111,11 +111,11 @@ class TaskCards:
                 for field in answer.get('fields', []):
                     text += field['label'] + '：' + (field['value'] or '未填写') + '\n'
                 task_response = dict(task_id=id, title=definition['title'], **answer)
-                content = dict(text=text.strip(), item_types=[1], source='web', attachments=[], task_response=task_response)
-                cursor = self.db.execute("INSERT INTO inbox(identity,received_at,message_at,encrypted,kind,conversation_id,route_status) "
-                                         "VALUES (?,?,?,?,'message',?,'direct')",
-                                         ('task:' + cid + ':' + id, now, now, self.encrypt(content), cid))
-                message_id = self.store.portal.add(cid, 'user', 'web', content['text'], 'pending', inbox_id=cursor.lastrowid, at=now)
+                content = dict(text=text.strip(), item_types=[1], source=source, attachments=[], task_response=task_response,bot_id=bot_id)
+                cursor = self.db.execute("INSERT INTO inbox(identity,received_at,message_at,encrypted,kind,conversation_id,route_status,bot_id) "
+                                         "VALUES (?,?,?,?,'message',?,'direct',?)",
+                                         ('task:' + cid + ':' + id, now, now, self.encrypt(content), cid,bot_id))
+                message_id = self.store.portal.add(cid, 'user', source, content['text'], 'pending', inbox_id=cursor.lastrowid, at=now,bot_id=bot_id)
                 self.db.execute("UPDATE task_cards SET status='answered',answer=?,answered_at=?,updated_at=?,inbox_id=? WHERE id=?",
                                 (self.encrypt(answer), now, now, cursor.lastrowid, id))
                 message = self.db.execute('SELECT * FROM chat_messages WHERE id=?', (message_id,)).fetchone()

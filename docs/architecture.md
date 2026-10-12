@@ -2,6 +2,21 @@
 
 项目由两个可独立交付的组件组成：`server/` 是常驻服务，`mcp-plugin/` 是 AI 宿主的连接适配。项目根目录的 `docs/`、`scripts/` 和 `pytest.ini` 提供统一文档、发布与验证入口。
 
+1.15.0 增加管理员统一管理的多个 Bot 与 Key 授权。`channels/registry.py` 保存 Bot、Key 授权列表及默认 Bot；`channels/` 按 `bot_id` 路由；`channels/wechat_store.py` 复用微信实现并隔离各 Bot 的绑定和运行状态；`channels/feishu/` 处理飞书认证、原生卡片与回调验证。会话、手机历史、任务答复和 `message.created` 事件共用，接入程序不要求是 AI。原 Key 只保留原默认微信 Bot 权限。
+
+```mermaid
+flowchart LR
+  H[AI MCP / 普通程序 HTTP] --> API[鉴权与会话 API]
+  API --> C[通道选择]
+  C --> W[多个微信 Bridge / 独立上下文]
+  C --> F[多个飞书适配 / 独立应用凭据]
+  W --> I[统一收件与会话历史]
+  F --> I
+  I --> E[宿主接收器 / 事件订阅]
+```
+
+当前是单进程内的模块边界，不是微服务拆分。微信接收与存储中的既有耦合仍保留；未来通道及宿主可以沿这个边界增量接入，不为扩展目标立即重写整套服务。飞书当前采用 HTTPS 事件与卡片回调，长连接接收尚未接入。
+
 ## 服务器
 
 所有运行时代码都在 `server/src/wechat_bridge/`，使用完整包名导入。`pyproject.toml` 将 Python 模块和页面资源一起打包，启动不依赖当前工作目录。

@@ -30,6 +30,7 @@ def test_discovery_describes_side_effects_and_rejects_invalid_input_before_api()
         assert not tools['updateTaskCard'].annotations.openWorldHint
         assert tools['getMessages'].inputSchema['properties']['limit']['maximum'] == 100
         for name, args in [('getMessages', {'limit': 101}), ('getMessages', {'after_id': -1}),
+                           ('sendMessage', {'text':'test','dedup_key':'event','bot_id':'../../secret'}),
                            ('sendMessage', {'text': 'a'*20001, 'dedup_key': 'event'}),
                            ('getImage', {'conversation_id': 'a'*32, 'image_id': '../secret'})]:
             with pytest.raises(Exception):
@@ -37,6 +38,10 @@ def test_discovery_describes_side_effects_and_rejects_invalid_input_before_api()
         assert not calls
         await mcp.call_tool('getMessages', {'conversation_id': 'this-chat', 'limit': 100})
         assert calls[0][2]['conversation_id'] == 'this-chat'
+        await mcp.call_tool('sendMessage',{'text':'test','dedup_key':'bot-send','conversation_id':'this-chat','bot_id':'feishu-a','dry_run':True})
+        assert calls[-1][1]['bot_id']=='feishu-a'
+        await mcp.call_tool('getDeliveryStatus',{'dedup_key':'bot-send','conversation_id':'this-chat','bot_id':'feishu-a'})
+        assert calls[-1][2]['bot_id']=='feishu-a'
         await mcp.call_tool('sendTaskCard', {'conversation_id': 'a'*32, 'dedup_key': 'card', 'title': 'Choose',
             'prompt': 'Select a plan', 'options': [{'id':'a','label':'A'}, {'id':'b','label':'B'}], 'dry_run': True})
         assert calls[-1][0] == '/api/task-cards' and calls[-1][1]['options'][0]['id'] == 'a'

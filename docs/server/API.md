@@ -2,6 +2,8 @@
 
 假设公开地址为 `https://notify.example.com/wechat`，下表的路径都相对于该地址。真实地址由部署者配置。
 
+1.15.0 起，发送与查回执接受 `bot_id`，按当前 Key 的授权列表路由。`GET /api/status` 返回允许的 Bot 和默认 Bot；原 Key 仍默认使用原微信连接。完整规则见 [多 Bot 与 Key 授权](BOTS.md)。`channel` 是可选平台过滤条件，不能代替多个同平台 Bot 的明确选择。
+
 下表除 `/health` 外的消息 API 需要 `Authorization: Bearer <API_KEY>`。收件人由服务器绑定确定，请求不能指定其他收件人。网页管理使用独立管理员密钥，不能用消息 API 密钥代替。
 
 | 方法 | 路径 | 用途 |

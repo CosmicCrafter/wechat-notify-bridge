@@ -25,6 +25,8 @@ from wechat_bridge.api.clients import mount_client_api
 from wechat_bridge.api.proxy import mount_proxy
 from wechat_bridge.services.proxy import ProxyManager
 from wechat_bridge import __version__
+from wechat_bridge.channels import Channels
+from wechat_bridge.api.channels import mount_channels
 
 
 def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, pairing=None):
@@ -45,14 +47,16 @@ def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, 
                 admin_hash = json.loads((secret_dir / 'admin.json').read_text())['key_sha256']
         pairing = pairing or Pairing(bridge, run_workers=run_workers)
         app.state.bridge = bridge
+        app.state.channels = Channels(bridge,pairing,run_workers)
         bridge.store.clients.seed(clients or {})
         app.state.admin_hash = admin_hash
         app.state.pairing = pairing
         app.state.proxy = ProxyManager(bridge.store)
         if run_workers:
             app.state.proxy.start()
-        if run_workers:
+        if run_workers and bridge.store.bots.get('default')['enabled']:
             await bridge.start()
+        await app.state.channels.reconcile()
         if app.state.oauth:
             app.state.oauth.initialize()
         event_task = None
@@ -67,6 +71,7 @@ def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, 
                 yield
         finally:
             await app.state.proxy.close()
+            await app.state.channels.close()
             if event_task:
                 event_task.cancel()
                 await asyncio.gather(event_task, return_exceptions=True)
@@ -87,6 +92,9 @@ def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, 
         if request.url.path.startswith('/admin/api/proxy'):
             from fastapi.responses import JSONResponse
             return JSONResponse({'detail': 'invalid_proxy_settings'}, status_code=422)
+        if request.url.path.startswith(('/admin/api/bots','/admin/api/channels')):
+            from fastapi.responses import JSONResponse
+            return JSONResponse({'detail':'invalid_bot_settings'},status_code=422)
         return await request_validation_exception_handler(request, exc)
 
     @app.middleware('http')
@@ -129,6 +137,7 @@ def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, 
 
     mount_admin(app, authorize_admin)
     mount_proxy(app, authorize_admin)
+    mount_channels(app, authorize_admin)
 
     @app.get('/health')
     def health():

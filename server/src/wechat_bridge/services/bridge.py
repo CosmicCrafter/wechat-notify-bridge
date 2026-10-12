@@ -74,6 +74,7 @@ class Bridge:
             now = time.time()
             if identity:
                 identity = self.store.clients.revalidate(identity)
+                self.store.bots.select(identity,self.store.bot_id)
                 caller = identity.name
             label = '[' + caller + ']'
             if conversation_id:
@@ -145,9 +146,10 @@ class Bridge:
             try:
                 self.store.db.execute('INSERT INTO outgoing VALUES (?,?,?,?,?,?,?,?)',
                     (digest, text_hash, 'attempting', kind, caller, now, None, None))
+                self.store.db.execute('INSERT INTO outgoing_bots VALUES (?,?)',(digest,self.store.bot_id))
                 if history_cid:
                     task_id = self.store.portal.tasks.create(history_cid, digest, task_card, now) if task_card else None
-                    message_id = self.store.portal.add(history_cid, 'assistant', 'api', text, 'attempting', outgoing_key=digest, at=now, task_id=task_id)
+                    message_id = self.store.portal.add(history_cid, 'assistant', 'api', text, 'attempting', outgoing_key=digest, at=now, task_id=task_id,bot_id=self.store.bot_id)
                     wire_text = render_wire(message_id)
                     diagnostics['request_characters'] = len(wire_text)
                     diagnostics['request_utf8_bytes'] = len(wire_text.encode())
@@ -213,7 +215,8 @@ class Bridge:
         account = self.store.account()
         if not account or not account.get('context_token') or self.store.get('poll_status') == 'session_expired':
             return {'status': 'waiting_for_connection'}
-        row = self.store.db.execute("SELECT * FROM command_replies WHERE status='pending' ORDER BY id LIMIT 1").fetchone()
+        row = self.store.db.execute("SELECT * FROM command_replies WHERE status='pending' AND id IN "
+            "(SELECT id FROM inbox WHERE bot_id=?) ORDER BY id LIMIT 1",(self.store.bot_id,)).fetchone()
         if not row:
             return {'status': 'idle'}
         text = self.store.cipher.decrypt(row['encrypted_reply']).decode()

@@ -39,6 +39,8 @@ class Message(BaseModel):
     dedup_key: str = Field(min_length=1, max_length=200)
     dry_run: bool = False
     conversation_id: str | None = Field(default=None, min_length=1, max_length=64)
+    channel: Literal['wechat', 'feishu'] | None = None
+    bot_id: str | None = Field(default=None,pattern=r'^[a-zA-Z0-9_-]{1,64}$')
 
     @field_validator('text', 'dedup_key')
     @classmethod
@@ -58,6 +60,8 @@ class Notice(BaseModel):
     level: Literal['info', 'warning', 'urgent'] = 'warning'
     dry_run: bool = False
     conversation_id: str | None = Field(default=None, min_length=1, max_length=64)
+    channel: Literal['wechat', 'feishu'] | None = None
+    bot_id: str | None = Field(default=None,pattern=r'^[a-zA-Z0-9_-]{1,64}$')
 
     @field_validator('task', 'reason', 'need_user', 'dedup_key', 'source')
     @classmethod
@@ -97,6 +101,8 @@ class TaskCard(BaseModel):
     input_hint: str = Field(default='', max_length=200)
     expires_in: int = Field(default=86400, ge=60, le=604800)
     dry_run: bool = False
+    channel: Literal['wechat', 'feishu'] | None = None
+    bot_id: str | None = Field(default=None,pattern=r'^[a-zA-Z0-9_-]{1,64}$')
 
     @field_validator('title', 'prompt', 'dedup_key')
     @classmethod

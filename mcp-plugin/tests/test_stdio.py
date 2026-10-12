@@ -22,7 +22,7 @@ async def fixture_request(path, payload=None, params=None):
         return {'id':payload['conversation_key'],'name':payload['name']}
     if path == '/api/messages':
         assert payload['dry_run'] and payload['conversation_id'] in ('one','two')
-        return {'status':'dry_run_ready','conversation_id':payload['conversation_id']}
+        return {'status':'dry_run_ready','conversation_id':payload['conversation_id'],'channel':payload.get('channel','wechat')}
     if path == '/api/inbox':
         return {'messages':[],'conversation_id':params['conversation_id'],'next_after_id':0}
     if path == '/api/task-cards':
@@ -53,6 +53,9 @@ http_bridge.mcp.run(transport='stdio')
                     assert names=={'getCallerIdentity','getDeliveryStatus','getMessages','sendMessage','sendNotification',
                                    'registerConversation','listConversations','setConversationActive','getImage',
                                    'sendTaskCard','getTaskCard','updateTaskCard'}
+                    feishu=await session.call_tool('sendMessage',{'text':'test','dedup_key':'feishu-key','dry_run':True,
+                        'conversation_id':'one','channel':'feishu'})
+                    assert not feishu.isError and json.loads(feishu.content[0].text)['channel']=='feishu'
                     card=await session.call_tool('sendTaskCard', {'conversation_id':'a'*32,'dedup_key':'card','title':'Choose',
                         'prompt':'Choose a plan','options':[{'id':'a','label':'A'},{'id':'b','label':'B'}],'dry_run':True})
                     assert not card.isError and json.loads(card.content[0].text)['status']=='dry_run_ready'

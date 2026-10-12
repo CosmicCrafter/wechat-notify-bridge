@@ -27,22 +27,27 @@ class Portal:
           CREATE TABLE IF NOT EXISTS web_reads (conversation_id TEXT PRIMARY KEY, message_id INTEGER NOT NULL);
           CREATE TABLE IF NOT EXISTS web_preferences (conversation_id TEXT PRIMARY KEY, pinned INTEGER NOT NULL DEFAULT 0);
         ''')
+        if 'bot_id' not in {row['name'] for row in self.db.execute('PRAGMA table_info(chat_messages)')}:
+            self.db.execute('ALTER TABLE chat_messages ADD COLUMN bot_id TEXT')
+            self.db.execute("UPDATE chat_messages SET bot_id='default' WHERE source IN ('wechat','api')")
+            self.db.execute("UPDATE inbox SET bot_id=NULL WHERE id IN (SELECT inbox_id FROM chat_messages WHERE source='web')")
         self.images=Images(store)
         self.tasks=TaskCards(store)
         self.image_slots=asyncio.Semaphore(1)
         # Only recover text that was actually saved. Old outgoing hashes are not transcripts.
-        self.db.execute("INSERT OR IGNORE INTO chat_messages(conversation_id,direction,source,encrypted,created_at,status,inbox_id) "
-            "SELECT conversation_id,'user','wechat',encrypted,message_at,'legacy',id FROM inbox "
-            "WHERE kind='message' AND conversation_id IS NOT NULL AND NOT EXISTS "
-            "(SELECT 1 FROM chat_messages m WHERE m.inbox_id=inbox.id) ORDER BY id")
+        self.db.execute("INSERT OR IGNORE INTO chat_messages(conversation_id,direction,source,encrypted,created_at,status,inbox_id,bot_id) "
+            "SELECT i.conversation_id,'user',CASE WHEN i.bot_id IS NULL THEN 'web' ELSE coalesce(b.platform,'wechat') END,"
+            "i.encrypted,i.message_at,'legacy',i.id,i.bot_id FROM inbox i LEFT JOIN bots b ON b.id=i.bot_id "
+            "WHERE i.kind='message' AND i.conversation_id IS NOT NULL AND NOT EXISTS "
+            "(SELECT 1 FROM chat_messages m WHERE m.inbox_id=i.id) ORDER BY i.id")
 
-    def add(self, cid, direction, source, text, status, *, outgoing_key=None, inbox_id=None, at=None, attachments=None, task_id=None):
+    def add(self, cid, direction, source, text, status, *, outgoing_key=None, inbox_id=None, at=None, attachments=None, task_id=None,bot_id=None):
         content = {'text': text, 'attachments': attachments or []}
         if task_id:
             content['task_id'] = task_id
         encrypted = self.store.cipher.encrypt(json.dumps(content, ensure_ascii=False).encode())
-        result = self.db.execute('INSERT INTO chat_messages(conversation_id,direction,source,encrypted,created_at,status,outgoing_key,inbox_id) '
-            'VALUES (?,?,?,?,?,?,?,?)', (cid, direction, source, encrypted, at or time.time(), status, outgoing_key, inbox_id))
+        result = self.db.execute('INSERT INTO chat_messages(conversation_id,direction,source,encrypted,created_at,status,outgoing_key,inbox_id,bot_id) '
+            'VALUES (?,?,?,?,?,?,?,?,?)', (cid, direction, source, encrypted, at or time.time(), status, outgoing_key, inbox_id,bot_id))
         return result.lastrowid
 
     def owner_chat(self, cid, writable=False):
@@ -115,6 +120,7 @@ class Portal:
             self.db.execute('DELETE FROM web_preferences WHERE conversation_id=?',(cid,))
             self.db.execute('DELETE FROM image_attachments WHERE conversation_id=?',(cid,))
             self.db.execute('DELETE FROM task_cards WHERE conversation_id=?',(cid,))
+            self.db.execute('UPDATE channel_outgoing SET encrypted=NULL,provider_hash=NULL WHERE conversation_id=?', (cid,))
             if self.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='mcp_event_subscriptions'").fetchone():
                 self.db.execute('DELETE FROM mcp_event_subscriptions WHERE conversation=?',(cid,))
             self.db.commit()
@@ -128,7 +134,7 @@ class Portal:
         if task_id:
             content['task'] = self.tasks.get(row['conversation_id'], task_id)
         return dict(id=row['id'], conversation_id=row['conversation_id'], direction=row['direction'],
-                    source=row['source'], created_at=row['created_at'], status=row['status'],
+                    source=row['source'], created_at=row['created_at'], status=row['status'],bot_id=row['bot_id'],
                     **content)
 
     def history(self, cid, before=0, after=0, around=0, limit=50):
@@ -174,7 +180,7 @@ class Portal:
                     attachments.append(self.images.public(image))
                 now = time.time()
                 content = self.store.cipher.encrypt(json.dumps({'text': text, 'item_types': ([1] if text else [])+([2] if attachments else []), 'source': 'web','attachments':attachments}).encode())
-                cursor = self.db.execute("INSERT INTO inbox(identity,received_at,message_at,encrypted,kind,conversation_id,route_status) VALUES (?,?,?,?,'message',?,'direct')",
+                cursor = self.db.execute("INSERT INTO inbox(identity,received_at,message_at,encrypted,kind,conversation_id,route_status,bot_id) VALUES (?,?,?,?,'message',?,'direct',NULL)",
                                         (identity, now, now, content, cid))
                 for image in attachments:
                     self.db.execute('UPDATE image_attachments SET inbox_id=? WHERE id=?',(cursor.lastrowid,image['id']))

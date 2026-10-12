@@ -9,10 +9,13 @@ from wechat_bridge.storage.conversations import Conversations
 from wechat_bridge.storage.send_diagnostics import SendDiagnostics
 from wechat_bridge.services.commands import command_text, execute as execute_command
 from wechat_bridge.services.portal import Portal
+from wechat_bridge.channels.storage import ChannelState
+from wechat_bridge.channels.registry import BotRegistry, BotConversations
 from wechat_bridge.wechat.protocol import BridgeError, INTERVAL, ACCEPTED, validate_base, send_recovery_hint
 
 class Store:
     def __init__(self, path, key):
+        self.bot_id = 'default'
         self.cipher = Fernet(key)
         self.db = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
@@ -41,6 +44,10 @@ class Store:
             self.db.execute('ALTER TABLE inbox ADD COLUMN conversation_id TEXT')
         if 'route_status' not in columns:
             self.db.execute("ALTER TABLE inbox ADD COLUMN route_status TEXT NOT NULL DEFAULT 'shared'")
+        if 'bot_id' not in columns:
+            self.db.execute("ALTER TABLE inbox ADD COLUMN bot_id TEXT DEFAULT 'default'")
+        self.channels = ChannelState(self)
+        self.bots = BotRegistry(self)
         self.portal = Portal(self)
         self.send_diagnostics = SendDiagnostics(self)
 
@@ -63,6 +70,7 @@ class Store:
 
     def save_account(self, value):
         validate_base(value['base_url'])
+        self.bots.check_wechat_binding(self.bot_id,value)
         encrypted = self.cipher.encrypt(json.dumps(value).encode())
         self.db.execute('INSERT OR REPLACE INTO account VALUES (1,?)', (encrypted,))
 
@@ -96,6 +104,9 @@ class Store:
     def touch(self, at):
         self.set('last_activity_at', max(at, self.get('last_activity_at', 0)))
 
+    def state_key(self, key):
+        return key
+
     def bind(self, account):
         """Replace credentials for the same owner; keep message and dedup history."""
         for field in ('bot_token', 'bot_id', 'user_id', 'base_url'):
@@ -108,8 +119,8 @@ class Store:
         self.db.execute('BEGIN IMMEDIATE')
         try:
             self.save_account(account)
-            self.db.execute("DELETE FROM state WHERE key IN ('last_activity_at', 'last_heartbeat_attempt_at', "
-                            "'last_heartbeat_status', 'last_poll_success_at', 'last_poll_error_code')")
+            self.db.executemany('DELETE FROM state WHERE key=?',[(self.state_key(k),) for k in
+                ('last_activity_at','last_heartbeat_attempt_at','last_heartbeat_status','last_poll_success_at','last_poll_error_code')])
             self.set('poll_status', 'starting')
             self.db.commit()
         except Exception:
@@ -154,9 +165,11 @@ class Store:
                 identity_data = {'message_id': msg.get('message_id'), 'seq': msg.get('seq')}
                 if not any(identity_data.values()):
                     identity_data = msg
+                if self.bot_id != 'default': identity_data['bot_id'] = self.bot_id
                 identity = hashlib.sha256(json.dumps(identity_data, sort_keys=True).encode()).hexdigest()
                 if command is not None:
                     event = ['command', account['user_id'], msg.get('message_id') or 'seq:' + str(msg['seq'])]
+                    if self.bot_id != 'default': event.append(self.bot_id)
                     identity = hashlib.sha256(json.dumps(event).encode()).hexdigest()
                 stamp = msg.get('create_time_ms')
                 at = min(now, stamp / 1000) if isinstance(stamp, (float, int)) and stamp > 0 else now
@@ -170,17 +183,18 @@ class Store:
                 content = {'text': '\n'.join(texts), 'item_types': kinds}
                 conversation_id, route_status = None, 'shared'
                 if command is None:
-                    conversation_id, route_status, content['text'], tag = self.conversations.route(content['text'])
+                    conversation_id, route_status, content['text'], tag = BotConversations(self.bots,self.bot_id).route(content['text'])
                     if tag: content['routing_tag'] = tag
-                cursor = self.db.execute('INSERT OR IGNORE INTO inbox(identity,received_at,message_at,encrypted,kind,conversation_id,route_status) VALUES (?,?,?,?,?,?,?)',
+                content['bot_id'] = self.bot_id
+                cursor = self.db.execute('INSERT OR IGNORE INTO inbox(identity,received_at,message_at,encrypted,kind,conversation_id,route_status,bot_id) VALUES (?,?,?,?,?,?,?,?)',
                     (identity, now, at, self.cipher.encrypt(json.dumps(content).encode()),
-                     'command' if command is not None else 'message', conversation_id, route_status))
+                     'command' if command is not None else 'message', conversation_id, route_status,self.bot_id))
                 changed = cursor.rowcount
                 if changed:
                     added += 1
                     if command is None and conversation_id:
                         self.portal.add(conversation_id, 'user', 'wechat', content['text'], 'pending',
-                                        inbox_id=cursor.lastrowid, at=at)
+                                        inbox_id=cursor.lastrowid, at=at,bot_id=self.bot_id)
                     self.touch(at)
                     if msg.get('context_token') and at >= account.get('context_received_at', 0):
                         account['context_token'] = msg['context_token']
@@ -206,12 +220,16 @@ class Store:
             raise
         return added
 
-    def inbox(self, after_id, limit, conversation_id=None, include_unaddressed=False):
+    def inbox(self, after_id, limit, conversation_id=None, include_unaddressed=False, *, bot_scope=None):
         if conversation_id:
             where = '(conversation_id=?' + (" OR route_status!='direct')" if include_unaddressed else ')')
             args = (after_id, conversation_id, limit)
         else:
             where, args = "route_status!='direct'", (after_id, limit)
+        if bot_scope:
+            clause, ids = bot_scope
+            where += ' AND ' + clause
+            args = (*args[:-1],*ids,args[-1])
         rows = self.db.execute("SELECT id,received_at,message_at,encrypted,conversation_id,route_status FROM inbox "
                                "WHERE id>? AND kind='message' AND " + where + ' ORDER BY id LIMIT ?', args).fetchall()
         self.db.executemany("UPDATE chat_messages SET status='client_read' WHERE inbox_id=? AND status IN ('pending','legacy')",
@@ -223,7 +241,8 @@ class Store:
     def status(self):
         now = time.time()
         account = self.account()
-        last_send = self.db.execute('SELECT key,status,error_code,attempted_at FROM outgoing ORDER BY attempted_at DESC LIMIT 1').fetchone()
+        last_send = self.db.execute("SELECT key,status,error_code,attempted_at FROM outgoing WHERE "
+            "coalesce((SELECT bot_id FROM outgoing_bots WHERE outgoing_key=outgoing.key),'default')=? ORDER BY attempted_at DESC LIMIT 1",(self.bot_id,)).fetchone()
         diagnostics = self.send_diagnostics.public(last_send['key']) if last_send else None
         ready = bool(account and account.get('context_token'))
         poll = self.get('poll_status', 'starting') if account else 'unbound'
@@ -233,10 +252,12 @@ class Store:
             'waiting_message' if not ready else
             'connected' if poll == 'receiving' and now - self.get('last_poll_success_at', 0) < 120 else
             'connecting')
+        enabled=bool(self.bots.get(self.bot_id)['enabled'])
+        if not enabled: connection='disabled'
         return {'status': 'running', 'recipient': 'paired_owner' if account else None,
                 'bound': bool(account), 'context_ready': ready, 'connection_status': connection,
                 'last_activity_at': self.get('last_activity_at'),
-                'next_heartbeat_at': self.next_heartbeat() if ready and poll != 'session_expired' else None,
+                'next_heartbeat_at':self.next_heartbeat() if enabled and ready and poll!='session_expired' else None,
                 'heartbeat_interval_seconds': INTERVAL,
                 'last_heartbeat_attempt_at': self.get('last_heartbeat_attempt_at'),
                 'last_heartbeat_status': self.get('last_heartbeat_status'),
@@ -250,6 +271,5 @@ class Store:
                                                        diagnostics.get('error_category') if diagnostics else None) if last_send else None,
                 'last_send_diagnostics': diagnostics,
                 **self.send_diagnostics.context(now),
-                'inbox_count': self.db.execute("SELECT count(*) FROM inbox WHERE kind='message'").fetchone()[0],
+                'inbox_count':self.db.execute("SELECT count(*) FROM inbox WHERE kind='message' AND bot_id=?",(self.bot_id,)).fetchone()[0],
                 'server_time': now, 'keepalive_guaranteed': False}
-

@@ -1,5 +1,6 @@
 """Authenticated client routes for messages, conversations and delivery receipts."""
 import base64
+from typing import Literal
 
 from fastapi import Depends, HTTPException, Query
 
@@ -14,8 +15,11 @@ def mount_client_api(app, authorize):
     @app.get('/api/status')
     async def status(caller=Depends(authorize)):
         chats = app.state.bridge.store.conversations.list(caller.id)
-        return dict(app.state.bridge.store.status(), caller=caller.name, client_id=caller.id,
-                    conversation_count=len(chats), conversations=chats)
+        hub = app.state.channels
+        legacy_status = app.state.bridge.store.status() if hub.registry.allowed(caller.id,'default') else {'status':'running'}
+        return dict(legacy_status,caller=caller.name,client_id=caller.id,
+                    conversation_count=len(chats),conversations=chats,channels=hub.status(caller),
+                    bots=hub.bots(caller),**hub.registry.grants(caller.id))
 
     @app.get('/api/conversations')
     async def conversation_list(include_closed: bool = False, caller=Depends(authorize)):
@@ -46,13 +50,11 @@ def mount_client_api(app, authorize):
 
     @app.get('/api/deliveries')
     async def delivery(dedup_key: str = Query(min_length=1, max_length=200),
-                       conversation_id: str | None = Query(default=None, min_length=1, max_length=64), caller=Depends(authorize)):
+                       conversation_id: str | None = Query(default=None, min_length=1, max_length=64),
+                       channel: Literal['wechat', 'feishu'] | None = None,bot_id:str|None=Query(default=None,min_length=1,max_length=64),caller=Depends(authorize)):
         store = app.state.bridge.store
         if conversation_id: store.conversations.get(caller.id, conversation_id)
-        if not store.account():
-            return {'status': 'not_found'}
-        row = store.client_receipt(dedup_key, caller, conversation_id)
-        return app.state.bridge.public_receipt(row) if row else {'status': 'not_found'}
+        return app.state.channels.delivery(channel,dedup_key,caller,conversation_id,bot_id)
 
     @app.get('/api/wake/events')
     async def wake_events(conversation_id: str = Query(min_length=1, max_length=64),
@@ -60,13 +62,14 @@ def mount_client_api(app, authorize):
                           limit: int = Query(default=20, ge=1, le=100), caller=Depends(authorize)):
         store = app.state.bridge.store
         store.conversations.get(caller.id, conversation_id, require_active=True)
+        clause,ids = store.bots.scope(caller.id)
         # IDs only: observing arrival must not mark messages read or expose text.
         if after_id is None:
-            cursor = store.db.execute("SELECT COALESCE(MAX(id),0) FROM inbox WHERE conversation_id=? AND kind='message' AND route_status='direct'",
-                                      (conversation_id,)).fetchone()[0]
+            cursor = store.db.execute("SELECT COALESCE(MAX(id),0) FROM inbox WHERE conversation_id=? AND kind='message' AND route_status='direct' AND "+clause,
+                                      (conversation_id,*ids)).fetchone()[0]
             return {'events': [], 'next_after_id': cursor}
-        rows = store.db.execute("SELECT id FROM inbox WHERE conversation_id=? AND kind='message' AND route_status='direct' AND id>? ORDER BY id LIMIT ?",
-                                (conversation_id, after_id, limit)).fetchall()
+        rows = store.db.execute("SELECT id FROM inbox WHERE conversation_id=? AND kind='message' AND route_status='direct' AND id>? AND "+clause+' ORDER BY id LIMIT ?',
+                                (conversation_id,after_id,*ids,limit)).fetchall()
         ids = [r['id'] for r in rows]
         return {'events': [{'id': id} for id in ids], 'next_after_id': ids[-1] if ids else after_id}
 
@@ -76,14 +79,14 @@ def mount_client_api(app, authorize):
                     include_unaddressed: bool = False, caller=Depends(authorize)):
         store = app.state.bridge.store
         if conversation_id: store.conversations.get(caller.id, conversation_id)
-        items = store.inbox(after_id, limit, conversation_id, include_unaddressed)
+        items = store.inbox(after_id,limit,conversation_id,include_unaddressed,bot_scope=store.bots.scope(caller.id))
         return {'messages': items, 'next_after_id': items[-1]['id'] if items else after_id,
                 'content_is_untrusted': True}
 
-    async def send(text, dedup_key, caller, kind, dry_run, conversation_id):
+    async def send(text, dedup_key, caller, kind, dry_run, conversation_id, channel,bot_id):
         try:
-            return await app.state.bridge.send(text, dedup_key, caller.name, kind=kind, dry_run=dry_run,
-                                               identity=caller, conversation_id=conversation_id)
+            return await app.state.channels.send(channel,bot_id,text=text,dedup_key=dedup_key,caller=caller.name,
+                                                 kind=kind, dry_run=dry_run, identity=caller, conversation_id=conversation_id)
         except ClientError:
             raise
         except BridgeError as exc:
@@ -93,19 +96,19 @@ def mount_client_api(app, authorize):
 
     @app.post('/api/messages')
     async def message(body: Message, caller=Depends(authorize)):
-        return await send(body.text, body.dedup_key, caller, 'message', body.dry_run, body.conversation_id)
+        return await send(body.text,body.dedup_key,caller,'message',body.dry_run,body.conversation_id,body.channel,body.bot_id)
 
     @app.post('/api/notifications')
     async def notification(body: Notice, caller=Depends(authorize)):
         labels = {'info': '通知', 'warning': '需要处理', 'urgent': '紧急提醒'}
         text = f'## {labels[body.level]} · {body.task}\n\n**当前情况**\n\n{body.reason}\n\n**需要你处理**\n\n{body.need_user}'
-        return await send(text, body.dedup_key, caller, 'notification', body.dry_run, body.conversation_id)
+        return await send(text,body.dedup_key,caller,'notification',body.dry_run,body.conversation_id,body.channel,body.bot_id)
 
     @app.post('/api/task-cards')
     async def task_card(body: TaskCard, caller=Depends(authorize)):
         definition = body.definition()
         bridge = app.state.bridge
-        return await bridge.send(bridge.store.portal.tasks.summary(definition), body.dedup_key, caller.name,
+        return await app.state.channels.send(body.channel,body.bot_id,text=bridge.store.portal.tasks.summary(definition),dedup_key=body.dedup_key,caller=caller.name,
                                  kind='task_card', dry_run=body.dry_run, identity=caller,
                                  conversation_id=body.conversation_id, task_card=definition)
 
@@ -113,6 +116,7 @@ def mount_client_api(app, authorize):
     async def task_read(conversation_id: str, task_id: str, caller=Depends(authorize)):
         store = app.state.bridge.store
         store.conversations.get(caller.id, conversation_id)
+        app.state.channels.task_bot(conversation_id,task_id,caller)
         return {'task': store.portal.tasks.get(conversation_id, task_id)}
 
     @app.post('/api/conversations/{conversation_id}/tasks/{task_id}/state')
@@ -121,7 +125,12 @@ def mount_client_api(app, authorize):
         async with bridge.lock:
             bridge.store.clients.revalidate(caller)
             bridge.store.conversations.get(caller.id, conversation_id, require_active=True)
-            return bridge.store.portal.tasks.update(conversation_id, task_id, body)
+            app.state.channels.task_bot(conversation_id,task_id,caller)
+            result = bridge.store.portal.tasks.update(conversation_id, task_id, body)
+        card_delivery = await app.state.channels.sync_task(conversation_id,task_id)
+        if card_delivery:
+            result['card_delivery'] = card_delivery
+        return result
 
     @app.get('/openapi.json')
     def schema(caller=Depends(authorize)):

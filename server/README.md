@@ -2,6 +2,8 @@
 
 负责微信收发、API 鉴权、去重、消息存储和空闲心跳。仅服务已绑定的本人账号，客户端无法通过参数更换收件人。
 
+1.15.0 起可在 Admin 管理多个微信与[飞书 Bot](../docs/server/FEISHU.md)，无须先扫码微信。每个 Key 单独设置允许的 Bot 与默认 Bot，同一接口通过 `bot_id` 选择发送对象。省略时使用 Key 的默认 Bot；旧 Key 自动保留原微信权限。详见 [Bot 与 Key 管理](../docs/server/BOTS.md)。
+
 ## 文件职责
 
 代码位于 `src/wechat_bridge/`，按 `api`、`services`、`storage`、`wechat`、`mcp`、`web` 分组；完整职责见 [项目结构](../docs/architecture.md)。部署入口保留在本目录，初始化脚本位于 `scripts/`，Nginx 示例位于 `deploy/`，接口文档集中在 [docs/server](../docs/server/)。

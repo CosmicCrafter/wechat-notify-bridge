@@ -1,13 +1,13 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "wechat-notify-local",
-  "version": "1.8.3",
-  "description": "WeChat notifications, mobile conversations and routed replies through a server API or OAuth-protected remote MCP.",
+  "version": "1.9.0",
+  "description": "WeChat and optional Feishu notifications, native task cards and routed replies through HTTP API or OAuth-protected MCP.",
   "extensions": {
     "com.openai": {
       "interface": {
         "displayName": "微信通知",
-        "shortDescription": "微信通知、任务卡片、文字与图片回复",
+        "shortDescription": "微信与飞书通知、任务卡片与回复",
         "defaultPrompt": "通过微信通知插件查看服务状态。"
       }
     }

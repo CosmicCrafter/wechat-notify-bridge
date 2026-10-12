@@ -58,3 +58,4 @@ jobs:
         run: python mcp-plugin/tools/build_local_plugin.py --output dist/wechat-notify-local.zip
       - name: Remote plugin package example
         run: python mcp-plugin/tools/build_remote_plugin.py --base-url https://notify.example.com/bridge --output dist/wechat-notify-remote-example.zip
+

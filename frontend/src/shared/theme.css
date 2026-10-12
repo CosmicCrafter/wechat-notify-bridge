@@ -1,0 +1,325 @@
+:root {
+  font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #283446;
+  background: #f5f7fb;
+  --el-color-primary: #3d69df;
+  --el-border-radius-base: 8px;
+  --el-font-size-base: 14px;
+  --el-color-success: #209c78;
+  --el-border-color: #dfe5ee;
+  --el-fill-color-light: #f6f8fb;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+h1,
+h2,
+h3,
+p {
+  overflow-wrap: anywhere;
+}
+h1 {
+  font-size: 26px;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px;
+}
+h2 {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+h3 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+a {
+  color: var(--el-color-primary);
+  text-decoration: none;
+}
+button,
+input,
+textarea {
+  font: inherit;
+}
+.help {
+  font-size: 12px;
+  color: #7b8799;
+  line-height: 1.8;
+  margin: 10px 0;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0;
+}
+.actions .el-button + .el-button {
+  margin-left: 0;
+}
+.full {
+  width: 100%;
+}
+.el-card {
+  border-radius: 12px;
+  border-color: #e7ebf2;
+}
+.el-card__body {
+  padding: 24px;
+}
+.el-alert {
+  margin: 12px 0;
+}
+.el-input,
+.el-select {
+  width: 100%;
+}
+.el-form-item {
+  margin-bottom: 22px;
+}
+.el-form-item .help {
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+.el-dialog {
+  width: min(var(--el-dialog-width, 560px), calc(100vw - 32px));
+  max-width: min(680px, calc(100vw - 32px));
+  border-radius: 14px;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 48px);
+  margin: 24px auto !important;
+}
+.el-dialog__header {
+  padding: 18px 22px;
+  border-bottom: 1px solid #e9edf3;
+  margin: 0;
+  flex-shrink: 0;
+}
+.el-dialog__title {
+  font-weight: 650;
+  font-size: 18px;
+}
+.el-dialog__headerbtn {
+  top: 10px;
+  right: 10px;
+}
+.el-dialog__body {
+  padding: 20px 22px;
+  overflow: auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+.el-dialog__footer {
+  padding: 14px 22px;
+  border-top: 1px solid #e9edf3;
+  background: #fafbfd;
+  flex-shrink: 0;
+}
+.el-overlay-dialog {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.el-message-box {
+  width: min(440px, calc(100vw - 32px));
+  max-width: 440px;
+  border-radius: 12px;
+  padding: 22px;
+  max-height: calc(100dvh - 32px);
+  display: inline-flex;
+  flex-direction: column;
+}
+.el-message-box__header,
+.el-message-box__btns {
+  flex-shrink: 0;
+}
+.el-message-box__content {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.el-dialog__title,
+.el-drawer__title {
+  overflow-wrap: anywhere;
+}
+.el-dialog.image-preview {
+  max-width: min(800px, calc(100vw - 32px));
+}
+.el-message-box__message p {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.el-message-box__btns {
+  padding-top: 20px;
+}
+.step-body {
+  padding-top: 26px;
+}
+.setup-modal .el-steps--simple {
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.platform-options {
+  display: flex;
+  gap: 12px;
+  margin: 18px 0 24px;
+}
+.platform-options .el-radio {
+  margin: 0;
+  flex: 1;
+  height: 58px;
+}
+.grant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.grant-grid .el-checkbox {
+  margin: 0;
+  height: auto;
+  min-height: 58px;
+  padding: 12px;
+  white-space: normal;
+}
+.grant-grid .el-checkbox__label {
+  white-space: normal;
+}
+.grant-grid small {
+  display: block;
+  color: #8a95a6;
+  margin-top: 4px;
+}
+.pair-stage {
+  text-align: center;
+  padding: 24px;
+}
+.pair-stage img {
+  max-width: 100%;
+  border: 1px solid #edf0f5;
+  border-radius: 12px;
+  padding: 12px;
+}
+.instructions {
+  padding-left: 22px;
+  line-height: 1.8;
+}
+.instructions li {
+  padding: 10px 0;
+}
+.instructions p {
+  color: #758196;
+  font-size: 13px;
+  margin: 4px 0;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.markdown {
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  margin-top: 24px;
+}
+.markdown pre {
+  overflow: auto;
+  padding: 16px;
+  background: #f5f7fb;
+  border: 1px solid #e7ebf2;
+  border-radius: 8px;
+}
+.markdown blockquote {
+  margin-left: 0;
+  padding: 4px 16px;
+  border-left: 3px solid #aac0f5;
+  color: #738095;
+}
+.markdown table {
+  display: block;
+  overflow: auto;
+  border-collapse: collapse;
+}
+.markdown td,
+.markdown th {
+  border: 1px solid #e4e9f1;
+  padding: 8px 12px;
+}
+.markdown img {
+  max-width: 100%;
+}
+.markdown code {
+  font-size: 12px;
+}
+code {
+  overflow-wrap: anywhere;
+}
+.login-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 9vh 20px 30px;
+}
+.login-brand {
+  background: #3d69df;
+  color: white;
+  padding: 8px 17px;
+  border-radius: 14px;
+  font-size: 32px;
+  margin-bottom: 20px;
+}
+.login-page > p {
+  color: #8490a1;
+  margin: 0 0 28px;
+}
+.login-card {
+  width: 420px;
+  max-width: 100%;
+}
+.login-card .el-form {
+  margin-top: 24px;
+}
+@media (max-width: 600px) {
+  .el-dialog {
+    max-width: min(680px, calc(100vw - 32px));
+    max-height: calc(100dvh - 20px);
+    margin: 10px auto !important;
+  }
+  .el-dialog__header {
+    padding: 20px;
+  }
+  .el-dialog__body {
+    padding: 20px;
+  }
+  .el-dialog__footer {
+    padding: 14px 20px;
+  }
+  .setup-modal .el-step__title {
+    font-size: 12px;
+  }
+  .setup-modal .el-step.is-simple .el-step__arrow {
+    margin: 0 4px;
+  }
+  .setup-modal .el-step__head {
+    padding-right: 4px;
+  }
+  .grant-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .el-card__body {
+    padding: 18px;
+  }
+}

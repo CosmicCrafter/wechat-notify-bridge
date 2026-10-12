@@ -1,0 +1,8 @@
+# Repository tooling only; installable service metadata lives in server/pyproject.toml.
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [".private", "dist", "build", "node_modules", ".venv"]
+
+[tool.ruff.format]
+quote-style = "double"

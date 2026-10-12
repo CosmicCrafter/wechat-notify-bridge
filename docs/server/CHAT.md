@@ -37,7 +37,7 @@ AI 也可以发送 [任务卡片](TASK-CARDS.md)：在会话中选择一个方�
 
 ## 实现与验证
 
-`server/src/wechat_bridge/services/portal.py` 与 `api/portal.py` 管理会话、登录和历史；`server/src/wechat_bridge/web/chat/` 是独立页面。静态依赖随服务一起部署，不从第三方 CDN 加载。版本、来源、完整性记录与许可证位于 `server/src/wechat_bridge/web/vendor/vendor-lock.json` 及各 LICENSE 文件。
+`server/src/wechat_bridge/services/portal.py` 与 `api/portal.py` 管理会话、登录和历史；`server/src/wechat_bridge/web/chat/` 是独立页面。静态依赖随服务一起部署，不从第三方 CDN 加载。依赖锁定在 `frontend/package-lock.json`，源码与资源哈希位于 `frontend/build-manifest.json`，许可证见 `frontend/THIRD-PARTY-NOTICES.md`。
 
 Markdown 解析使用 [Marked](https://marked.js.org/)，输出由 [DOMPurify](https://github.com/cure53/DOMPurify) 过滤，并额外限制可用标签与链接协议。不要移除过滤步骤或放宽 CSP 以支持任意 HTML。
 

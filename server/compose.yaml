@@ -5,6 +5,8 @@ services:
     ports:
       - "${WECHAT_BIND:-127.0.0.1}:${WECHAT_PORT:-18092}:8092"
     environment:
+      FEISHU_DEFAULT_OWNER_OPEN_ID: "${FEISHU_DEFAULT_OWNER_OPEN_ID:-}"
+      WECHAT_OAUTH_BASE_URL: "${WECHAT_OAUTH_BASE_URL:-}"
       WECHAT_PUBLIC_BASE_URL: "${WECHAT_PUBLIC_BASE_URL:-}"
     volumes:
       - ./.data:/data

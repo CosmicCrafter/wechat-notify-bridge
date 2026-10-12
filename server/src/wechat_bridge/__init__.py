@@ -1,2 +1,3 @@
-"""Personal WeChat notification bridge."""
-__version__ = "1.15.0"
+"""Lightweight multi-channel notification bridge."""
+
+__version__ = "1.16.0"

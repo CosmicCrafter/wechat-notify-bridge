@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wechat-notify-bridge"
-version = "1.15.0"
-description = "Personal WeChat notification API, mobile conversations and MCP bridge"
+version = "1.16.0"
+description = "WeChat and Feishu notification API, interactive tasks and MCP bridge"
 requires-python = ">=3.12"
 dynamic = ["dependencies"]
 
@@ -16,4 +16,4 @@ dependencies = {file = ["requirements.txt"]}
 where = ["src"]
 
 [tool.setuptools.package-data]
-wechat_bridge = ["web/admin/*", "web/chat/*", "web/oauth/*", "web/vendor/*"]
+wechat_bridge = ["web/admin/*", "web/chat/*", "web/oauth/*"]

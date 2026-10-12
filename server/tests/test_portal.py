@@ -178,7 +178,7 @@ def test_command_format_privacy_and_migration(portal):
 
 def test_assets_and_csp_and_admin_excluded_from_client_schema(portal):
     _,client,auth,_,_,_,_=portal
-    for asset in ('app.js','style.css','marked.js','purify.js'):
+    for asset in ('app.js','style.css'):
         assert client.get('/chat/assets/'+asset).status_code==200
     assert client.get('/chat/assets/vendor-lock.json').status_code==404
     response=client.get('/chat/')

@@ -56,7 +56,7 @@ def test_unbound_server_web_auth_is_separate_from_mcp_and_qr_is_private(store):
                      admin_hash=hashlib.sha256(b'fixture-admin').hexdigest(), pairing=pairing)
     with TestClient(app) as client:
         page = client.get('/admin/')
-        assert page.status_code == 200 and '扫码连接' in page.text
+        assert page.status_code == 200 and '<div id="app"></div>' in page.text
         assert page.headers['cache-control'] == 'no-store'
         assert "script-src 'self'" in page.headers['content-security-policy']
         assert client.get('/admin', follow_redirects=False).headers['location'] == 'admin/'

@@ -1,21 +1,21 @@
 # 常驻服务器
 
-负责微信收发、API 鉴权、去重、消息存储和空闲心跳。仅服务已绑定的本人账号，客户端无法通过参数更换收件人。
+负责微信和飞书收发、API 鉴权、去重、消息存储和微信空闲心跳。仅服务已绑定的本人账号，客户端无法通过参数更换收件人。
 
-1.15.0 起可在 Admin 管理多个微信与[飞书 Bot](../docs/server/FEISHU.md)，无须先扫码微信。每个 Key 单独设置允许的 Bot 与默认 Bot，同一接口通过 `bot_id` 选择发送对象。省略时使用 Key 的默认 Bot；旧 Key 自动保留原微信权限。详见 [Bot 与 Key 管理](../docs/server/BOTS.md)。
+可在管理页 管理多个微信与[飞书 Bot](../docs/server/FEISHU.md)，无须先扫码微信。每个 Key 单独设置允许的 Bot 与默认 Bot，同一接口通过 `bot_id` 选择发送对象。省略时使用 Key 的默认 Bot；旧 Key 自动保留原微信权限。详见 [Bot 与 Key 管理](../docs/server/BOTS.md)。
 
 ## 文件职责
 
-代码位于 `src/wechat_bridge/`，按 `api`、`services`、`storage`、`wechat`、`mcp`、`web` 分组；完整职责见 [项目结构](../docs/architecture.md)。部署入口保留在本目录，初始化脚本位于 `scripts/`，Nginx 示例位于 `deploy/`，接口文档集中在 [docs/server](../docs/server/)。
+代码位于 `src/wechat_bridge/`，按 `api`、`services`、`storage`、`wechat`、`mcp`、`web` 分组；完整职责见 [项目结构](../docs/architecture.md)。部署入口保留在本目录，初始化脚本位于 `scripts/`，Nginx 示例位于 `deploy/`，接口文档集中在 [docs/server](../docs/server)。
 
 ## 1. 初始化服务器配置
 
-需要 Python 3.12、Docker Compose，以及手机微信中已开放的 ClawBot 入口。首次部署**无需先在 Windows 上扫码**。进入本目录 `server/`，生成服务端密钥和客户端配置；将示例 URL 改成自己的 HTTPS 地址：
+需要 Python 3.12 和 Docker Compose；使用微信时另需手机微信中的 ClawBot 入口，纯飞书部署不需要微信。首次部署**无需先在 Windows 上扫码**。进入本目录 `server/`，生成服务端密钥和客户端配置；将示例 URL 改成自己的 HTTPS 地址：
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install .
-.venv/bin/python scripts/prepare_secrets.py --web-pairing --base-url https://notify.example.com/wechat
+.venv/bin/python scripts/prepare_secrets.py --web-pairing --base-url https://notify.example.com/bridge
 ```
 
 Windows 上可使用 `.venv\Scripts\python.exe` 执行相同工具。输出目录为 `.private/provisioned/`：
@@ -33,7 +33,7 @@ provisioned/
 
 初始化工具不打印密钥，也不会覆盖已有输出目录。这些文件不要提交 Git。管理员密钥与 MCP 调用密钥不同，两者不能互相使用。
 
-默认先不创建 AI 客户端，扫码后从微信或 Admin 页面获取密钥。也可加 `--clients codex gpt` 预生成客户端配置，兼容旧版部署流程。
+默认先不创建客户端，可在管理页配置微信或飞书 Bot 后创建调用密钥。也可加 `--clients codex gpt` 预生成客户端配置，兼容旧版部署流程。
 
 ## 2. 启动服务
 
@@ -57,7 +57,7 @@ curl http://127.0.0.1:18092/health
 
 ## 3. 打开网页扫码
 
-1. 用电脑浏览器打开 `https://你的域名/wechat/admin/`。也可打开 `/wechat/`，自动进入管理页面。
+1. 用电脑浏览器打开 `https://你的域名/bridge/admin/`。也可打开 `/wechat/`，自动进入管理页面。
 2. 在服务器本机查看 `.private/provisioned/admin/admin.json`，使用其中的 `admin_key` 进入面板。不要把它填到 MCP 客户端。
 3. 点击“生成二维码”，用**手机微信**扫一扫，在手机上确认连接。
 4. 如微信要求输入连接数字，按页面提示填写。二维码过期后会在本次连接期限内自动刷新。
@@ -76,7 +76,7 @@ curl http://127.0.0.1:18092/health
 保留已有 `.data/`、`encryption.key`、`clients.json` 和可选的 `bootstrap.enc`，不要重新初始化。如果旧部署还没有管理员配置，在原配置目录上执行一次：
 
 ```bash
-.venv/bin/python scripts/prepare_secrets.py --admin-only --base-url https://notify.example.com/wechat
+.venv/bin/python scripts/prepare_secrets.py --admin-only --base-url https://notify.example.com/bridge
 sudo chown 10001:10001 .private/provisioned/secrets/admin.json
 sudo chmod 600 .private/provisioned/secrets/admin.json
 docker compose up -d --build
@@ -104,6 +104,8 @@ docker compose up -d --build
 ## 运行与维护
 
 ### 可选：Admin 订阅与代理管理（1.10.0）
+
+微信与飞书通信固定直连，包括微信扫码、收发消息及飞书鉴权、消息和卡片更新；这些 HTTP 客户端不读取系统的 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY` 环境变量。代理仅用于显式配置的 Codex / GPT 云端回调目标，不是整个服务的全局代理。本地 Codex 通信无需绕行云端代理。
 
 普通通知无需启用此功能。云端事件回调需要代理时，在 `server/` 中运行：
 
@@ -163,10 +165,6 @@ python -m pytest -q server/tests
 
 ## 云端与本机插件
 
-服务 1.9.1 提供 OAuth 授权的远程 MCP；插件 1.5.0 可生成云端与本机共用的远程连接包。原 stdio 接入仍可用。详见 [远程 MCP 接入与授权](../docs/server/REMOTE-MCP.md)。
+服务提供 OAuth 授权的远程 MCP；可生成云端与本机共用的远程连接包。原 stdio 接入仍可用。详见 [远程 MCP 接入与授权](../docs/server/REMOTE-MCP.md)。
 
-### 1.8.2 安全维护
-
-OAuth 事件订阅绑定具体授权，刷新令牌延续授权关系，撤销后停止该授权的回调。旧版未记录授权归属的 OAuth 订阅会停止投递，需要在云端宿主重新启用一次；API 密钥订阅和桌面接收器不受此迁移影响。未获本人同意的 OAuth 客户端注册只保留 10 分钟，在启动、注册或查询客户端时回收；已授权客户端保留。订阅配额仅统计未过期的 active 记录，过期记录在后续订阅操作时清理。
-
-本地开发启动（先安装本包并准备 `WECHAT_DATA`、`WECHAT_SECRETS`）：`python -m uvicorn wechat_bridge.app:app --host 127.0.0.1 --port 8092 --workers 1`。不要再使用旧的 `app:app` 导入路径。
+历史安全维护记录见 [1.8.2 发布说明](../docs/history/release-1.8.2.md)。

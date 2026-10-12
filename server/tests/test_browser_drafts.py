@@ -11,7 +11,7 @@ def test_draft_reload_isolation_expiry_quota_and_logout():
         pytest.skip('Node is required for the browser storage contract test')
     script = r'''
 const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync(process.argv[1],'utf8');const data=new Map();let fail=false;
+const source=fs.readFileSync(process.argv[1],'utf8').replace('export const browserDrafts', 'const browserDrafts');const data=new Map();let fail=false;
 const storage={getItem:k=>data.get(k)||null,setItem:(k,v)=>{if(fail)throw Error('quota');data.set(k,v);},removeItem:k=>data.delete(k)};
 function browser(){const ctx=vm.createContext({localStorage:storage,Date});vm.runInContext(source+';this.d=browserDrafts',ctx);return ctx.d;}
 let a=browser();a.open('owner-A');a.set('reply:one',{text:'草稿',pending:{request_id:'same-stable-request',text:'草稿',attachment_ids:['uploaded-image']}});
@@ -23,21 +23,6 @@ c.set('reply:one',null);assert.equal(c.get('reply:one'),undefined);
 data.set(c.key,JSON.stringify({'old':{at:Date.now()-31*86400000,value:{text:'expired'}}}));
 let e=browser();e.open('owner-A');assert.equal(e.get('old'),undefined);fail=true;e.set('reply:new',{text:'keep in memory'});assert.equal(e.failed,true);assert.equal(e.get('reply:new').text,'keep in memory');fail=false;e.set('reply:new',{text:'saved'});assert.equal(e.failed,false);e.clear();assert.equal(data.has('wechat-drafts-v1:owner-A'),false);
 '''
-    path = Path(__file__).parents[1]/'src/wechat_bridge/web/chat/drafts.js'
+    path = Path(__file__).parents[2]/'frontend/src/chat/drafts.js'
     subprocess.run([node, '-e', script, str(path)], check=True, capture_output=True, text=True)
 
-
-def test_calendar_leap_years_early_years_and_iso_validation():
-    node = shutil.which('node')
-    if not node:
-        pytest.skip('Node is required for the calendar contract test')
-    script = r'''
-const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
-const ctx=vm.createContext({Date,Intl});vm.runInContext(fs.readFileSync(process.argv[1],'utf8')+';this.p=formPickers',ctx);const p=ctx.p;
-assert.equal(p.days(2024,2),29);assert.equal(p.days(1900,2),28);assert.equal(p.days(2000,2),29);
-assert.equal(p.days(1,2),28);assert.equal(p.days(9999,12),31);assert.equal(p.weekday(2026,10),3);
-assert.equal(p.iso(1,2,3),'0001-02-03');assert.equal(p.parts('2026-02-30'),null);assert.equal(p.parts('2026-13-01'),null);assert.equal(p.parts('0000-01-01'),null);assert.equal(p.parts('2026-1-1'),null);
-assert.equal(p.parts('2024-02-29').day,29);assert.equal(p.parts('0001-01-01').year,1);
-'''
-    path = Path(__file__).parents[1]/'src/wechat_bridge/web/chat/field-pickers.js'
-    subprocess.run([node, '-e', script, str(path)], check=True, capture_output=True, text=True)

@@ -4,7 +4,7 @@
 
 ## 连接
 
-1. 使用 `mcp-plugin/tools/build_remote_plugin.py --base-url https://notify.example.com/wechat --output remote-plugin.zip` 生成实际服务器地址对应的插件包。包中不放任何密钥。
+1. 使用 `mcp-plugin/tools/build_remote_plugin.py --base-url https://notify.example.com/bridge --output remote-plugin.zip` 生成实际服务器地址对应的插件包。包中不放任何密钥。
 2. 私人账号插件通过宿主的插件创建/安装功能注册；本机也可以安装这个包。支持 MCP 的其他宿主填写 `<公开地址>/mcp` 并使用 OAuth。
 3. 首次连接跳转到授权页。在微信发送 `/web` 获取登录码，网页登录后选择已创建的客户端身份，例如 `codex` 或 `gpt`，再点“允许连接”。已有网页登录可直接选择身份。
 4. 连接后调用 `getCallerIdentity` 校验身份；每个聊天调用 `registerConversation` 登记名称，并为收发工具传入独立 `conversation_id`。

@@ -23,7 +23,12 @@ flowchart LR
 
 | 位置 | 职责 |
 | --- | --- |
-| `app.py` | 创建 FastAPI 应用、鉴权、异常映射、后台任务生命周期 |
+| `app.py` | 组装 FastAPI 应用和各路由 |
+| `runtime/lifecycle.py` | 获取、启动和逆序释放资源；启动失败也执行清理 |
+| `api/security.py` | 鉴权、异常映射、安全响应头 |
+| `core/errors.py` | 通道无关的公共错误类型 |
+| `channels/router.py`、`channels/drivers.py` | Bot 路由和内置通道能力注册 |
+| `channels/feishu/inbound.py` | 飞书消息和卡片回调处理 |
 | `config.py` | 公共 URL、Cookie 常量和静态资源根目录 |
 | `api/admin.py` | 管理员密钥和扫码配对路由 |
 | `api/clients.py` | 客户端消息、会话、图片、回执和事件游标 API |
@@ -43,8 +48,10 @@ flowchart LR
 | `mcp/events.py` | 事件订阅、回调签名和投递 |
 | `mcp/tools.py` | 远程和 stdio 两端共用的工具定义原本 |
 | `mcp/errors.py` | 两种传输共用的安全错误分类与恢复提示 |
-| `web/admin/`、`web/chat/`、`web/oauth/` | 三种页面的 HTML、CSS、JS |
-| `web/vendor/` | 随包交付的第三方资源、版本记录和许可证 |
+| `frontend/src/admin/`、`frontend/src/chat/` | 管理页与手机页的维护源文件 |
+| `web/admin/`、`web/chat/` | 构建后随 Python 包交付的静态资源 |
+| `web/oauth/` | OAuth 授权页面 |
+| `frontend/package-lock.json`、`frontend/THIRD-PARTY-NOTICES.md` | 前端依赖版本与第三方许可 |
 
 这是一个单进程服务，数据库访问和业务协调沿用已有机制。`Store` 负责装配存储组件和会话服务；这些组件通过传入的 store 协作，不反向导入应用入口。当前并未强行改造成完全独立的领域层，也不支持通过增加 worker 数量扩容。
 
@@ -58,7 +65,7 @@ flowchart LR
 - `server/src/wechat_bridge/mcp/tools.py` → `mcp-plugin/server/toolkit.py`
 - `docs/wechat-markdown/微信Markdown排版指南.md` → 插件 Skill 的 `references/wechat-markdown.md`
 
-修改原本后运行同步工具，不要分别维护两份。插件版本与服务器版本独立；工具名称和默认值保持兼容，插件在本次使用规范优化中更新至 1.5.0。
+修改原本后运行同步工具，不要分别维护两份。插件版本与服务器版本独立；工具名称和默认值保持兼容，当前版本以各自包内元数据为准。
 
 ## 开发和发布
 
@@ -67,3 +74,9 @@ flowchart LR
 源码包用 `python scripts/build_release.py` 构建，采用公开目录和文件类型白名单，排除缓存、虚拟环境和私有运行目录。不要向公开源码目录存放真实密钥；打包规则不能替代发布前的内容审查。远程插件包仍由 `mcp-plugin/tools/build_remote_plugin.py` 构建。
 
 运行数据、加密主密钥和 OAuth 令牌继续保存在部署者自己的数据目录及 secrets 中，绝不能打包进 GitHub。升级时备份数据库与对应加密密钥；代码备份无法代替数据备份。
+
+## 前端构建边界
+
+前端以 `frontend/` 为唯一维护源，通过 `python scripts/build_frontend.py` 生成运行资源。管理页、会话页和授权页采用 Vue 3 + Element Plus 独立入口，组件与组合式状态分离。会话页保留已验收的手势、草稿、附件与任务交互。检查命令的 `--check` 会拒绝源码与运行资源不同步。
+
+本轮保持现有 API、数据库与包名兼容，不引入消息队列、多进程或微服务。存储中的微信协议相关部分仍是下一步可抽离的边界，不能仅凭文件迁移宣称完全解耦。

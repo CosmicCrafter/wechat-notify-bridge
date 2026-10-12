@@ -179,3 +179,28 @@ def test_recovered_history_preserves_bot_and_platform(portal):
     rows=store.db.execute('SELECT source,bot_id FROM chat_messages WHERE inbox_id IN '
                           "(SELECT id FROM inbox WHERE identity LIKE 'restore-%') ORDER BY inbox_id").fetchall()
     assert [tuple(row) for row in rows]==[('feishu',id),('wechat','default'),('web',None)]
+
+
+def test_delete_bot_revokes_grants_preserves_history_and_does_not_return(portal):
+    store, client, auth, *_ = portal
+    id, adapter, calls = wechat(portal, '待删除测试')
+    assert grants(portal, [id], id).status_code == 200
+    assert send(portal, id).status_code == 200
+    history = store.db.execute('SELECT count(*) FROM chat_messages').fetchone()[0]
+    assert client.post(f'/admin/api/bots/{id}/delete', json={}).status_code == 401
+    assert client.post(f'/admin/api/bots/{id}/delete', headers=ADMIN, json={}).status_code == 200
+    identity = store.clients.authenticate(auth['Authorization'][7:])
+    assert store.bots.grants(identity.id) == dict(bot_ids=[], default_bot_id=None)
+    assert store.channels.settings('wechat:'+id) == {}
+    assert store.db.execute('SELECT count(*) FROM chat_messages').fetchone()[0] == history
+    assert send(portal, id).status_code == 403
+    assert id not in client.app.state.channels.adapters
+    assert bot(portal, 'wechat', '待删除测试') != id
+    for default in ('default', 'feishu-default'):
+        assert client.post(f'/admin/api/bots/{default}/delete', headers=ADMIN, json={}).status_code == 200
+    from wechat_bridge.channels.registry import BotRegistry
+    registry = BotRegistry(store)
+    assert not any(b['id'] in ('default','feishu-default') for b in registry.list())
+    assert store.account() is None
+    created, _ = store.clients.create('删除后的调用方')
+    assert registry.grants(created['id']) == dict(bot_ids=[], default_bot_id=None)

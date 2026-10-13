@@ -12,6 +12,9 @@ from build_frontend import build as build_frontend
 def check():
     sync(check=True)
     build_frontend(check=True)
+    subprocess.run(
+        [sys.executable, str(ROOT / "server/scripts/build_developer_kit.py"), "--check"], check=True
+    )
     node = shutil.which("node")
     if node:
         for script in sorted((ROOT / "frontend/src").rglob("*.js")):

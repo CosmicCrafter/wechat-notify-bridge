@@ -162,13 +162,16 @@ def mount_admin(app, authorize_admin):
         "/admin/api/pairing/start", dependencies=[Depends(authorize_admin)], include_in_schema=False
     )
     async def pairing_start(body: PairStart):
-        return await app.state.pairing.start(body.replace)
+        bot = app.state.channels.registry.get("default")
+        if not bot["enabled"]:
+            raise HTTPException(409, "bot_disabled")
+        return await app.state.channels.pairing("default").start(body.replace)
 
     @app.get(
         "/admin/api/pairing/qr", dependencies=[Depends(authorize_admin)], include_in_schema=False
     )
     def pairing_qr(session_id: str = Query(min_length=1, max_length=100)):
-        current = app.state.pairing
+        current = app.state.channels.pairing("default")
         if current.session_id != session_id or not current.png:
             raise HTTPException(404, "qr_unavailable")
         return Response(current.png, media_type="image/png")
@@ -179,7 +182,7 @@ def mount_admin(app, authorize_admin):
         include_in_schema=False,
     )
     async def pairing_verify(body: PairVerify):
-        return await app.state.pairing.verify(body.session_id, body.code)
+        return await app.state.channels.pairing("default").verify(body.session_id, body.code)
 
     @app.post(
         "/admin/api/pairing/cancel",
@@ -187,4 +190,4 @@ def mount_admin(app, authorize_admin):
         include_in_schema=False,
     )
     async def pairing_cancel(body: PairSession):
-        return await app.state.pairing.cancel(body.session_id)
+        return await app.state.channels.pairing("default").cancel(body.session_id)

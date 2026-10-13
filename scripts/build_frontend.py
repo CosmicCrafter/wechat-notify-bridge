@@ -29,7 +29,14 @@ def build(check=False):
     for base, entries in [(SOURCE, manifest["inputs"]), (OUTPUT, manifest["outputs"])]:
         for name, expected in entries.items():
             p = base / name
-            if not p.is_file() or hashlib.sha256(p.read_bytes()).hexdigest() != expected:
+            content = p.read_bytes() if p.is_file() else None
+            if (
+                content is not None
+                and base == SOURCE
+                and p.suffix in {".vue", ".js", ".mjs", ".css", ".json"}
+            ):
+                content = content.replace(b"\r\n", b"\n")
+            if content is None or hashlib.sha256(content).hexdigest() != expected:
                 raise SystemExit(
                     "Stale frontend asset: " + name + "; run npm run build in frontend/."
                 )

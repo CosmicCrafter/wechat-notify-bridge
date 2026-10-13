@@ -13,7 +13,7 @@
 ## 构建
 
 开发环境需 Node.js 20.19+ 或 22.12+。在本目录运行 `npm ci`、`npm test`、`npm run build`。
-项目根目录可运行 `python scripts/build_frontend.py --check` 检查源码与产物哈希。
+项目根目录可运行 `python scripts/build_frontend.py --check` 检查源码与产物哈希。文本输入按 LF 规范化后计算哈希，避免 Git 跨平台换行转换误报；二进制输入及构建产物仍按原始字节校验。
 产物写入 `server/src/wechat_bridge/web/{admin,chat,oauth}/`，随 Python 包部署，服务器不需要 Node.js。
 依赖通过锁文件固定、按组件构建，全部同源提供，不使用 CDN。每个入口独立加载；没有宣称任务组件按网络分包懒加载。
 

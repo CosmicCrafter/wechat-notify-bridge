@@ -38,7 +38,7 @@ python scripts/check_project.py
 python scripts/build_release.py
 ```
 
-CI 同时检查 Windows 和 Linux。前端构建可用 `--check` 验证生成资源是否过期。
+CI 同时检查 Windows 和 Linux。`scripts/check_project.py` 会只读核对开发者资料包及管理页文档与源文件是否一致；更新文档或接口后，运行 `python server/scripts/build_developer_kit.py` 重建。前端构建可用 `--check` 验证生成资源是否过期。
 修改 OpenAPI 后从 `create_app().openapi()` 重新生成 `server/openapi.json`。
 涉及页面交互要在真实浏览器验证；模拟测试通过不代表手机收件或真实回调成功。
 

@@ -28,9 +28,9 @@
     "src/shared/format.js": "f7e6d1fdbb52533945c63362e61a619e4a1b40465f7a7a106b2f9e4e46991c81",
     "src/shared/Markdown.vue": "d28d9b55e3697bbcd5be0931789c4c965a21e959e91772d649e4fb55eda01c23",
     "src/shared/theme.css": "c0ee98c1a3d9da44fe5b2bdbb001b854be055ec39ed56745d63017b328dee0fb",
-    "build.mjs": "81ed0323b553b612c406216bc4ffd329f66622c280ae9e49c7477432fb3df0fc",
+    "build.mjs": "2b53e5a6740567a5450e79dfdb1da165e4f5d6be90c7cd2ea5cf924607308459",
     "package.json": "d8b61eb30bbafed4f0dbb13685a71b195cd01e5eee6ba405872f5fe894f7f51d",
-    "package-lock.json": "99b08b520fc656bb4201405b1244a685c63e6acd46c683d4b4cbdd4dd29d9c42"
+    "package-lock.json": "60dba2606f6992477fc69444147f4a0df43c3f6005dc72f948170cdd7acb242e"
   },
   "outputs": {
     "admin/index.html": "041c04b1ca4ede1bbbb9fc03c190841161ac5a7a7398346ba8f43acac763aec6",

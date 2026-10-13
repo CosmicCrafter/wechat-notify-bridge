@@ -47,23 +47,25 @@ for (const page of only ? [only] : ["admin", "chat", "oauth"]) {
 if (!only) {
   const { readdir } = await import("node:fs/promises");
   const inputs = {};
+  async function inputHash(path) {
+    const bytes = await readFile(path);
+    const content = /\.(vue|m?js|css|json)$/.test(path)
+      ? bytes.toString("utf8").replace(/\r\n/g, "\n")
+      : bytes;
+    return createHash("sha256").update(content).digest("hex");
+  }
   async function collect(dir) {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       const p = resolve(dir, entry.name);
       if (entry.isDirectory()) await collect(p);
       else
-        inputs[p.slice(root.length + 1).replaceAll("\\", "/")] = createHash(
-          "sha256",
-        )
-          .update(await readFile(p))
-          .digest("hex");
+        inputs[p.slice(root.length + 1).replaceAll("\\", "/")] =
+          await inputHash(p);
     }
   }
   await collect(resolve(root, "src"));
   for (const name of ["build.mjs", "package.json", "package-lock.json"])
-    inputs[name] = createHash("sha256")
-      .update(await readFile(resolve(root, name)))
-      .digest("hex");
+    inputs[name] = await inputHash(resolve(root, name));
   const outputs = {};
   for (const page of ["admin", "chat", "oauth"])
     for (const file of ["index.html", "app.js", "style.css"])

@@ -94,12 +94,12 @@ curl http://127.0.0.1:18092/health
 
 将 [Nginx 配置示例](server/deploy/nginx.conf) 中的 location 配置放入已有 HTTPS 站点的 server 块，检查 `nginx -t` 通过后 reload。示例包含 `/wechat/` 和远程 MCP 所需的两个根级 OAuth discovery 路径，图片请求上限为 `6m`。容器默认仅监听本机 `127.0.0.1:18092`，外部客户端通过 HTTPS 访问。
 
-### 3. 扫码绑定并创建 AI 身份
+### 3. 添加 Bot 并创建接入密钥
 
 1. 打开 `https://你的域名/bridge/admin/`，使用初始化文件中的 `admin_key` 登录。管理员密钥只用于管理页面，不填到 AI 插件。
-2. 点击“生成二维码”，用手机微信扫一扫并确认；如需验证码，按页面提示输入。
-3. 在微信 ClawBot 聊天框发送一句“测试”，让服务获取微信回复上下文。
-4. 在 Admin 的“AI 客户端”中创建 `codex` 等身份，或在微信发送 `/getkey codex`。多个 AI 客户端分别创建身份，例如 `gpt`、`deepseek`。
+2. 在“Bot 管理”点击“新增 Bot”：微信按向导扫码绑定；飞书填写应用配置，并按回调配置步骤在飞书后台保存、发布。
+3. 使用微信时，在 ClawBot 聊天框发送一句“测试”，让服务获取微信回复上下文。纯飞书部署不需要这一步。
+4. 在“接入密钥”中为每个程序或 AI 创建独立密钥，选择允许调用的 Bot 和默认 Bot。微信 `/getkey codex` 仍可用于微信侧创建身份。
 
 ### 4. 把 MCP 接入 AI
 
@@ -185,7 +185,7 @@ AI 发消息时调用插件；服务器持续接收微信回复，AI 可以按�
 - 发送去重、结果查询、API 密钥鉴权。
 - SQLite 持久化；微信凭据、上下文和会话双向正文加密存储。
 - 收发后推迟 12 小时，持续空闲才发送心跳；服务重启后保留计时。
-- MCP 插件提供 9 个工具，可用于 Codex 或其他支持 stdio MCP 的客户端，支持同一密钥下登记多个聊天简称。
+- MCP 插件提供通知、任务和会话工具，可用于 Codex 或其他支持 stdio MCP 的客户端，支持同一密钥下登记多个聊天简称。
 
 ## 从哪里开始
 
@@ -205,13 +205,13 @@ AI 发消息时调用插件；服务器持续接收微信回复，AI 可以按�
 
 心跳用于检验空闲后的连接情况，**不能保证微信会话一定续期**。微信接口接受请求也不代表手机已经收到或用户已经阅读。
 
-当前只绑定一个微信账号。密钥确定客户端，聊天登记确定简称。一个启用聊天显示 `[codex]`，多个显示 `[codex-tibo]`、`[codex-通知桥]`。Skill 优先采用用户称呼，否则按任务取简短名称，缺省使用数字。MCP 可以列出本密钥下的聊天。
+可以配置多个微信或飞书 Bot；每把密钥限定允许调用的 Bot。密钥确定客户端，聊天登记确定简称。一个启用聊天显示 `[codex]`，多个显示 `[codex-tibo]`、`[codex-通知桥]`。Skill 优先采用用户称呼，否则按任务取简短名称，缺省使用数字。MCP 可以列出本密钥下的聊天。
 
 微信发送 `[codex-tibo] 内容` 路由至对应聊天的收件箱，`/chats` 查看准确标签。未带标签、未知或含糊标签留在公共收件箱；管理指令与密钥回复不进入 AI 消息列表。默认由 AI 主动读取；Windows 桌面可显式启用实验性的[消息唤醒接收器](mcp-plugin/DESKTOP-WAKE.md)。消息内容不会自动获得执行授权。
 
 ## 开发与验证
 
-调整微信消息模板前，先查阅 [微信 Markdown 排版指南](docs/wechat-markdown/微信Markdown排版指南.md)。指南针对微信 ClawBot 消息；手机会话页的 Markdown 渲染由 `server/src/wechat_bridge/web/chat/` 管理，两者的支持范围可能不同。MCP 插件随包携带同一指南的副本，更新项目指南时同步 `mcp-plugin/skills/wechat-notify/references/wechat-markdown.md`，保持 AI 调用规范一致。
+调整微信消息模板前，先查阅 [微信 Markdown 排版指南](docs/wechat-markdown/微信Markdown排版指南.md)。指南针对微信 ClawBot 消息；手机会话页的 Markdown 渲染源码位于 `frontend/src/shared/Markdown.vue`，两者的支持范围可能不同。MCP 插件随包携带同一指南的副本，更新项目指南时同步 `mcp-plugin/skills/wechat-notify/references/wechat-markdown.md`，保持 AI 调用规范一致。
 
 需要 Python 3.12。以下命令在项目根目录执行：
 

@@ -204,3 +204,34 @@ def test_delete_bot_revokes_grants_preserves_history_and_does_not_return(portal)
     assert store.account() is None
     created, _ = store.clients.create('删除后的调用方')
     assert registry.grants(created['id']) == dict(bot_ids=[], default_bot_id=None)
+
+
+def test_deleted_default_bot_rejects_legacy_pairing_before_start(portal):
+    _, client, *_ = portal
+    assert client.post('/admin/api/bots/default/delete', headers=ADMIN, json={}).status_code == 200
+    pair = client.app.state.pairing
+    previous_start = pair.last_start
+    response = client.post('/admin/api/pairing/start', headers=ADMIN, json={})
+    assert response.status_code == 404
+    assert response.json()['detail'] == 'bot_not_found'
+    assert pair.last_start == previous_start
+
+
+def test_disabled_default_bot_rejects_legacy_pairing_without_start(portal):
+    store, client, *_ = portal
+    store.bots.update('default', '微信默认', False)
+    pair = client.app.state.pairing
+    response = client.post('/admin/api/pairing/start', headers=ADMIN, json={'replace': True})
+    assert response.status_code == 409
+    assert response.json()['detail'] == 'bot_disabled'
+    assert pair.task is None
+
+
+def test_deleted_default_bot_rejects_other_legacy_pairing_routes(portal):
+    _, client, *_ = portal
+    assert client.post('/admin/api/bots/default/delete', headers=ADMIN, json={}).status_code == 200
+    for path, body in [('verify', {'session_id': 'fixture-session', 'code': '001234'}), ('cancel', {'session_id': 'fixture-session'})]:
+        response = client.post('/admin/api/pairing/'+path, headers=ADMIN, json=body)
+        assert response.status_code == 404
+        assert response.json()['detail'] == 'bot_not_found'
+    assert client.get('/admin/api/pairing/qr?session_id=fixture-session', headers=ADMIN).status_code == 404

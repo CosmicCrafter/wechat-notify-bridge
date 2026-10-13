@@ -15,6 +15,10 @@ def install_security(app):
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
+        if request.url.path.startswith("/admin/api/onboarding"):
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse({"detail": "invalid_onboarding_settings"}, status_code=422)
         if request.url.path.startswith("/admin/api/proxy"):
             from fastapi.responses import JSONResponse
 

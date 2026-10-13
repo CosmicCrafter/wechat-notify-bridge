@@ -7,6 +7,7 @@ from wechat_bridge.runtime.lifecycle import create_lifespan
 from wechat_bridge.api.security import install_security
 from wechat_bridge.api.portal import mount_portal
 from wechat_bridge.api.admin import mount_admin
+from wechat_bridge.api.onboarding import mount_onboarding
 from wechat_bridge.api.clients import mount_client_api
 from wechat_bridge.api.channels import mount_channels
 from wechat_bridge.api.proxy import mount_proxy
@@ -32,6 +33,7 @@ def create_app(bridge=None, clients=None, run_workers=True, *, admin_hash=None, 
     authorize, authorize_admin = install_security(app)
     mount_portal(app, authorize_admin)
     mount_admin(app, authorize_admin)
+    mount_onboarding(app, authorize_admin)
     mount_proxy(app, authorize_admin)
     mount_channels(app, authorize_admin)
 

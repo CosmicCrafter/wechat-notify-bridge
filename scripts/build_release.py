@@ -43,6 +43,7 @@ TOP_FILES = (
     "CONTRIBUTING.md",
     "SECURITY.md",
     "server/src/wechat_bridge/web/admin/developer-kit.zip",
+    "server/src/wechat_bridge/web/admin/onboarding-template.zip",
     "README.md",
     ".gitignore",
     ".gitattributes",

@@ -39,7 +39,7 @@ description: 发送本人微信或飞书通知与可选择的任务卡片，读�
 
 `dry_run=true` 不发送；`api_accepted`、`no_error_reported` 只表示接口层结果，不能称“手机已收到”。`duplicate=true` 仍需检查 `status`。只有已有人工确认记录 `phone_confirmed` 能证明用户确认收件。
 
-普通短回复直接写正文；长消息排版按需读 [微信 Markdown 指南](references/wechat-markdown.md)。服务器自动添加来源标签和手机会话链接，不手工重复添加、不编造链接、不发送凭据。
+普通短回复直接写正文；长消息排版按需读 [微信 Markdown 指南](references/wechat-markdown.md)。微信消息由服务器添加来源标签和手机会话链接；飞书优先使用原生消息和卡片，不要求跳转手机页。不手工重复添加、不编造链接、不发送凭据。
 
 ## 读取与唤醒
 

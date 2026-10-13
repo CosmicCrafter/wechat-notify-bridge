@@ -17,6 +17,7 @@ spec.loader.exec_module(builder)
 def source(tmp_path):
     for name in builder.FILES + [
         "docs/integration/README.md",
+        "docs/integration/CLIENT-SETUP.md",
         "docs/server/API.md",
         "docs/server/TASK-CARDS.md",
     ]:

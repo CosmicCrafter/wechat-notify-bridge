@@ -33,6 +33,7 @@ def contents(root):
         key: (root / path).read_text(encoding="utf-8")
         for key, path in {
             "guide": "docs/integration/README.md",
+            "setup": "docs/integration/CLIENT-SETUP.md",
             "api": "docs/server/API.md",
             "cards": "docs/server/TASK-CARDS.md",
         }.items()
@@ -82,4 +83,7 @@ if __name__ == "__main__":
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     build(check=args.check)
+    from build_onboarding_assets import build as build_onboarding
+
+    build_onboarding(check=args.check)
     print("Developer assets: " + ("PASS" if args.check else "built"))

@@ -8,7 +8,7 @@ import sys
 
 if __name__ == "__main__":
     interpreter = os.environ.get("WECHAT_NOTIFY_PYTHON")
-    if not interpreter:
+    if not interpreter and not os.environ.get("WECHAT_NOTIFY_API_KEY"):
         config = Path(
             os.environ.get("WECHAT_NOTIFY_CREDENTIAL_FILE")
             or Path.home() / ".config/wechat-notify-bridge/client.json"

@@ -1,4 +1,14 @@
 export const errors = {
+  invalid_onboarding_settings: "接入参数不完整或格式不正确，请检查所选方式。",
+  public_base_not_configured:
+    "尚未配置服务公开地址，请先设置 WECHAT_PUBLIC_BASE_URL。",
+  chatgpt_requires_remote: "网页 ChatGPT 需要使用远程 MCP。",
+  remote_requires_https: "远程 MCP 需要可访问的 HTTPS 服务地址。",
+  private_package_confirmation_required: "请先确认私有包保管说明。",
+  client_key_mismatch: "Key 与所选身份不匹配，请核对原 Key；不会重置旧 Key。",
+  client_disabled: "该身份已停用，请选择有效身份。",
+  onboarding_template_unavailable:
+    "接入包模板缺失，请管理员重新构建开发者资源。",
   incomplete_feishu_configuration:
     "启用飞书前请填写 App ID、本人 Open ID、App Secret、Verification Token 和 Encrypt Key。",
   feishu_owner_mismatch:

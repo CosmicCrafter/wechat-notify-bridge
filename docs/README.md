@@ -21,6 +21,8 @@
 
 ## 程序或 AI 接入
 
+- [客户端安装指南](integration/CLIENT-SETUP.md)：配置包、Skill、MCP、OAuth 与验收。
+
 - [接入指南](integration/README.md)、[HTTP 接口](server/API.md)。
 - [MCP 插件](../mcp-plugin/README.md)、[桌面唤醒](../mcp-plugin/DESKTOP-WAKE.md)。
 - [投递可靠性](server/DELIVERY-RELIABILITY.md)、[宿主回调](server/MCP-EVENTS.md)。

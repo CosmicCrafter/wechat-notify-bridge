@@ -22,7 +22,30 @@ import {
   Switch,
   Link,
 } from "@element-plus/icons-vue";
-import { seed, labels, sampleSecrets } from "./mock.js";
+import { seed, labels, sampleSecrets, proxySeed, authSeed } from "./mock.js";
+import ProxyMock from "./ProxyMock.vue";
+import AccountMock from "./AccountMock.vue";
+const settingsTab = ref("proxy"),
+  proxyState = reactive(proxySeed()),
+  authState = reactive(authSeed());
+const settingsHeads = {
+  proxy: ["代理与节点", "管理宿主回调出口、订阅与自动检测。"],
+  security: ["账号与安全", "管理密码和本人恢复账号，保留服务器兜底。"],
+  help: ["设置与帮助", "按部署、AI 接入和业务系统接入查找资料。"],
+};
+function openSettings(tab) {
+  settingsTab.value = tab;
+  go("settings");
+}
+function leaveAdmin() {
+  authState.authenticated = false;
+  appDialog.value = false;
+  connDialog.value = false;
+  configDialog.value = false;
+  drawer.value = false;
+  guideDialog.value = false;
+  page.value = "overview";
+}
 const nav = [
   ["overview", "总览", Odometer],
   ["messages", "消息", ChatLineRound],
@@ -108,6 +131,10 @@ function typeOf(id) {
 }
 function resetScene() {
   Object.assign(store, seed(scenario.value === "empty"));
+  Object.assign(
+    proxyState,
+    proxySeed(scenario.value === "empty", scenario.value === "proxy-empty"),
+  );
   appDialog.value = false;
   connDialog.value = false;
   configDialog.value = false;
@@ -597,6 +624,10 @@ function finishConnection() {
   }
 }
 async function toggleConnection(row) {
+  if (row.id === authState.recovery_bot_id) {
+    ElMessage.warning("这是管理员恢复通道，不能停用。先验证并换绑新通道。");
+    return;
+  }
   try {
     await ElMessageBox.confirm(
       row.enabled
@@ -633,7 +664,15 @@ const guideText = computed(
 </script>
 <template>
   <el-config-provider
-    ><div class="shell">
+    ><AccountMock
+      v-if="!authState.authenticated"
+      :state="authState"
+      :connections="store.connections"
+      mode="login"
+      @login="go('overview')"
+      @logout="leaveAdmin"
+    />
+    <div v-else class="shell">
       <aside class="sidebar">
         <div class="brand">
           <div class="brand-mark">↗</div>
@@ -652,10 +691,26 @@ const guideText = computed(
               failedCount
             }}</span>
           </button>
+          <button
+            class="nav-subitem"
+            :class="{ active: page === 'settings' && settingsTab === 'proxy' }"
+            @click="openSettings('proxy')"
+          >
+            代理与节点
+          </button>
+          <button
+            class="nav-subitem"
+            :class="{
+              active: page === 'settings' && settingsTab === 'security',
+            }"
+            @click="openSettings('security')"
+          >
+            账号与安全
+          </button>
         </nav>
         <div class="sidebar-bottom">
           <span class="mini-status"><i />本地交互原型</span>
-          <p>v0.1 · 产品设计候选</p>
+          <p>v0.2 · 产品设计候选</p>
           <small>Codex 等 AI 在服务外部接入。</small>
         </div>
       </aside>
@@ -669,6 +724,7 @@ const guideText = computed(
             <span class="demo-pill">模拟数据 · 不连接服务</span
             ><el-button text :icon="Switch" @click="review = !review"
               >评审场景</el-button
+            ><el-button text @click="leaveAdmin">退出</el-button
             ><span class="avatar">管</span>
           </div>
         </header>
@@ -688,9 +744,21 @@ const guideText = computed(
               label="连接测试失败"
               value="test-fail" /><el-option
               label="连接测试超时"
-              value="timeout" /></el-select
+              value="timeout" /><el-option
+              label="代理尚无订阅节点"
+              value="proxy-empty" /><el-option
+              label="订阅更新失败 · 保留原配置"
+              value="proxy-update-fail" /><el-option
+              label="优先组失败 · 回退下一组"
+              value="proxy-preferred-fail" /><el-option
+              label="全部节点不可用"
+              value="proxy-all-fail" /><el-option
+              label="控制接口不可用"
+              value="proxy-controller-fail" /><el-option
+              label="代理回退失败"
+              value="proxy-rollback-fail" /></el-select
           ><el-button :icon="Refresh" @click="resetScene">重置演示</el-button
-          ><small>切换会恢复样例。刷新也会重置；仅可填写示例值。</small>
+          ><small>切场景恢复业务样例；刷新全部重置。仅填写示例值。</small>
         </div>
         <main class="content">
           <div class="heading">
@@ -700,8 +768,20 @@ const guideText = computed(
                   page === "overview" ? "WORKSPACE OVERVIEW" : "NOTIFY BRIDGE"
                 }}
               </div>
-              <h1>{{ titles[page][0] }}</h1>
-              <p>{{ titles[page][1] }}</p>
+              <h1>
+                {{
+                  page === "settings"
+                    ? settingsHeads[settingsTab][0]
+                    : titles[page][0]
+                }}
+              </h1>
+              <p>
+                {{
+                  page === "settings"
+                    ? settingsHeads[settingsTab][1]
+                    : titles[page][1]
+                }}
+              </p>
             </div>
             <el-button
               v-if="page === 'apps'"
@@ -1188,9 +1268,17 @@ const guideText = computed(
                   <el-button type="primary" plain @click="openConnection(c)">{{
                     c.state === "pending" ? "完成配置" : "管理与测试"
                   }}</el-button
-                  ><el-button text @click="toggleConnection(c)">{{
-                    c.enabled ? "停用" : "启用"
-                  }}</el-button>
+                  ><el-tag
+                    v-if="c.id === authState.recovery_bot_id"
+                    size="small"
+                    type="success"
+                    >管理员恢复保护</el-tag
+                  ><el-button
+                    text
+                    :disabled="c.id === authState.recovery_bot_id"
+                    @click="toggleConnection(c)"
+                    >{{ c.enabled ? "停用" : "启用" }}</el-button
+                  >
                 </div>
               </section>
             </div>
@@ -1220,100 +1308,135 @@ const guideText = computed(
             </p></template
           >
           <template v-else-if="page === 'settings'"
-            ><div class="section-title">
-              <div>
-                <h2>选择你要完成的工作</h2>
-                <span>三条交付路径，各有清晰入口和资料。</span>
-              </div>
-            </div>
-            <div class="path-cards">
-              <section class="panel">
-                <span class="action-icon blue"
-                  ><el-icon><Monitor /></el-icon
-                ></span>
-                <h2>部署维护中转站</h2>
-                <p>仓库、部署配置、备份与维护说明。Codex 可在站外协助执行。</p>
-                <ul>
-                  <li>部署准备与配置模板</li>
-                  <li>升级前保护与恢复说明</li>
-                  <li>维护检查和故障定位</li>
-                </ul>
-                <el-button @click="openGuide('deploy')"
-                  >查看部署维护清单</el-button
-                >
-              </section>
-              <section class="panel">
-                <span class="action-icon green"
-                  ><el-icon><Grid /></el-icon
-                ></span>
-                <h2>AI 接入中转站</h2>
-                <p>
-                  为 Codex / Claude Code 等外部宿主配置 MCP、权限和使用规则。
-                </p>
-                <ul>
-                  <li>远程 MCP 与 OAuth</li>
-                  <li>本机 stdio 私有配置</li>
-                  <li>宿主接入规则与验收</li>
-                </ul>
-                <el-button
-                  type="primary"
-                  plain
-                  @click="
-                    go('apps');
-                    openApp();
-                  "
-                  >新增 AI 接入应用</el-button
-                ><el-button link @click="openGuide('ai')">资料说明</el-button>
-              </section>
-              <section class="panel">
-                <span class="action-icon neutral"
-                  ><el-icon><Link /></el-icon
-                ></span>
-                <h2>业务系统接入通知</h2>
-                <p>为后端提供统一 HTTP API、通知、回执和回复读取资料。</p>
-                <ul>
-                  <li>应用身份与独立 API Key</li>
-                  <li>接口文档与调用示例</li>
-                  <li>去重、回执和回复规则</li>
-                </ul>
-                <el-button
-                  type="primary"
-                  plain
-                  @click="
-                    go('apps');
-                    openApp();
-                    appForm.target = 'http';
-                  "
-                  >新增业务应用</el-button
-                ><el-button link @click="openGuide('http')">资料说明</el-button>
-              </section>
-            </div>
-            <section class="panel settings-panel">
-              <div class="section-title">
-                <h2>服务设置</h2>
-                <span>高级配置按需进入</span>
-              </div>
-              <button @click="openGuide('proxy')">
-                <span
-                  ><strong>回调代理</strong
-                  ><small>订阅、节点、检测与回退；复用现有能力</small></span
-                ><el-icon><ArrowRight /></el-icon></button
-              ><button @click="openGuide('session')">
-                <span
-                  ><strong>手机会话登录</strong
-                  ><small>本人手机页登录与会话入口</small></span
-                ><el-icon><ArrowRight /></el-icon>
+            ><div class="settings-tabs">
+              <button
+                :class="{ active: settingsTab === 'proxy' }"
+                @click="settingsTab = 'proxy'"
+              >
+                代理与节点</button
+              ><button
+                :class="{ active: settingsTab === 'security' }"
+                @click="settingsTab = 'security'"
+              >
+                账号与安全</button
+              ><button
+                :class="{ active: settingsTab === 'help' }"
+                @click="settingsTab = 'help'"
+              >
+                使用与帮助
               </button>
-              <div class="environment">
-                <span class="mono">本地原型 / v0.1</span
-                ><span>API、数据库与生产配置本轮不变更。</span>
+            </div>
+            <ProxyMock
+              v-if="settingsTab === 'proxy'"
+              :state="proxyState"
+              :scenario="scenario"
+            /><AccountMock
+              v-else-if="settingsTab === 'security'"
+              :state="authState"
+              :connections="store.connections"
+              mode="settings"
+              @logout="leaveAdmin"
+            />
+            <div v-else>
+              <div class="section-title">
+                <div>
+                  <h2>选择你要完成的工作</h2>
+                  <span>三条交付路径，各有清晰入口和资料。</span>
+                </div>
               </div>
-            </section></template
+              <div class="path-cards">
+                <section class="panel">
+                  <span class="action-icon blue"
+                    ><el-icon><Monitor /></el-icon
+                  ></span>
+                  <h2>部署维护中转站</h2>
+                  <p>
+                    仓库、部署配置、备份与维护说明。Codex 可在站外协助执行。
+                  </p>
+                  <ul>
+                    <li>部署准备与配置模板</li>
+                    <li>升级前保护与恢复说明</li>
+                    <li>维护检查和故障定位</li>
+                  </ul>
+                  <el-button @click="openGuide('deploy')"
+                    >查看部署维护清单</el-button
+                  >
+                </section>
+                <section class="panel">
+                  <span class="action-icon green"
+                    ><el-icon><Grid /></el-icon
+                  ></span>
+                  <h2>AI 接入中转站</h2>
+                  <p>
+                    为 Codex / Claude Code 等外部宿主配置 MCP、权限和使用规则。
+                  </p>
+                  <ul>
+                    <li>远程 MCP 与 OAuth</li>
+                    <li>本机 stdio 私有配置</li>
+                    <li>宿主接入规则与验收</li>
+                  </ul>
+                  <el-button
+                    type="primary"
+                    plain
+                    @click="
+                      go('apps');
+                      openApp();
+                    "
+                    >新增 AI 接入应用</el-button
+                  ><el-button link @click="openGuide('ai')">资料说明</el-button>
+                </section>
+                <section class="panel">
+                  <span class="action-icon neutral"
+                    ><el-icon><Link /></el-icon
+                  ></span>
+                  <h2>业务系统接入通知</h2>
+                  <p>为后端提供统一 HTTP API、通知、回执和回复读取资料。</p>
+                  <ul>
+                    <li>应用身份与独立 API Key</li>
+                    <li>接口文档与调用示例</li>
+                    <li>去重、回执和回复规则</li>
+                  </ul>
+                  <el-button
+                    type="primary"
+                    plain
+                    @click="
+                      go('apps');
+                      openApp();
+                      appForm.target = 'http';
+                    "
+                    >新增业务应用</el-button
+                  ><el-button link @click="openGuide('http')"
+                    >资料说明</el-button
+                  >
+                </section>
+              </div>
+              <section class="panel settings-panel">
+                <div class="section-title">
+                  <h2>服务设置</h2>
+                  <span>高级配置按需进入</span>
+                </div>
+                <button @click="openSettings('proxy')">
+                  <span
+                    ><strong>回调代理</strong
+                    ><small>订阅、节点、检测与回退；复用现有能力</small></span
+                  ><el-icon><ArrowRight /></el-icon></button
+                ><button @click="openGuide('session')">
+                  <span
+                    ><strong>手机会话登录</strong
+                    ><small>本人手机页登录与会话入口</small></span
+                  ><el-icon><ArrowRight /></el-icon>
+                </button>
+                <div class="environment">
+                  <span class="mono">本地原型 / v0.2</span
+                  ><span>API、数据库与生产配置本轮不变更。</span>
+                </div>
+              </section>
+            </div></template
           >
         </main>
         <footer class="footer">
           <span>Notify Bridge · 统一收发、路由与记录</span
-          ><span>原型 v0.1 · 所有数据均为模拟</span>
+          ><span>原型 v0.2 · 所有数据均为模拟</span>
         </footer>
       </div>
     </div>

@@ -168,3 +168,80 @@ export const sampleSecrets = {
   verification_token: "DEMO_TOKEN_NOT_VALID",
   encrypt_key: "DEMO_ENCRYPT_KEY_NOT_VALID",
 };
+export function proxySeed(unconfigured = false, nodesEmpty = false) {
+  return {
+    available: !unconfigured,
+    enabled: true,
+    mode: "auto",
+    manual_node: null,
+    current_node: unconfigured || nodesEmpty ? null : "日本 Pro A",
+    subscription_configured: !unconfigured && !nodesEmpty,
+    subscription_label:
+      unconfigured || nodesEmpty ? "未配置" : "subscription.example.test",
+    source: "admin",
+    update_hours: 6,
+    check_minutes: 5,
+    priorities: ["日本 Pro", "新加坡 Pro", "美国 Pro"],
+    last_update: unconfigured || nodesEmpty ? "—" : "2026-10-14 09:30",
+    next_update: unconfigured || nodesEmpty ? "—" : "2026-10-14 15:30",
+    last_check: unconfigured || nodesEmpty ? "—" : "2026-10-14 09:40",
+    last_error: "",
+    current_unknown: false,
+    health: unconfigured || nodesEmpty ? "未检测" : "上次完整回调检测通过",
+    usage:
+      unconfigured || nodesEmpty
+        ? null
+        : { upload: 1.2, download: 18.4, total: 120, expire: "2026-11-01" },
+    nodes:
+      unconfigured || nodesEmpty
+        ? []
+        : [
+            {
+              name: "日本 Pro A",
+              type: "trojan",
+              delay: 92,
+              callback_ok: true,
+              udp: true,
+            },
+            {
+              name: "日本 Pro B",
+              type: "ss",
+              delay: 110,
+              callback_ok: false,
+              udp: true,
+            },
+            {
+              name: "新加坡 Pro A",
+              type: "vmess",
+              delay: 86,
+              callback_ok: true,
+              udp: true,
+            },
+            {
+              name: "美国 Pro A",
+              type: "trojan",
+              delay: 158,
+              callback_ok: true,
+              udp: false,
+            },
+            {
+              name: "美国 Pro B",
+              type: "socks5",
+              delay: null,
+              callback_ok: false,
+              udp: false,
+            },
+          ],
+  };
+}
+export function authSeed() {
+  return {
+    authenticated: false,
+    username: "admin",
+    password: "NotifyBridgeDemo123!",
+    recovery_bot_id: "conn_feishu",
+    recovery_owner: "本人 · 已验证的飞书账号",
+    password_changed: "尚未修改",
+    session_version: 1,
+  };
+}

@@ -76,6 +76,24 @@ def mount_client_api(app, authorize):
             data=base64.b64encode(store.cipher.decrypt(row["encrypted"])).decode("ascii"),
         )
 
+    @app.get("/api/conversations/{conversation_id}/history")
+    async def history(
+        conversation_id: str,
+        before: int = Query(0, ge=0),
+        after: int = Query(0, ge=0),
+        around: int = Query(0, ge=0),
+        limit: int = Query(50, ge=1, le=100),
+        caller=Depends(authorize),
+    ):
+        store = app.state.bridge.store
+        store.conversations.get(caller.id, conversation_id)
+        if sum(bool(x) for x in (before, after, around)) > 1:
+            raise HTTPException(422, "one_cursor_only")
+        return dict(
+            store.portal.history(conversation_id, before, after, around, limit),
+            content_is_untrusted=True,
+        )
+
     @app.get("/api/deliveries")
     async def delivery(
         dedup_key: str = Query(min_length=1, max_length=200),

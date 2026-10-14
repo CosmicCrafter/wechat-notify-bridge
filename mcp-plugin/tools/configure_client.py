@@ -49,6 +49,28 @@ def main():
         json.dumps({"mcpServers": {"wechat-notify": server}}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    (root / "claude-mcp.json").write_text(
+        json.dumps(
+            {"mcpServers": {"notify-bridge": {"type": "stdio", **server}}},
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    def quoted(value):
+        return json.dumps(str(value), ensure_ascii=False)
+
+    (root / "codex-config.toml").write_text(
+        "[mcp_servers.notify_bridge]\ncommand = "
+        + quoted(interpreter)
+        + "\nargs = ["
+        + quoted(root / "server/http_bridge.py")
+        + ']\n\n[mcp_servers.notify_bridge.env]\nPYTHONUTF8 = "1"\nWECHAT_NOTIFY_CREDENTIAL_FILE = '
+        + quoted(config_path)
+        + "\n",
+        encoding="utf-8",
+    )
     # Plugin hosts may cache only public plugin files. Keep the private file in
     # the original installation directory and reference its absolute path.
     for filename in ("mcp.json", ".mcp.json"):

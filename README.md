@@ -57,6 +57,10 @@ notify-bridge/
 
 朋友接手维护请先读 [维护手册](docs/MAINTAINER.md)，目录导航见 [文档索引](docs/README.md)。前端源码在 `frontend/src/`；运行用静态资源由构建生成。
 
+v0.3 整理升级候选版：统一管理端、共享会话、应用/Key 分离与管理员恢复，详见 [实施与验证](docs/product-v3/IMPLEMENTATION.md) 和 [管理、终端兜底及回退](docs/product-v3/OPERATIONS.md)。在独立升级分支验收，未经确认不部署正式服务。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
+
+三条交付路径：[部署维护](docs/MAINTAINER.md)、[AI 宿主 MCP 接入](docs/integration/AI-HOSTS.md)、[业务系统 HTTP 接入](docs/integration/HTTP.md)。AI/HTTP 资料可基于已有应用导出，不自动创建重复身份或轮换 Key。
+
 ## 开发者接入
 
 接入其他 AI、监控脚本或业务程序，请从 [开发者接入指南](docs/integration/README.md) 开始。配套提供 [HTTP 接口文档](docs/server/API.md)、[OpenAPI 文件](server/openapi.json) 和 [轻量 Python 客户端示例](examples/python/notify_bridge.py)。

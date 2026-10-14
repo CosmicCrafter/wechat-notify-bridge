@@ -20,6 +20,9 @@ def source(tmp_path):
         "docs/integration/CLIENT-SETUP.md",
         "docs/server/API.md",
         "docs/server/TASK-CARDS.md",
+        "docs/product-v3/OPERATIONS.md",
+        "docs/integration/AI-HOSTS.md",
+        "docs/integration/HTTP.md",
     ]:
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,7 @@
 # 错误与恢复
 
+v0.3 的 not_sent 表示已保存准备阶段失败，消息 POST 未开始。仅这种 Feishu 记录可在用户已有发送授权内，保持原会话、Bot、正文和去重键附 retry_preparation:true 显式重试。未知、已接收、历史缺失或换目标都不允许。Key 到期/撤销只能恢复调用方私有配置，不通过改名或换身份绕过。
+
 工具执行失败通过 MCP isError 返回；错误文本可含 JSON 字段 code、message、http_status 和 next_action。旧服务器可能返回普通文本，因此不要依赖新字段必定存在。
 
 | 情况 | 下一步 |

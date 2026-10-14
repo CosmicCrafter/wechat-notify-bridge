@@ -6,6 +6,11 @@ import httpx
 
 SEND_PATHS = {"/api/messages", "/api/notifications", "/api/task-cards"}
 DETAILS = {
+    "inbox_already_claimed": "This item already has another explicit claim. Read its processing state; do not pretend it was claimed here.",
+    "inbox_claim_required": "Explicitly claim the assigned inbox item before reporting processing.",
+    "inbox_processing_final": "The item has a final report; it cannot be downgraded or overwritten.",
+    "delivery_retry_unsafe": "Do not resend an unknown or accepted delivery. Only recorded Feishu preparation failures support explicit same-request retry.",
+    "client_receive_unavailable": "The application has no valid receiving credential; restore its Key or independent OAuth grant.",
     "bot_access_denied": "This key is not granted the selected bot. Ask the owner to change its grants in Admin; never bypass the scope.",
     "bot_required": "Read getCallerIdentity.bots and specify one authorized bot_id. No message was sent; do not broadcast.",
     "bot_disabled": "The selected bot is disabled. Ask the owner to enable it; never switch bots to retry without authorization.",

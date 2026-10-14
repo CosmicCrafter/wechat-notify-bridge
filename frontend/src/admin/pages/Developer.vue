@@ -1,5 +1,12 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+} from "vue";
 import { api, run, session, refresh } from "../session.js";
 import Markdown from "../../shared/Markdown.vue";
 import { ElMessage } from "element-plus";
@@ -10,7 +17,7 @@ const docs = ref(null),
   step = ref(0);
 const target = ref("codex"),
   transport = ref("remote"),
-  credentialMode = ref("new");
+  credentialMode = ref("existing");
 const clientId = ref(""),
   clientName = ref(""),
   botId = ref(""),
@@ -67,6 +74,17 @@ async function load() {
     docs.value = data;
     metadata.value = connection;
     if (!connection.remote_available) transport.value = "local";
+    const expected = new URLSearchParams(location.hash.split("?")[1] || "").get(
+      "app",
+    );
+    if (expected && activeClients.value.some((c) => c.id === expected)) {
+      clientId.value = expected;
+      credentialMode.value = "existing";
+      await nextTick();
+      botId.value =
+        selectedClient.value.default_bot_id ||
+        (choices.value.length === 1 ? choices.value[0].id : "");
+    }
   } catch (e) {
     if (alive && !e.stale) loadError.value = e.message;
   }
@@ -86,6 +104,7 @@ function save(url, filename) {
 function next() {
   if (step.value === 0 && target.value === "chatgpt")
     transport.value = "remote";
+  if (target.value === "http") transport.value = "local";
   if (
     step.value === 1 &&
     transport.value === "remote" &&
@@ -120,6 +139,7 @@ function generate() {
               ? key.value
               : "",
           private_ack: privateAck.value,
+          key_format: "nb",
         },
         true,
       );
@@ -182,6 +202,42 @@ function reset() {
 </script>
 <template>
   <div class="developer-intro">
+    <div class="stats delivery-paths">
+      <el-card shadow="never"
+        ><h3>部署与维护自己的站</h3>
+        <p class="help">版本、环境、升级备份和终端恢复。</p>
+        <el-button
+          @click="
+            tab = 'api';
+            reference = 'operations';
+          "
+          >维护说明</el-button
+        ></el-card
+      ><el-card shadow="never"
+        ><h3>AI 接入中转站</h3>
+        <p class="help">Codex / Claude Code MCP，复用已有应用与授权。</p>
+        <el-button
+          @click="
+            tab = 'quick';
+            target = 'codex';
+            step = 0;
+          "
+          >AI 接入向导</el-button
+        ></el-card
+      ><el-card shadow="never"
+        ><h3>业务系统接入通知</h3>
+        <p class="help">直接 HTTP 与轻量客户端，固定身份、消息和回执。</p>
+        <el-button
+          @click="
+            tab = 'quick';
+            target = 'http';
+            transport = 'local';
+            step = 0;
+          "
+          >HTTP 接入向导</el-button
+        ></el-card
+      >
+    </div>
     <h2>把通知桥接入你的 AI 或程序</h2>
     <p class="help">
       选择接入方式，下载配置与使用规则。连接、消息送达和自动唤醒分别验收。
@@ -208,6 +264,8 @@ function reset() {
         <el-radio-group v-model="target" class="onboarding-options"
           ><el-radio value="codex" border>Codex</el-radio
           ><el-radio value="chatgpt" border>网页 ChatGPT</el-radio
+          ><el-radio value="claude" border>Claude Code</el-radio
+          ><el-radio value="http" border>HTTP 业务系统</el-radio
           ><el-radio value="generic" border
             >其他 MCP 客户端</el-radio
           ></el-radio-group
@@ -219,7 +277,13 @@ function reset() {
       </template>
       <template v-else-if="step === 1"
         ><h3>选择连接方式</h3>
-        <el-radio-group v-model="transport" class="onboarding-options"
+        <el-alert
+          v-if="target === 'http'"
+          title="业务系统直接通过 HTTP 调用。包内提供私有配置、OpenAPI 和 Python 示例，无需安装 MCP。"
+          type="info"
+          :closable="false"
+        />
+        <el-radio-group v-else v-model="transport" class="onboarding-options"
           ><el-radio
             value="remote"
             border
@@ -236,7 +300,7 @@ function reset() {
           :closable="false"
         />
         <el-alert
-          v-else
+          v-else-if="target !== 'http'"
           title="需要 Python 3.12+。包内包含私有连接配置，解压后先准备运行环境，再安装或导入 MCP。"
           type="info"
           :closable="false"
@@ -249,8 +313,8 @@ function reset() {
       <template v-else-if="step === 2"
         ><h3>确定身份与默认 Bot</h3>
         <el-radio-group v-model="credentialMode" class="onboarding-options"
-          ><el-radio value="new">生成专用身份（推荐）</el-radio
-          ><el-radio value="existing">使用已有身份</el-radio></el-radio-group
+          ><el-radio value="existing">使用已有应用（推荐）</el-radio
+          ><el-radio value="new">新增专用应用</el-radio></el-radio-group
         >
         <el-form label-position="top" class="onboarding-form">
           <el-form-item
@@ -302,7 +366,8 @@ function reset() {
             />
             <p class="help">
               服务器仅保存哈希，无法取回旧
-              Key。不知道原值时，请使用专用新身份；不会自动重置。
+              Key。不知道原值时，请到该应用管理页正常轮换；导出不会自动换 Key
+              或复制身份。
             </p></el-form-item
           >
         </el-form>
@@ -326,7 +391,9 @@ function reset() {
           ><el-descriptions-item label="接入方式">{{
             transport === "remote"
               ? "远程 MCP · 需要 OAuth 授权"
-              : "本机 stdio · 需要 Python 3.12+"
+              : target === "http"
+                ? "HTTP 业务系统 · 私有配置"
+                : "本机 stdio · 需要 Python 3.12+"
           }}</el-descriptions-item
           ><el-descriptions-item label="客户端身份">{{
             credentialMode === "new"
@@ -337,8 +404,14 @@ function reset() {
             selectedBot?.name
           }}</el-descriptions-item
           ><el-descriptions-item label="包内内容"
-            >Skill、连接说明、安装步骤、MCP 配置{{
-              transport === "local" ? "、适配器与私有 Key" : ""
+            >{{
+              target === "http"
+                ? "HTTP 示例、OpenAPI、连接说明及私有配置"
+                : "Skill、连接说明、安装步骤、MCP 配置"
+            }}{{
+              transport === "local" && target !== "http"
+                ? "、适配器与私有 Key"
+                : ""
             }}</el-descriptions-item
           ></el-descriptions
         >
@@ -361,21 +434,41 @@ function reset() {
       </template>
       <template v-else
         ><h3>接入包已生成</h3>
-        <p>
-          解压后先读 <code>START-HERE.md</code>，安装细节在插件目录的
-          <code>INSTALL.md</code>。
-        </p>
-        <el-timeline
-          ><el-timeline-item
-            >连接检查：调用 getCallerIdentity，核对身份与授权
-            Bot，不发送消息。</el-timeline-item
-          ><el-timeline-item
-            >通知检查：用户明确确认后，登记当前会话、dry_run，再发送测试消息并核对真人收件。</el-timeline-item
-          ><el-timeline-item
-            >回复检查：在对应 Bot 回复，再用 getMessages
-            读取；自动唤醒需要额外配置。</el-timeline-item
-          ></el-timeline
+        <template v-if="target === 'http'"
+          ><p>
+            解压后先读 START-HERE.md 和 notify-bridge-http/README.md，无需安装
+            MCP 或插件。
+          </p>
+          <el-timeline
+            ><el-timeline-item
+              >GET /api/status
+              核对应用身份与授权；读取包内私有配置，不在日志打印
+              Key。</el-timeline-item
+            ><el-timeline-item
+              >按固定业务事件登记会话，用原键发送通知并查询投递回执。</el-timeline-item
+            ><el-timeline-item
+              >按会话读取 /api/inbox，显式 claim，再 report
+              实际处理结果并继续回复。</el-timeline-item
+            ></el-timeline
+          ></template
         >
+        <template v-else
+          ><p>
+            解压后先读 <code>START-HERE.md</code>，安装细节在插件目录的
+            <code>INSTALL.md</code>。
+          </p>
+          <el-timeline
+            ><el-timeline-item
+              >连接检查：调用 getCallerIdentity，核对身份与授权
+              Bot，不发送消息。</el-timeline-item
+            ><el-timeline-item
+              >通知检查：用户明确确认后，登记当前会话、dry_run，再发送测试消息并核对真人收件。</el-timeline-item
+            ><el-timeline-item
+              >回复检查：在对应 Bot 回复，再用 getMessages
+              读取；自动唤醒需要额外配置。</el-timeline-item
+            ></el-timeline
+          >
+        </template>
         <el-button
           :disabled="!savedUrl"
           @click="
@@ -384,8 +477,8 @@ function reset() {
           >重新下载同一份包</el-button
         ><el-button text @click="tab = 'manual'">查看完整配置说明</el-button>
         <p class="help">
-          文件仅在本页内存中保留；离开后不能从服务器取回这份新
-          Key。安装包本身不代表已经连通。
+          文件仅在本页内存中保留；服务器不能反查 Key
+          原值。生成包不改变已有应用或 Key，也不代表已经连通。
         </p>
       </template>
     </div>
@@ -451,7 +544,11 @@ function reset() {
       >
     </div>
     <el-tabs v-model="reference"
-      ><el-tab-pane label="接入指南" name="guide" /><el-tab-pane
+      ><el-tab-pane label="部署与恢复" name="operations" /><el-tab-pane
+        label="AI 宿主接入"
+        name="ai" /><el-tab-pane
+        label="HTTP 业务闭环"
+        name="http" /><el-tab-pane label="接入指南" name="guide" /><el-tab-pane
         label="HTTP 接口"
         name="api" /><el-tab-pane label="任务卡片" name="cards" /></el-tabs
     ><Markdown
@@ -464,6 +561,14 @@ function reset() {
   /></el-card>
 </template>
 <style scoped>
+.delivery-paths {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 680px) {
+  .delivery-paths {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .developer-intro {
   margin-bottom: 20px;
 }

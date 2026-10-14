@@ -16,13 +16,14 @@ class ExportRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     kind: Literal["configured", "template", "rules"] = "configured"
     transport: Literal["local", "remote"] = "remote"
-    target: Literal["codex", "chatgpt", "generic"] = "codex"
+    target: Literal["codex", "claude", "http", "chatgpt", "generic"] = "codex"
     credential_mode: Literal["existing", "new"] = "existing"
     client_id: str = Field(default="", max_length=64)
     client_name: str = Field(default="", max_length=32)
     bot_id: str = Field(default="", max_length=64)
     api_key: SecretStr = Field(default=SecretStr(""), max_length=256)
     private_ack: bool = False
+    key_format: Literal["legacy", "nb"] = "legacy"
 
 
 def mount_onboarding(app, authorize_admin):
@@ -46,6 +47,8 @@ def mount_onboarding(app, authorize_admin):
     async def export(body: ExportRequest):
         base, oauth = public_base(), oauth_base()
         if body.kind != "rules":
+            if body.target == "http" and body.transport != "local":
+                raise HTTPException(422, "http_requires_local_config")
             if not base:
                 raise HTTPException(409, "public_base_not_configured")
             if body.target == "chatgpt" and body.transport != "remote":
@@ -68,7 +71,9 @@ def mount_onboarding(app, authorize_admin):
                     if not bot["enabled"]:
                         raise HTTPException(409, "bot_disabled")
                     if body.credential_mode == "new":
-                        client, issued = store.clients.create(body.client_name)
+                        client, issued = store.clients.create(
+                            body.client_name, modern=body.key_format == "nb"
+                        )
                         store.bots.set_grants(client["id"], [bot["id"]], bot["id"])
                         key = issued if body.transport == "local" else None
                     else:

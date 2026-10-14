@@ -35,6 +35,13 @@ def build(root=ROOT, *, check=False):
     expected["INSTALL.md"] = (
         (root / "docs/integration/CLIENT-SETUP.md").read_text(encoding="utf-8").encode("utf-8")
     )
+    for destination, source in {
+        "http-client.py": "examples/python/notify_bridge.py",
+        "http-api.json": "server/openapi.json",
+        "HTTP-INTEGRATION.md": "docs/integration/HTTP.md",
+        "AI-HOSTS.md": "docs/integration/AI-HOSTS.md",
+    }.items():
+        expected[destination] = (root / source).read_text(encoding="utf-8").encode()
     output = root / "server/src/wechat_bridge/web/admin/onboarding-template.zip"
     if check:
         try:

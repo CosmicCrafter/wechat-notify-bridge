@@ -11,7 +11,7 @@ def test_draft_reload_isolation_expiry_quota_and_logout():
         pytest.skip('Node is required for the browser storage contract test')
     script = r'''
 const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
-const source=fs.readFileSync(process.argv[1],'utf8').replace('export const browserDrafts', 'const browserDrafts');const data=new Map();let fail=false;
+const source=fs.readFileSync(process.argv[1],'utf8').replace('export const browserDrafts', 'const browserDrafts').replace('export function createDrafts','function createDrafts');const data=new Map();let fail=false;
 const storage={getItem:k=>data.get(k)||null,setItem:(k,v)=>{if(fail)throw Error('quota');data.set(k,v);},removeItem:k=>data.delete(k)};
 function browser(){const ctx=vm.createContext({localStorage:storage,Date});vm.runInContext(source+';this.d=browserDrafts',ctx);return ctx.d;}
 let a=browser();a.open('owner-A');a.set('reply:one',{text:'草稿',pending:{request_id:'same-stable-request',text:'草稿',attachment_ids:['uploaded-image']}});

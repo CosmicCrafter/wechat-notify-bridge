@@ -32,7 +32,24 @@ def package(files, *, kind, transport, target, base_url, mcp_url, client=None, b
         "platform": bot["platform"] if bot else None,
         "authorization": "Server grants are authoritative; profile preferences do not grant access.",
     }
-    if kind == "rules":
+    if target == "http" and kind != "rules":
+        root = "notify-bridge-http"
+        entries = {
+            "CONNECTION.json": json_bytes(profile),
+            "notify_bridge.py": files["http-client.py"],
+            "openapi.json": files["http-api.json"],
+            "README.md": files["HTTP-INTEGRATION.md"],
+            ".gitignore": b".private/\n.venv/\n",
+        }
+        entries[".private/client.json"] = json_bytes(
+            {
+                "base_url": base_url,
+                "api_key": key or "CONFIGURE_SEPARATELY",
+                "default_bot_id": bot["id"] if bot else "",
+            }
+        )
+        intro = "# HTTP 系统接入包\n\n先阅读 notify-bridge-http/README.md。只需 HTTP 客户端，不启动内部 Agent。私有配置包含 Key，请妥善保管；不提交仓库、不粘贴到 AI 对话。\n"
+    elif kind == "rules":
         entries = {n: b for n, b in files.items() if n.startswith("skills/")}
         entries["INSTALL.md"] = files["INSTALL.md"]
         root = "notify-bridge-rules"
@@ -70,6 +87,32 @@ def package(files, *, kind, transport, target, base_url, mcp_url, client=None, b
             }
         )
         files[".mcp.json"] = json_bytes({"mcpServers": {"wechat-notify": legacy}})
+        if transport == "local":
+            files["codex-config.toml.example"] = (
+                b'[mcp_servers.notify_bridge]\ncommand = "/ABSOLUTE/PATH/python"\nargs = ["/ABSOLUTE/PATH/package/server/http_bridge.py"]\n\n[mcp_servers.notify_bridge.env]\nPYTHONUTF8 = "1"\nWECHAT_NOTIFY_CREDENTIAL_FILE = "/ABSOLUTE/PATH/package/.private/client.json"\n'
+            )
+            files["claude-mcp.json.example"] = json_bytes(
+                {
+                    "mcpServers": {
+                        "notify-bridge": {
+                            "type": "stdio",
+                            "command": "${NOTIFY_BRIDGE_PYTHON}",
+                            "args": ["${NOTIFY_BRIDGE_LAUNCH_SCRIPT}"],
+                            "env": {
+                                "PYTHONUTF8": "1",
+                                "WECHAT_NOTIFY_CREDENTIAL_FILE": "${NOTIFY_BRIDGE_CREDENTIAL_FILE}",
+                            },
+                        }
+                    }
+                }
+            )
+        else:
+            files["codex-config.toml.example"] = (
+                "[mcp_servers.notify_bridge]\nurl = " + json.dumps(mcp_url) + "\n"
+            ).encode()
+            files["claude-mcp.json.example"] = json_bytes(
+                {"mcpServers": {"notify-bridge": {"type": "http", "url": mcp_url}}}
+            )
         files["CONNECTION.json"] = json_bytes(profile)
         files["skills/wechat-notify/references/connection-profile.json"] = json_bytes(profile)
         skill = files["skills/wechat-notify/SKILL.md"].decode("utf-8")
@@ -99,6 +142,7 @@ def package(files, *, kind, transport, target, base_url, mcp_url, client=None, b
             archive.writestr(info, content)
         if kind != "rules":
             archive.writestr("START-HERE.md", intro)
+        if kind != "rules" and target != "http":
             archive.writestr(
                 ".agents/plugins/marketplace.json",
                 json_bytes(

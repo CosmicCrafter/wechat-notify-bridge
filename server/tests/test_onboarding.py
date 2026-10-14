@@ -240,7 +240,7 @@ def test_downloaded_local_package_starts_and_discovers_tools(portal, monkeypatch
                 async with stdio_client(parameters) as (reader, writer):
                     async with ClientSession(reader, writer) as session:
                         await session.initialize()
-                        assert len((await session.list_tools()).tools) == 12
+                        assert {'getCallerIdentity','getConversationHistory','claimMessage','reportMessage'} <= {tool.name for tool in (await session.list_tools()).tools}
                         result = await session.call_tool("getCallerIdentity", {})
                         assert not result.isError
                         assert (

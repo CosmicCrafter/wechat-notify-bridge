@@ -36,6 +36,9 @@ def contents(root):
             "setup": "docs/integration/CLIENT-SETUP.md",
             "api": "docs/server/API.md",
             "cards": "docs/server/TASK-CARDS.md",
+            "operations": "docs/product-v3/OPERATIONS.md",
+            "ai": "docs/integration/AI-HOSTS.md",
+            "http": "docs/integration/HTTP.md",
         }.items()
     }
     return entries, json.dumps(docs, ensure_ascii=False).encode("utf-8")

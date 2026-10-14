@@ -1,4 +1,5 @@
 export const errors = {
+  http_requires_local_config: "HTTP 系统使用私有 HTTP 配置，无需远程 MCP。",
   admin_password_required:
     "修复最后恢复连接需要当前管理密码，并在修复后重新验证。",
   admin_not_initialized: "请先使用原管理 Key 建立管理员账号。",

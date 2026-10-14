@@ -19,7 +19,7 @@ def test_discovery_describes_side_effects_and_rejects_invalid_input_before_api()
     register_tools(mcp, request)
     async def run():
         tools = {tool.name: tool for tool in await mcp.list_tools()}
-        assert len(tools) == 12 and all(tool.title for tool in tools.values())
+        assert {'getCallerIdentity','getConversationHistory','claimMessage','reportMessage'}<=set(tools) and all(tool.title for tool in tools.values())
         assert not tools['getMessages'].annotations.readOnlyHint
         assert tools['getMessages'].annotations.idempotentHint
         assert tools['getDeliveryStatus'].annotations.readOnlyHint

@@ -6,7 +6,7 @@
 
 1.15.0 起，发送与查回执接受 `bot_id`，按当前 Key 的授权列表路由。`GET /api/status` 返回允许的 Bot 和默认 Bot；原 Key 仍默认使用原微信连接。完整规则见 [多 Bot 与 Key 授权](BOTS.md)。`channel` 是可选平台过滤条件，不能代替多个同平台 Bot 的明确选择。
 
-下表除 `/health` 外的消息 API 需要 `Authorization: Bearer <API_KEY>`。收件人由服务器绑定确定，请求不能指定其他收件人。网页管理使用独立管理员密钥，不能用消息 API 密钥代替。
+下表除 `/health` 外的消息 API 需要 `Authorization: Bearer <API_KEY>`。新 nb_ 与旧数字 Key 均为字符串。收件人由服务器绑定确定，请求不能指定其他收件人。管理端使用独立账号 Cookie/CSRF；旧管理 Key 只在受控迁移期兼容，应用 Key 不能代替管理身份。
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
@@ -16,9 +16,14 @@
 | POST | /api/notifications | 发送任务提醒 |
 | GET | /api/deliveries?dedup_key=... | 查询发送记录 |
 | GET | /api/inbox?after_id=0&limit=20 | 按游标读取微信、飞书及网页回复 |
+| GET | /api/conversations/{id}/history | 本应用完整已记录共享历史，单 before/after/around 游标，不改变手机已读 |
+| POST | /api/inbox/{id}/claim | 显式领取所属应用消息，固定 request_id |
+| POST | /api/inbox/{id}/report | 持 claim_id、固定报告 request_id，报告 processing/completed/failed |
 | GET | /openapi.json | 当前配置对应的 OpenAPI |
 
 ## 普通消息
+
+v0.3 新增：读取只标 client_read，不等于领取或执行；claim 返回 claim_id，report 终态不可降级、重放须同键同内容。结果是应用报告。管理员主动新建会话的首条消息和回复 source=admin，与手机/原应用共享同一记录。参考 [完整 HTTP 业务闭环](../integration/HTTP.md)。Feishu not_sent 且保存未开始消息请求的证据时才允许保持原参数附 retry_preparation:true；未知、已接收和缺历史不支持重试。
 
 ```json
 {

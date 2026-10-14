@@ -16,7 +16,7 @@
 
 本机已配置包额外包含 `.private/client.json`，其中有真实 Key。整个 ZIP 和解压目录都属于私有文件，不上传公开仓库，不作为附件发给 AI，不让 AI 阅读这个私有文件。Skill 正文不含 Key。分享给另一位用户或另一台机器，建议生成另一把独立 Key。
 
-服务器只存已有 Key 的哈希，不能从身份列表还原原值。使用已有身份生成本机包时，管理员需在管理页输入原 Key 校验；不知道原 Key 时应新建专用身份，不能为了下载包偷偷重置旧 Key。
+服务器只存 Key 的哈希，不能还原原值。基于已有应用导出时，在管理页输入有效 Key 校验；丢失原值到原应用正常轮换，不为同一种导出另建重复身份。导出不自动换 Key。
 
 “生成专用身份”只授权所选的一个 Bot，并将它设为默认。选择已有身份不会改变其授权：默认 Bot 仅影响省略 bot_id 时的路由；该身份的其他既有权限仍然有效。
 
@@ -24,7 +24,7 @@
 
 1. 将 ZIP 解压到长期保留、仅自己可访问的目录。不要只在压缩软件里双击运行，也不要放在会自动公开同步的目录。
 2. 在插件目录（包含 INSTALL.md、requirements.txt 的目录）打开终端，检查 `python --version` 为 3.12 或更新版本。
-3. 运行 `python tools/configure_client.py --prepare`。该命令创建包内 `.venv`，安装依赖，设置私有配置中的解释器路径，生成 `mcp-client.json`；不会自动改宿主配置，也不发送消息。
+3. 运行 `python tools/configure_client.py --prepare`。该命令创建包内 `.venv`，安装原 requirements，设置解释器，生成 `mcp-client.json`、`claude-mcp.json` 与 `codex-config.toml`；不会改全局宿主配置或发送消息。
 4. Windows 若 `python` 不存在，可先使用 `py -3.12 tools/configure_client.py --prepare`。macOS/Linux 可使用已安装的 `python3`。必须先由用户安装 Python，包内不捆绑解释器。
 5. 包移动到其他目录后重新运行配置工具，以刷新绝对路径。不要把 Windows 的 `.venv` 直接复制到 macOS/Linux。
 
@@ -66,7 +66,7 @@ Codex MCP 官方说明：https://developers.openai.com/codex/mcp 。上述 CLI �
 
 ## 远程 OAuth 授权
 
-打开宿主发起的授权页，使用通知桥一次性登录码登录，选择 CONNECTION.json 中期望的客户端身份并确认授权。登录码可在管理页“会话登录”生成；使用微信时也可发送 `/web`。纯飞书部署不需要先绑定微信。不要将登录码或令牌粘贴到 AI 聊天。
+打开宿主授权页，用通知桥一次性手机登录码登录，选择 CONNECTION.json 中的应用并确认授权。管理端“系统设置→手机端登录”生成该码；微信也可发 `/web`。纯飞书不需要先绑定微信。手机码和管理密码独立，不将码或令牌粘贴到 AI 聊天。
 
 OAuth 由用户操作完成，ZIP 不会绕过授权，也不能静默替用户选择身份。完成后调用 getCallerIdentity，核对 client_id、授权 Bot 和默认 Bot；不一致时停止发送，重新选择正确身份。一个包的默认 Bot 说明不能代替服务端 Key 授权。
 

@@ -70,6 +70,23 @@ class NotifyBridge:
             query=dict(conversation_id=conversation_id, after_id=after_id, limit=20),
         )
 
+    def history(self, conversation_id, **cursor):
+        return self.request(
+            "GET", "/api/conversations/" + conversation_id + "/history", query=cursor
+        )
+
+    def claim(self, inbox_id, request_id):
+        return self.request(
+            "POST", "/api/inbox/" + str(inbox_id) + "/claim", body={"request_id": request_id}
+        )
+
+    def report(self, inbox_id, claim_id, request_id, status, result=""):
+        return self.request(
+            "POST",
+            "/api/inbox/" + str(inbox_id) + "/report",
+            body=dict(claim_id=claim_id, request_id=request_id, status=status, result=result),
+        )
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

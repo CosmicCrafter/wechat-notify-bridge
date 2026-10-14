@@ -39,6 +39,8 @@ SUFFIXES = {
     ".conf",
 }
 TOP_FILES = (
+    "AGENTS.md",
+    "CLAUDE.md",
     "pyproject.toml",
     "CONTRIBUTING.md",
     "SECURITY.md",

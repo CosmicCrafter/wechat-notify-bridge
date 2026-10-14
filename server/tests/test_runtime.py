@@ -67,7 +67,9 @@ def test_failed_startup_releases_acquired_resources(monkeypatch):
     monkeypatch.setattr(lifecycle,'Pairing',Pairing)
     monkeypatch.setattr(lifecycle,'Channels',Channels)
     monkeypatch.setattr(lifecycle,'ProxyManager',Proxy)
-    bridge = SimpleNamespace(store=SimpleNamespace(clients=SimpleNamespace(seed=lambda _:None)))
+    for name in ('AdminAccounts','AdminConversations','AdminRecovery','ConnectionTests'):
+        monkeypatch.setattr(lifecycle,name,lambda *a,**k:SimpleNamespace())
+    bridge = SimpleNamespace(store=SimpleNamespace(db=None,clients=SimpleNamespace(seed=lambda _:None)))
     app = SimpleNamespace(state=SimpleNamespace())
     async def run():
         with pytest.raises(RuntimeError,match='startup failed'):

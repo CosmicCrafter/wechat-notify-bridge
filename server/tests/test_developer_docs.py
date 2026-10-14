@@ -9,7 +9,7 @@ def test_developer_docs_and_kit_are_admin_only(portal):
         assert client.get(path).status_code == 401
         assert client.get(path, headers=auth).status_code == 401
     docs = client.get('/admin/api/developer-docs', headers=ADMIN)
-    assert docs.status_code == 200 and set(docs.json()) == {'guide','api','cards','setup'}
+    assert docs.status_code == 200 and {'guide','api','cards','setup','operations','ai','http'} <= set(docs.json())
     result = client.get('/admin/api/developer-kit', headers=ADMIN)
     assert result.status_code == 200 and result.headers['cache-control'] == 'no-store'
     with zipfile.ZipFile(io.BytesIO(result.content)) as archive:

@@ -6,6 +6,7 @@ from wechat_bridge.channels.drivers import BUILTIN_DRIVERS
 from wechat_bridge.channels.registry import DEFAULT, FEISHU_DEFAULT
 from wechat_bridge.wechat.pairing import Pairing
 import asyncio
+from wechat_bridge.services.notification_routing import NotificationRouting
 
 
 class Channels:
@@ -17,6 +18,7 @@ class Channels:
         self.adapters = {DEFAULT: bridge}
         self.pairings = {DEFAULT: pairing or Pairing(bridge, run_workers=run_workers)}
         self.starts = {}
+        self.notifications = NotificationRouting(self)
 
     @property
     def feishu(self):
@@ -42,6 +44,10 @@ class Channels:
         return self.pairings[bot_id]
 
     async def send(self, channel=None, bot_id=None, **kwargs):
+        level = kwargs.pop("level", "info")
+        return await self.notifications.send(channel, bot_id, level, kwargs)
+
+    async def raw_send(self, channel=None, bot_id=None, **kwargs):
         bot = self.registry.select(kwargs["identity"], bot_id, channel)
         if kwargs.get("retry_preparation") and bot["platform"] != "feishu":
             raise BridgeError(409, "delivery_retry_unsafe")
@@ -49,6 +55,12 @@ class Channels:
         return dict(result, bot_id=bot["id"], channel=bot["platform"])
 
     def delivery(self, channel, key, caller, cid, bot_id=None):
+        saved = self.notifications.receipt(caller, cid, key, bot_id, channel)
+        if saved:
+            return saved
+        return self.raw_delivery(channel, key, caller, cid, bot_id)
+
+    def raw_delivery(self, channel, key, caller, cid, bot_id=None):
         bot = self.registry.select(caller, bot_id, channel, sending=False)
         adapter = self.adapter(bot["id"])
         result = self.drivers[bot["platform"]].delivery(adapter, key, caller, cid)

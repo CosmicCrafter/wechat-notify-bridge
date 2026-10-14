@@ -18,6 +18,7 @@ from wechat_bridge.api.proxy import mount_proxy
 from wechat_bridge.api.receivers import mount_receivers
 from wechat_bridge.api.inbound_routes import mount_inbound_routes
 from wechat_bridge.api.lifecycle import mount_lifecycle
+from wechat_bridge.api.notification_routes import mount_notification_routes
 from wechat_bridge.mcp.server import mount_remote_mcp
 
 
@@ -65,6 +66,7 @@ def create_app(
     mount_receivers(app, authorize, authorize_admin)
     mount_inbound_routes(app, authorize_admin)
     mount_lifecycle(app, authorize, authorize_admin)
+    mount_notification_routes(app, authorize_admin)
 
     @app.get("/health")
     def health():

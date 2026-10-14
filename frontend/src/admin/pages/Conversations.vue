@@ -12,6 +12,7 @@ import { ElMessageBox, ElMessage } from "element-plus";
 import { api, run, session, adminDrafts } from "../session.js";
 import ConversationThread from "../../shared/ConversationThread.vue";
 import ReceiverPanel from "../components/ReceiverPanel.vue";
+import NotificationPolicy from "../components/NotificationPolicy.vue";
 import UnassignedReplies from "../components/UnassignedReplies.vue";
 import { preparePhoto } from "../../chat/images.js";
 import { date } from "../../shared/format.js";
@@ -30,7 +31,8 @@ const reply = ref(""),
   attachments = ref([]),
   creating = ref(false),
   newPending = ref(null);
-const receiverPanel = ref();
+const receiverPanel = ref(),
+  notificationPolicy = ref();
 const draft = reactive({
   client_id: "",
   name: "",
@@ -363,6 +365,10 @@ async function manage(kind) {
     await fresh();
     return;
   }
+  if (kind === "notifications") {
+    notificationPolicy.value.open();
+    return;
+  }
   if (kind === "receiver") {
     receiverPanel.value.open();
     return;
@@ -511,7 +517,13 @@ onBeforeUnmount(() => {
             <strong>{{ c.pinned ? "置顶 · " : "" }}{{ c.name }}</strong
             ><small
               >{{ c.caller }} ·
-              {{ c.active ? "可沟通" : "已归档 / 应用停用" }}</small
+              {{
+                c.active
+                  ? c.archived
+                    ? "已归档 · 通信继续"
+                    : "可沟通"
+                  : "当前不可沟通 · 历史保留"
+              }}</small
             >
             <p>{{ c.last_message?.text?.slice(0, 90) || "暂无已记录消息" }}</p>
           </button>
@@ -607,6 +619,9 @@ onBeforeUnmount(() => {
                   ><el-dropdown-item command="receiver"
                     >接收绑定与权限</el-dropdown-item
                   >
+                  <el-dropdown-item command="notifications"
+                    >通知偏好</el-dropdown-item
+                  >
                   <el-dropdown-item command="archive">{{
                     history.conversation.archived ? "取消归档" : "归档会话"
                   }}</el-dropdown-item>
@@ -630,6 +645,12 @@ onBeforeUnmount(() => {
       </section>
     </div></el-card
   >
+  <NotificationPolicy
+    v-if="cid"
+    ref="notificationPolicy"
+    :cid="cid"
+    @updated="fresh"
+  />
   <ReceiverPanel v-if="cid" ref="receiverPanel" :cid="cid" @updated="fresh" />
   <el-dialog
     v-model="creating"

@@ -1486,6 +1486,16 @@
             "title": "Retry Preparation",
             "default": false
           },
+          "level": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "urgent"
+            ],
+            "title": "Level",
+            "default": "info"
+          },
           "conversation_id": {
             "anyOf": [
               {
@@ -1831,6 +1841,16 @@
             "type": "boolean",
             "title": "Dry Run",
             "default": false
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "urgent"
+            ],
+            "title": "Level",
+            "default": "warning"
           },
           "channel": {
             "anyOf": [

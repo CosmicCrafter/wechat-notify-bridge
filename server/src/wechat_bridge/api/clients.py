@@ -228,6 +228,7 @@ def mount_client_api(app, authorize):
         channel,
         bot_id,
         retry_preparation=False,
+        level="info",
     ):
         try:
             return await app.state.channels.send(
@@ -240,6 +241,7 @@ def mount_client_api(app, authorize):
                 dry_run=dry_run,
                 identity=caller,
                 conversation_id=conversation_id,
+                level=level,
                 **({"retry_preparation": True} if retry_preparation else {}),
             )
         except ClientError:
@@ -264,6 +266,7 @@ def mount_client_api(app, authorize):
             body.channel,
             body.bot_id,
             body.retry_preparation,
+            body.level,
         )
 
     @app.post("/api/notifications")
@@ -279,6 +282,7 @@ def mount_client_api(app, authorize):
             body.conversation_id,
             body.channel,
             body.bot_id,
+            level=body.level,
         )
 
     @app.post("/api/task-cards")
@@ -296,6 +300,7 @@ def mount_client_api(app, authorize):
             identity=caller,
             conversation_id=body.conversation_id,
             task_card=definition,
+            level=body.level,
         )
 
     @app.get("/api/conversations/{conversation_id}/tasks/{task_id}")

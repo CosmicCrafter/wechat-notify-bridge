@@ -43,6 +43,7 @@ export const deliveryLabels = {
   processing: "应用已报告处理中",
   completed: "应用已报告完成",
   failed: "应用已报告失败",
+  muted: "已记录 · 普通提醒静音",
   not_sent: "准备失败，未发送",
   attempting: "已保存 · 通道发送结果待确认",
   api_accepted: "通道接口已接受",

@@ -40,6 +40,7 @@ def build(root=ROOT, *, check=False):
         "http-api.json": "server/openapi.json",
         "HTTP-INTEGRATION.md": "docs/integration/HTTP.md",
         "AI-HOSTS.md": "docs/integration/AI-HOSTS.md",
+        "F02-RECEIVERS.md": "docs/integration/RECEIVERS.md",
     }.items():
         expected[destination] = (root / source).read_text(encoding="utf-8").encode()
     output = root / "server/src/wechat_bridge/web/admin/onboarding-template.zip"

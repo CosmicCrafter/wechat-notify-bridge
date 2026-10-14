@@ -1,4 +1,6 @@
 export const deliveryStates = {
+  muted: ["已记录，普通提醒静音", "info"],
+  dry_run_ready: ["检查通过，未发送", "info"],
   api_accepted: ["平台已接收", "success"],
   no_error_reported: ["平台未报告错误", "success"],
   api_rejected: ["平台拒绝", "danger"],

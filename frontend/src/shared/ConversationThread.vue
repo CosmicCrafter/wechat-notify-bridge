@@ -65,7 +65,7 @@ const subtitle = computed(() =>
     : props.conversation?.archived
       ? props.canReply
         ? "已归档 · 通信继续"
-        : "旧版已停用 · 历史保留"
+        : "已归档 · 当前不可回复"
       : props.conversation && !props.canReply
         ? "当前不可回复 · 历史记录仍可查看"
         : "消息、回复与任务 · 两端共享已记录历史",
@@ -329,7 +329,7 @@ watch(
         <p class="help">
           {{
             !canReply
-              ? "会话已归档、应用已停用或暂无有效接收凭据，历史仍可查看。"
+              ? "通信已关闭、应用已停用或暂无有效接收凭据，历史仍可查看。"
               : pending
                 ? "提交结果待确认，重试复用原请求，不重复提交。"
                 : "消息保存到当前会话，等待所属应用领取与回复。"

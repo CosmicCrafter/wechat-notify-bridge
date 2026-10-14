@@ -306,6 +306,7 @@ def register_tools(mcp, request):
         channel: Channel | None = None,
         bot_id: BotId | None = None,
         retry_preparation: bool = False,
+        level: Literal["info", "warning", "urgent"] = "info",
     ) -> dict:
         """Send authorized Markdown text through an allowed bot_id. Omit it only to use this key's configured default bot.
         Discover IDs with getCallerIdentity; never guess IDs or change to another bot to bypass rejection.
@@ -318,6 +319,8 @@ def register_tools(mcp, request):
         dry_run=True sends nothing. API acceptance is not phone receipt; inspect status even on duplicate=true.
         retry_preparation=True is explicit and only allowed for Feishu not_sent with recorded proof that message POST never started.
         Keep every original parameter; unknown sends, missing history or changed destinations cannot be retried.
+        urgent requires owner authorization and rate limits; it does not guarantee phone sound.
+        If use_notification_policy is enabled in the private adapter config, omit bot_id/channel to use the server policy.
         The server manages the 12-hour inactivity heartbeat automatically; clients need no heartbeat timer."""
         payload = dict(
             text=text, dedup_key=dedup_key, dry_run=dry_run, conversation_id=conversation_id
@@ -328,6 +331,8 @@ def register_tools(mcp, request):
             payload["bot_id"] = bot_id
         if retry_preparation:
             payload["retry_preparation"] = True
+        if level != "info":
+            payload["level"] = level
         return await request("/api/messages", payload)
 
     @mcp.tool(title="发送任务提醒", annotations=SEND)
@@ -381,6 +386,7 @@ def register_tools(mcp, request):
         fields: Annotated[list[CardField], Field(max_length=5)] | None = None,
         channel: Channel | None = None,
         bot_id: BotId | None = None,
+        level: Literal["info", "warning", "urgent"] = "warning",
     ) -> dict:
         """Send an authorized, optional interaction card to the paired owner. Ordinary notices should use sendMessage/sendNotification.
         Default single: 2-8 exclusive options plus custom reply. Multiple: 2-8 options, min/max_choices and optional text.
@@ -424,6 +430,8 @@ def register_tools(mcp, request):
             payload["channel"] = channel
         if bot_id is not None:
             payload["bot_id"] = bot_id
+        if level != "warning":
+            payload["level"] = level
         return await request("/api/task-cards", payload)
 
     @mcp.tool(title="查询微信任务卡片", annotations=READ)

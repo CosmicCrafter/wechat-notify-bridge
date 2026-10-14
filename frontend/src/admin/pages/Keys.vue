@@ -2,6 +2,7 @@
 import { ref, computed } from "vue";
 import { ElMessageBox, ElMessage } from "element-plus";
 import GrantsForm from "../components/GrantsForm.vue";
+import NotificationPolicy from "../components/NotificationPolicy.vue";
 import { session, api, run, refresh, botName, copy } from "../session.js";
 import { date } from "../../shared/format.js";
 const creating = ref(false),
@@ -17,6 +18,7 @@ const creating = ref(false),
 const client = computed(() =>
   session.clients.find((c) => c.id === selected.value),
 );
+const notificationPolicy = ref();
 const clients = computed(() =>
   session.clients.filter((c) => c.name.includes(q.value.trim())),
 );
@@ -295,6 +297,15 @@ function closeIssued() {
             }}
           </p>
           <el-button @click="editGrants">编辑授权</el-button></el-tab-pane
+        ><el-tab-pane label="通知分流" name="notifications">
+          <h3>普通与紧急提醒</h3>
+          <p class="help">
+            为未指定目标的通知选择默认连接，按会话设置偏好，并单独授权紧急飞书
+            B。
+          </p>
+          <el-button @click="notificationPolicy.open()"
+            >配置通知分流</el-button
+          > </el-tab-pane
         ><el-tab-pane label="接入资料" name="exports"
           ><h3>为这个应用导出配置</h3>
           <p class="help">
@@ -428,4 +439,9 @@ function closeIssued() {
       ></template
     ></el-dialog
   >
+  <NotificationPolicy
+    v-if="client"
+    ref="notificationPolicy"
+    :client-id="client.id"
+  />
 </template>

@@ -6,6 +6,11 @@ import httpx
 
 SEND_PATHS = {"/api/messages", "/api/notifications", "/api/task-cards"}
 DETAILS = {
+    "urgent_not_authorized": "Urgent delivery requires explicit owner authorization. Do not switch bots to bypass it.",
+    "urgent_rate_limited": "Urgent delivery is rate limited. Wait and keep the event dedup key; do not fan out.",
+    "receiver_required": "This protected conversation needs an independently paired private receiver file. A shared app Key is insufficient.",
+    "receiver_expired": "Ask the owner to renew the receiver binding; never borrow another conversation capability.",
+    "inbox_claim_expired": "The lease expired. Reclaim before work and use the new generation; do not report with a stale claim.",
     "inbox_already_claimed": "This item already has another explicit claim. Read its processing state; do not pretend it was claimed here.",
     "inbox_claim_required": "Explicitly claim the assigned inbox item before reporting processing.",
     "inbox_processing_final": "The item has a final report; it cannot be downgraded or overwritten.",

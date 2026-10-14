@@ -52,7 +52,7 @@ http_bridge.mcp.run(transport='stdio')
                     names={tool.name for tool in (await session.list_tools()).tools}
                     assert names=={'getCallerIdentity','getDeliveryStatus','getMessages','sendMessage','sendNotification',
                                    'registerConversation','listConversations','setConversationActive','getImage',
-                                   'sendTaskCard','getTaskCard','updateTaskCard','getConversationHistory','claimMessage','reportMessage'}
+                                   'sendTaskCard','getTaskCard','updateTaskCard','getConversationHistory','claimMessage','reportMessage','renewMessageClaim','getConversationLifecycle','reportMonitorState'}
                     feishu=await session.call_tool('sendMessage',{'text':'test','dedup_key':'feishu-key','dry_run':True,
                         'conversation_id':'one','channel':'feishu'})
                     assert not feishu.isError and json.loads(feishu.content[0].text)['channel']=='feishu'

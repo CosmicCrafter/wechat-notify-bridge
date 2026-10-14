@@ -24,3 +24,11 @@
 连接失败、限流、准备失败、平台拒绝和发送结果未知分别处理。只在明确 Feishu not_sent、消息请求未开始、请求快照完整时，原 /api/messages 参数可附加 retry_preparation:true 显式重试准备步骤。保持原键、正文、会话、连接和任务；未知或已接收结果不支持此重试。
 
 未授权连接返回 403，应用/Key 停用或过期返回 401，原会话不匹配返回 404/409。不要换别人的 Key 绕过失败。应用 Key 轮换和独立 OAuth 分开管理；整个应用停用会同时阻止两者。
+
+## F02 受保护会话
+
+同一应用 Key 可创建多个会话。POST /api/conversations 增加 receiver_mode:protected 和 host_type:http，首次返回 receiver_setup；业务程序立即将其安全存到仅本进程可访问的私有配置，禁止记录响应正文。随后以 X-Notify-Receiver 提交 receiver_token，并 POST /api/receivers/verify 提交 challenge，验证后删除本地挑战。管理员创建则用私有配对文件 POST /api/receivers/exchange 获得 setup 再验证；同一注册键重试不重新签发秘密，丢失时由管理员换绑。
+
+后续读/发/history/task/claim/report 均带原应用认证与会话接收头。示例 NotifyBridge 构造可传 receiver_token；claim 返回 generation，report 用 generation=原值，lease 到期前 renew。不能把共享 Key 当作已验证 AI 聊天身份。详细说明见 F02-RECEIVERS.md（完整仓库为 docs/integration/RECEIVERS.md）。
+
+应用策略/会话偏好由管理员配置；未指定目标才允许路由，level=urgent 需授权并受间隔限制。显式目标不会覆盖。查询原策略请求回执时，bot_id/channel 仍省略，不因返回实际 B 而改变请求。muted 代表消息保存但没有普通平台发送；平台接收不等于鸣响或业务完成。

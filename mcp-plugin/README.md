@@ -62,24 +62,27 @@ python tools/build_local_plugin.py --output ../dist/wechat-notify-local.zip
 
 不同 AI 客户端设置不同私有配置路径，以免共享默认文件而被识别为同一个身份。密钥重置后更新配置，客户端改名无需换密钥。
 
-## 12 个工具
+## 18 个工具
 
 | 工具 | 行为 |
 | --- | --- |
 | getCallerIdentity | 查询服务端确认的身份、连接状态和心跳时间 |
 | registerConversation | 为当前聊天登记稳定 ID 与简称，不发微信 |
 | listConversations | 列出本身份下的会话；include_closed 包括归档 |
-| setConversationActive | 归档/恢复原会话；恢复同名冲突会失败 |
+| setConversationActive | 旧接口关闭/恢复通信；不是新 UI 的仅归档 |
 | sendMessage | 发送普通正文；dry_run 不发微信 |
 | sendNotification | 发送任务、情况、所需操作组成的提醒 |
 | getDeliveryStatus | 查询原去重键对应的发送结果 |
 | getMessages | 读取指定会话的微信/网页回复，并更新客户端已读状态 |
+| getConversationHistory | 分页查看完整已记录历史 |
+| claimMessage / renewMessageClaim / reportMessage | 明确领取、续期、按当前代际报告 |
+| getConversationLifecycle / reportMonitorState | 查询生命周期、执行端回报外部监控状态 |
 | getImage | 将附件作为真实图像内容交给支持图像的宿主 |
 | sendTaskCard | 发送选择、确认、输入或表单任务 |
 | getTaskCard | 查询任务答复与状态 |
 | updateTaskCard | 更新实际处理状态，并按通道同步卡片 |
 
-首次连接先查询身份，再登记当前聊天。保存 conversation_id；后续发送、读取和查回执都传入它。完整流程在 [Skill](skills/wechat-notify/SKILL.md)。同一密钥下的会话只有路由区分，不构成独立安全隔离。
+首次连接先查询身份，再登记当前聊天。保存 conversation_id；后续发送、读取和查回执都传入它。完整流程在 [Skill](skills/wechat-notify/SKILL.md)。legacy 会话只有路由区分；protected 需独立私有接收能力。能力持有不证明具体 AI 聊天身份。详见 [F02 接收说明](../docs/integration/RECEIVERS.md)。
 
 发送意图或明确任务通知规则是发送依据；安装不代表所有任务都可自动通知。API 接受不证明手机收件；发送超时保留原正文和去重键，先查回执，不盲目重发。图片当前支持从手机上传后由 AI 读取，不支持 AI 通过工具发图。
 
@@ -87,7 +90,7 @@ python tools/build_local_plugin.py --output ../dist/wechat-notify-local.zip
 
 桌面需要单独配置 [实验性接收器](DESKTOP-WAKE.md)，云端需要宿主支持并订阅事件。桌面内部接口不是稳定公开 API，接收器仍保留实验性定位。接入 MCP、读到消息和实际唤醒 AI 是三个不同结果。
 
-归档会话历史可读，但不能收发；有效会话不能同名。MCP 没有删除、改名或启用唤醒工具，不应让 AI 编造调用。
+新管理端/手机端归档只改变列表可见性，通信继续。旧 setConversationActive(false) 仍关闭通信；有效会话不能同名。MCP 没有删除、改名或启用唤醒工具，不应让 AI 编造调用。
 
 ## 开发与验证
 

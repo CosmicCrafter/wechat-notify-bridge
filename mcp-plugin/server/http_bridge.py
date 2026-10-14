@@ -76,12 +76,18 @@ async def request(path, payload=None, params=None):
     bot = config.get("default_bot_id")
     if (
         bot
+        and not config.get("use_notification_policy")
         and path in ("/api/messages", "/api/notifications", "/api/task-cards")
         and payload is not None
         and not payload.get("bot_id")
     ):
         payload = {**payload, "bot_id": bot}
-    if bot and path == "/api/deliveries" and not (params or {}).get("bot_id"):
+    if (
+        bot
+        and not config.get("use_notification_policy")
+        and path == "/api/deliveries"
+        and not (params or {}).get("bot_id")
+    ):
         params = {**(params or {}), "bot_id": bot}
     async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
         receiver = ReceiverSession(config)

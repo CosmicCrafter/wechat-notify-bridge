@@ -39,6 +39,7 @@ def package(files, *, kind, transport, target, base_url, mcp_url, client=None, b
             "notify_bridge.py": files["http-client.py"],
             "openapi.json": files["http-api.json"],
             "README.md": files["HTTP-INTEGRATION.md"],
+            "F02-RECEIVERS.md": files["F02-RECEIVERS.md"],
             ".gitignore": b".private/\n.venv/\n",
         }
         entries[".private/client.json"] = json_bytes(

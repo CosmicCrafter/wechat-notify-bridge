@@ -1,4 +1,9 @@
 export const errors = {
+  urgent_not_authorized: "此应用尚未获授权使用紧急连接。",
+  urgent_rate_limited: "紧急提醒过于频繁，请等待配置的间隔，不要换键重发。",
+  urgent_bot_required: "请先选择紧急飞书 B。",
+  urgent_bot_must_be_feishu: "紧急连接 B 必须是飞书。",
+  notification_targets_must_differ: "紧急 B 须与普通默认及备用连接不同。",
   external_stop_confirmation_required:
     "外部监控尚未确认停止，请先发送停止请求并等待执行方回执。",
   inbox_claim_expired:

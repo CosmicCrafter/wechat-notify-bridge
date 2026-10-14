@@ -4,6 +4,13 @@ import { api, run, session, botName } from "../session.js";
 import { date } from "../../shared/format.js";
 import { stateLabel, stateType } from "../delivery-state.js";
 import { ElMessageBox } from "element-plus";
+import NotificationRoutes from "../components/NotificationRoutes.vue";
+const tab = ref(
+  new URLSearchParams(location.hash.split("?")[1] || "").get("view") ===
+    "routes"
+    ? "routes"
+    : "platform",
+);
 const data = ref(null),
   status = ref(""),
   q = ref(""),
@@ -57,101 +64,109 @@ async function retry() {
 }
 </script>
 <template>
-  <el-card shadow="never"
-    ><form class="filters" @submit.prevent="load(true)">
-      <el-input
-        v-model="q"
-        placeholder="消息 ID、应用名称或去重标识"
-        aria-label="查找投递"
-        clearable
-      /><el-select
-        v-model="status"
-        placeholder="所有状态"
-        clearable
-        aria-label="投递状态"
-        ><el-option
-          v-for="s in [
-            'api_accepted',
-            'no_error_reported',
-            'api_rejected',
-            'not_sent',
-            'unconfirmed_do_not_retry',
-            'attempting',
-          ]"
-          :key="s"
-          :value="s"
-          :label="stateLabel(s)" /></el-select
-      ><el-select
-        v-model="client"
-        clearable
-        placeholder="所有应用"
-        aria-label="投递应用"
-        ><el-option
-          v-for="a in session.clients"
-          :key="a.id"
-          :value="a.id"
-          :label="a.name" /></el-select
-      ><el-select
-        v-model="bot"
-        clearable
-        placeholder="所有连接"
-        aria-label="投递连接"
-        ><el-option
-          v-for="b in session.bots"
-          :key="b.id"
-          :value="b.id"
-          :label="b.name" /></el-select
-      ><el-button native-type="submit" :loading="session.busy">查询</el-button>
-    </form>
-    <el-table
-      v-if="data"
-      :data="data.deliveries"
-      empty-text="没有匹配的投递记录"
-      ><el-table-column label="时间" min-width="160"
-        ><template #default="{ row }">{{
-          date(row.attempted_at)
-        }}</template></el-table-column
-      ><el-table-column
-        prop="caller"
-        label="来源应用"
-        min-width="120"
-      /><el-table-column label="通信连接" min-width="130"
-        ><template #default="{ row }">{{
-          botName(row.bot_id)
-        }}</template></el-table-column
-      ><el-table-column label="状态" min-width="210"
-        ><template #default="{ row }"
-          ><el-tag :type="stateType(row.status)">{{
-            stateLabel(row.status)
-          }}</el-tag></template
-        ></el-table-column
-      ><el-table-column label="操作" width="100"
-        ><template #default="{ row }"
-          ><el-button link type="primary" @click="selected = row"
-            >详情</el-button
-          ></template
-        ></el-table-column
-      ></el-table
-    ><el-skeleton v-else :rows="4" animated />
-    <div v-if="data" class="pagination">
-      <span class="help">共 {{ data.total }} 条</span
-      ><el-button
-        :disabled="offset === 0 || session.busy"
-        @click="
-          offset -= 30;
-          load();
-        "
-        >上一页</el-button
-      ><el-button
-        :disabled="offset + 30 >= data.total || session.busy"
-        @click="
-          offset += 30;
-          load();
-        "
-        >下一页</el-button
-      >
-    </div></el-card
-  ><el-dialog
+  <el-tabs v-model="tab"
+    ><el-tab-pane label="平台投递" name="platform">
+      <el-card shadow="never"
+        ><form class="filters" @submit.prevent="load(true)">
+          <el-input
+            v-model="q"
+            placeholder="消息 ID、应用名称或去重标识"
+            aria-label="查找投递"
+            clearable
+          /><el-select
+            v-model="status"
+            placeholder="所有状态"
+            clearable
+            aria-label="投递状态"
+            ><el-option
+              v-for="s in [
+                'api_accepted',
+                'no_error_reported',
+                'api_rejected',
+                'not_sent',
+                'unconfirmed_do_not_retry',
+                'attempting',
+              ]"
+              :key="s"
+              :value="s"
+              :label="stateLabel(s)" /></el-select
+          ><el-select
+            v-model="client"
+            clearable
+            placeholder="所有应用"
+            aria-label="投递应用"
+            ><el-option
+              v-for="a in session.clients"
+              :key="a.id"
+              :value="a.id"
+              :label="a.name" /></el-select
+          ><el-select
+            v-model="bot"
+            clearable
+            placeholder="所有连接"
+            aria-label="投递连接"
+            ><el-option
+              v-for="b in session.bots"
+              :key="b.id"
+              :value="b.id"
+              :label="b.name" /></el-select
+          ><el-button native-type="submit" :loading="session.busy"
+            >查询</el-button
+          >
+        </form>
+        <el-table
+          v-if="data"
+          :data="data.deliveries"
+          empty-text="没有匹配的投递记录"
+          ><el-table-column label="时间" min-width="160"
+            ><template #default="{ row }">{{
+              date(row.attempted_at)
+            }}</template></el-table-column
+          ><el-table-column
+            prop="caller"
+            label="来源应用"
+            min-width="120"
+          /><el-table-column label="通信连接" min-width="130"
+            ><template #default="{ row }">{{
+              botName(row.bot_id)
+            }}</template></el-table-column
+          ><el-table-column label="状态" min-width="210"
+            ><template #default="{ row }"
+              ><el-tag :type="stateType(row.status)">{{
+                stateLabel(row.status)
+              }}</el-tag></template
+            ></el-table-column
+          ><el-table-column label="操作" fixed="right" width="100"
+            ><template #default="{ row }"
+              ><el-button link type="primary" @click="selected = row"
+                >详情</el-button
+              ></template
+            ></el-table-column
+          ></el-table
+        ><el-skeleton v-else :rows="4" animated />
+        <div v-if="data" class="pagination">
+          <span class="help">共 {{ data.total }} 条</span
+          ><el-button
+            :disabled="offset === 0 || session.busy"
+            @click="
+              offset -= 30;
+              load();
+            "
+            >上一页</el-button
+          ><el-button
+            :disabled="offset + 30 >= data.total || session.busy"
+            @click="
+              offset += 30;
+              load();
+            "
+            >下一页</el-button
+          >
+        </div></el-card
+      ></el-tab-pane
+    ><el-tab-pane label="通知分流" name="routes"
+      ><NotificationRoutes /></el-tab-pane
+  ></el-tabs>
+  <el-dialog
     :model-value="!!selected"
     title="投递详情"
     width="600px"

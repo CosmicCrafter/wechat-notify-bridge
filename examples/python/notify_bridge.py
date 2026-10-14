@@ -9,24 +9,25 @@ from urllib.request import Request, urlopen
 
 
 class NotifyBridge:
-    def __init__(self, base_url, api_key, timeout=25):
+    def __init__(self, base_url, api_key, timeout=25, *, receiver_token=None):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
+        self.receiver_token = receiver_token
 
     def request(self, method, path, *, body=None, query=None):
         url = self.base_url + path
         if query:
             url += "?" + urlencode(query)
         data = None if body is None else json.dumps(body, ensure_ascii=False).encode("utf-8")
+        headers = {"Authorization": "Bearer " + self.api_key, "Content-Type": "application/json"}
+        if self.receiver_token:
+            headers["X-Notify-Receiver"] = self.receiver_token
         req = Request(
             url,
             data=data,
             method=method,
-            headers={
-                "Authorization": "Bearer " + self.api_key,
-                "Content-Type": "application/json",
-            },
+            headers=headers,
         )
         try:
             with urlopen(req, timeout=self.timeout) as response:
@@ -75,16 +76,31 @@ class NotifyBridge:
             "GET", "/api/conversations/" + conversation_id + "/history", query=cursor
         )
 
-    def claim(self, inbox_id, request_id):
+    def claim(self, inbox_id, request_id, *, lease_seconds=120):
         return self.request(
-            "POST", "/api/inbox/" + str(inbox_id) + "/claim", body={"request_id": request_id}
+            "POST",
+            "/api/inbox/" + str(inbox_id) + "/claim",
+            body={"request_id": request_id, "lease_seconds": lease_seconds},
         )
 
-    def report(self, inbox_id, claim_id, request_id, status, result=""):
+    def renew(self, inbox_id, claim_id, generation, *, lease_seconds=120):
+        return self.request(
+            "POST",
+            "/api/inbox/" + str(inbox_id) + "/renew",
+            body=dict(claim_id=claim_id, generation=generation, lease_seconds=lease_seconds),
+        )
+
+    def report(self, inbox_id, claim_id, request_id, status, result="", *, generation=None):
         return self.request(
             "POST",
             "/api/inbox/" + str(inbox_id) + "/report",
-            body=dict(claim_id=claim_id, request_id=request_id, status=status, result=result),
+            body=dict(
+                claim_id=claim_id,
+                request_id=request_id,
+                status=status,
+                result=result,
+                **({"generation": generation} if generation is not None else {}),
+            ),
         )
 
 

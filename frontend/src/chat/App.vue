@@ -1,18 +1,12 @@
 <script setup>
-import { ref, computed, defineAsyncComponent } from "vue";
-import {
-  ArrowLeft,
-  Plus,
-  Picture,
-  Camera,
-  Close,
-  Setting,
-} from "@element-plus/icons-vue";
+import { ref, computed } from "vue";
+import { Setting } from "@element-plus/icons-vue";
 import { useChat } from "./useChat.js";
+import { api } from "./api.js";
+import { browserDrafts } from "./drafts.js";
 import { vLongpress, vSwipe } from "./gestures.js";
-import { date, deliveryLabels } from "../shared/format.js";
-import Markdown from "../shared/Markdown.vue";
-const TaskCard = defineAsyncComponent(() => import("./TaskCard.vue"));
+import { date } from "../shared/format.js";
+import ConversationThread from "../shared/ConversationThread.vue";
 const {
   s,
   loginCode,
@@ -40,11 +34,14 @@ const {
   changeChat,
   saveDraft,
 } = useChat();
-const actionChat = ref(null),
-  attachments = ref(false),
-  fileInput = ref(),
-  cameraInput = ref(),
-  imageUrl = ref("");
+const actionChat = ref(null);
+function setScroll(element) {
+  scroll.value = element;
+}
+function updateReply(text) {
+  s.reply = text;
+  saveDraft();
+}
 const canReply = computed(() => s.chat?.can_reply ?? s.chat?.active);
 function actions(chat) {
   if (chat && !s.busy) actionChat.value = chat;
@@ -196,207 +193,44 @@ async function action(kind) {
           >
         </footer>
       </aside>
-      <section class="thread">
-        <header class="thread-header">
-          <el-button
-            class="mobile-back"
-            text
-            :icon="ArrowLeft"
-            aria-label="返回会话列表"
-            @click="back"
-          />
-          <div v-longpress="() => actions(s.chat)">
-            <h2>
-              {{
-                s.chat
-                  ? s.chat.caller + " · " + s.chat.name
-                  : s.cid
-                    ? "正在载入…"
-                    : "选择一个会话"
-              }}
-            </h2>
-            <p>
-              {{
-                s.chat?.archived
-                  ? "已归档 · 仅查看历史"
-                  : s.chat?.active
-                    ? "回复发送到当前会话"
-                    : "通知、回复与任务记录"
-              }}
-            </p>
-          </div>
-          <el-button v-if="s.chat" text @click="actions(s.chat)"
+      <ConversationThread
+        class="thread"
+        :cid="s.cid"
+        :conversation="s.chat"
+        :messages="s.messages"
+        :reply="s.reply"
+        :images="selectedImages"
+        :pending="replyPending"
+        :anchor="s.anchor"
+        :older="s.older"
+        :newer="s.newer"
+        :busy="s.busy"
+        :loading="s.loading"
+        :error="s.error"
+        :can-reply="!!canReply"
+        :mobile-back="true"
+        :request="api"
+        :draft-store="browserDrafts"
+        @scroll-element="setScroll"
+        @update:reply="updateReply"
+        @send="send"
+        @choose-images="chooseImages"
+        @remove-image="removeImage"
+        @cancel-pending="cancelPending"
+        @older="loadPage(true)"
+        @newer="loadPage(false)"
+        @answered="applyTask"
+        @back="back"
+        @refresh="select(s.cid, s.anchor, false)"
+        @clear-error="s.error = ''"
+        @manage="actions(s.chat)"
+      >
+        <template #actions
+          ><el-button v-if="s.chat" text @click="actions(s.chat)"
             >管理</el-button
-          >
-        </header>
-        <el-alert
-          v-if="s.error"
-          :title="s.error"
-          type="error"
-          @close="s.error = ''"
-        />
-        <div v-if="!s.cid" class="thread-welcome">
-          <el-empty description="从左侧选择会话，查看消息或处理任务" />
-        </div>
-        <template v-else
-          ><div
-            class="message-scroll"
-            ref="scroll"
-            v-swipe="{
-              edge: true,
-              action: (direction) => {
-                if (direction === 'right') back();
-              },
-            }"
-          >
-            <el-button
-              v-if="s.older"
-              text
-              :loading="s.busy"
-              @click="loadPage(true)"
-              >加载更早的消息</el-button
-            >
-            <article
-              v-for="m in s.messages"
-              :key="m.id"
-              :id="'message-' + m.id"
-              class="message"
-              :class="[
-                m.direction,
-                { focused: m.id === s.anchor, task: !!m.task },
-              ]"
-            >
-              <div class="message-meta">
-                <span>{{
-                  m.direction === "user"
-                    ? m.source === "admin"
-                      ? "管理员"
-                      : "你"
-                    : s.chat?.caller
-                }}</span
-                ><time>{{ date(m.created_at) }}</time>
-              </div>
-              <TaskCard
-                v-if="m.task"
-                :task="m.task"
-                :readonly="!canReply"
-                @answered="applyTask"
-              />
-              <div v-else class="message-bubble">
-                <Markdown :text="m.text" /><button
-                  v-for="a in m.attachments || []"
-                  :key="a.id"
-                  class="image-button"
-                  @click="
-                    imageUrl = `api/conversations/${m.conversation_id}/images/${a.id}`
-                  "
-                >
-                  <img
-                    :src="`api/conversations/${m.conversation_id}/images/${a.id}`"
-                    loading="lazy"
-                    alt="图片附件，点击放大"
-                  />
-                </button>
-              </div>
-              <div
-                class="delivery-status"
-                :class="{
-                  failed: ['api_rejected', 'unconfirmed_do_not_retry'].includes(
-                    m.status,
-                  ),
-                }"
-              >
-                {{ deliveryLabels[m.status] || "已保存" }}
-              </div>
-            </article>
-            <el-empty
-              v-if="s.chat && !s.messages.length"
-              description="暂无消息"
-              :image-size="70"
-            /><el-button v-if="s.newer" text @click="loadPage(false)"
-              >加载更新的消息</el-button
-            >
-          </div>
-          <form class="composer" @submit.prevent="send">
-            <div v-if="selectedImages.length" class="image-drafts">
-              <div v-for="item in selectedImages" :key="item.url">
-                <img :src="item.url" alt="待发送图片" /><el-button
-                  circle
-                  size="small"
-                  :icon="Close"
-                  aria-label="移除图片"
-                  :disabled="s.busy || !!replyPending"
-                  @click="removeImage(item)"
-                />
-              </div>
-            </div>
-            <div class="compose-row">
-              <el-button
-                circle
-                :icon="Plus"
-                aria-label="添加图片"
-                :disabled="!canReply || s.busy || !!replyPending"
-                @click="attachments = !attachments"
-              /><el-input
-                v-model="s.reply"
-                type="textarea"
-                :autosize="{ minRows: 1, maxRows: 5 }"
-                maxlength="20000"
-                aria-label="回复当前会话"
-                placeholder="回复当前会话…"
-                :disabled="!canReply"
-                :readonly="!!replyPending"
-                @input="saveDraft"
-                @focus="attachments = false"
-                @keydown.ctrl.enter.prevent="send"
-                @keydown.meta.enter.prevent="send"
-              /><el-button
-                native-type="submit"
-                type="primary"
-                :loading="s.busy"
-                :disabled="
-                  !canReply || (!s.reply.trim() && !selectedImages.length)
-                "
-                >{{ replyPending ? "重试" : "发送" }}</el-button
-              >
-            </div>
-            <div v-if="attachments" class="attachment-tray">
-              <el-button :icon="Picture" @click="fileInput.click()"
-                >图片</el-button
-              ><el-button :icon="Camera" @click="cameraInput.click()"
-                >拍照</el-button
-              ><span class="help">最多 3 张图片</span>
-            </div>
-            <input
-              ref="fileInput"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              hidden
-              @change="chooseImages($event.target)"
-            /><input
-              ref="cameraInput"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              hidden
-              @change="chooseImages($event.target)"
-            />
-            <p class="help">
-              {{
-                !s.chat?.active
-                  ? "此会话只读，历史记录仍可查看。"
-                  : replyPending
-                    ? "提交结果待确认，重试不会重复入箱。"
-                    : "回复提交到当前会话，启用唤醒后会通知对应客户端。"
-              }}
-              <el-button v-if="replyPending" link @click="cancelPending"
-                >取消重试</el-button
-              >
-            </p>
-          </form></template
+          ></template
         >
-      </section>
+      </ConversationThread>
     </div>
     <el-drawer
       :model-value="!!actionChat"
@@ -417,16 +251,6 @@ async function action(kind) {
           >删除会话</el-button
         >
       </div></el-drawer
-    ><el-dialog
-      :model-value="!!imageUrl"
-      title="图片预览"
-      width="800px"
-      class="image-preview"
-      @close="imageUrl = ''"
-      ><img
-        v-if="imageUrl"
-        class="full-image"
-        :src="imageUrl"
-        alt="图片原览" /></el-dialog
-  ></el-config-provider>
+    >
+  </el-config-provider>
 </template>

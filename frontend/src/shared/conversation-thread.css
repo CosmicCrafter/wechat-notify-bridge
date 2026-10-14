@@ -1,0 +1,285 @@
+.conversation-thread {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fb;
+}
+.conversation-thread .thread-header {
+  min-height: 78px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  background: white;
+  border-bottom: 1px solid #e7ebf2;
+}
+.conversation-thread .thread-header > div:first-of-type {
+  flex: 1;
+  min-width: 0;
+}
+.conversation-thread .thread-header h2 {
+  font-size: 16px;
+  margin: 0 0 5px;
+  overflow-wrap: anywhere;
+}
+.conversation-thread .thread-header p {
+  font-size: 11px;
+  color: #8e99a9;
+  margin: 0;
+}
+.conversation-thread .mobile-back {
+  display: none !important;
+}
+.conversation-thread .thread-welcome {
+  margin: auto;
+  text-align: center;
+}
+.conversation-thread .message-scroll {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  padding: 24px;
+  overscroll-behavior: contain;
+}
+.conversation-thread .thread-loading {
+  padding: 20px 0;
+  color: #8e99a9;
+}
+.conversation-thread .message {
+  width: fit-content;
+  max-width: min(86%, 760px);
+  margin-bottom: 24px;
+  scroll-margin: 24px;
+  overflow-wrap: anywhere;
+}
+.conversation-thread .message.user {
+  margin-left: auto;
+}
+.conversation-thread .message.task {
+  width: min(94%, 720px);
+  max-width: 100%;
+}
+.conversation-thread .message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: #8793a4;
+  margin-bottom: 7px;
+}
+.conversation-thread .message.user .message-meta {
+  justify-content: flex-end;
+}
+.conversation-thread .message-bubble {
+  border: 1px solid #e6ebf2;
+  background: white;
+  padding: 12px 18px;
+  border-radius: 4px 14px 14px 14px;
+}
+.conversation-thread .message.user .message-bubble {
+  background: #eaf1ff;
+  border-color: #dae5fd;
+  border-radius: 14px 4px 14px 14px;
+}
+.conversation-thread .message-bubble .markdown > p:first-child {
+  margin-top: 0;
+}
+.conversation-thread .message-bubble .markdown > p:last-child {
+  margin-bottom: 0;
+}
+.conversation-thread .message.focused .message-bubble,
+.conversation-thread .message.focused .task-card {
+  outline: 2px solid #9ab7ff;
+}
+.conversation-thread .delivery-status,
+.conversation-thread .processing-result {
+  font-size: 11px;
+  color: #8793a4;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+.conversation-thread .message.user .delivery-status,
+.conversation-thread .message.user .processing-result {
+  text-align: right;
+}
+.conversation-thread .delivery-status.failed {
+  color: #b96a3b;
+}
+.conversation-thread .image-button {
+  border: 0;
+  background: none;
+  padding: 4px;
+  cursor: pointer;
+}
+.conversation-thread .image-button img {
+  display: block;
+  max-width: 100%;
+  width: auto;
+  max-height: 220px;
+  border-radius: 8px;
+}
+.conversation-thread .image-placeholder {
+  font-size: 12px;
+  color: #8793a4;
+  padding: 12px;
+}
+.conversation-thread .composer {
+  padding: 18px 24px;
+  background: white;
+  border-top: 1px solid #e7ebf2;
+  flex-shrink: 0;
+}
+.conversation-thread .compose-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.conversation-thread .compose-row .el-textarea {
+  flex: 1;
+  min-width: 0;
+}
+.conversation-thread .composer .help {
+  margin-bottom: 0;
+  font-size: 11px;
+}
+.conversation-thread .attachment-tray {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+.conversation-thread .image-drafts {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.conversation-thread .image-drafts > div {
+  position: relative;
+  width: 72px;
+}
+.conversation-thread .image-drafts .image-button img {
+  height: 64px;
+  width: 64px;
+  object-fit: cover;
+}
+.conversation-thread .image-drafts .el-button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+}
+.conversation-image-preview {
+  max-width: calc(100vw - 24px);
+}
+.conversation-image-preview .full-image {
+  display: block;
+  max-width: 100%;
+  max-height: 70dvh;
+  margin: auto;
+}
+.conversation-thread .task-card h2 {
+  font-size: 17px;
+  margin: 16px 0;
+}
+.conversation-thread .task-card .el-form {
+  margin-top: 20px;
+}
+.conversation-thread .task-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: #8792a2;
+}
+.conversation-thread .task-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+  width: 100%;
+}
+.conversation-thread .task-options .el-radio,
+.conversation-thread .task-options .el-checkbox {
+  margin: 0;
+  padding: 14px;
+  height: auto;
+  min-height: 48px;
+  white-space: normal;
+  width: 100%;
+}
+.conversation-thread .task-options .el-radio__label,
+.conversation-thread .task-options .el-checkbox__label {
+  white-space: normal;
+  line-height: 1.5;
+}
+.conversation-thread .task-options small {
+  display: block;
+  font-weight: 400;
+  color: #919dad;
+  margin-top: 5px;
+}
+.conversation-thread .task-answer {
+  background: #f2f6fd;
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 13px;
+  margin-top: 16px;
+}
+.conversation-thread .confirm-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.conversation-thread .confirm-options .el-button {
+  margin: 0;
+  white-space: normal;
+  min-height: 36px;
+  height: auto;
+}
+.conversation-thread .task-card .el-date-editor {
+  width: 100%;
+}
+.conversation-thread > .el-alert {
+  margin: 0;
+  border-radius: 0;
+}
+.conversation-thread .history-button {
+  display: block;
+  margin: 0 auto 20px;
+}
+.conversation-thread .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (max-width: 760px) {
+  .conversation-thread .mobile-back {
+    display: inline-flex !important;
+  }
+  .conversation-thread .thread-header {
+    min-height: 68px;
+    padding: 12px;
+  }
+  .conversation-thread .message-scroll {
+    padding: 18px 14px;
+  }
+  .conversation-thread .message {
+    max-width: 94%;
+  }
+  .conversation-thread .message.task {
+    width: 100%;
+    max-width: 100%;
+  }
+  .conversation-thread .composer {
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  .conversation-thread .message-bubble {
+    padding: 12px 14px;
+  }
+}

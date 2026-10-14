@@ -218,12 +218,17 @@
 .conversation-layout {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
-  min-height: 400px;
-  gap: 24px;
+  height: clamp(560px, calc(100dvh - 300px), 760px);
+  gap: 0;
+  border: 1px solid #e7ebf2;
+  border-radius: 14px;
+  overflow: hidden;
 }
 .conversation-list {
   border-right: 1px solid #edf0f5;
-  padding-right: 16px;
+  padding: 12px;
+  min-height: 0;
+  overflow: auto;
 }
 .conversation-item {
   width: 100%;
@@ -254,61 +259,14 @@
 }
 .conversation-detail {
   min-width: 0;
-}
-.ledger-message {
-  margin: 18px 0;
-  padding: 16px;
-  border: 1px solid #e7ebf2;
-  border-radius: 12px;
-  overflow-wrap: anywhere;
-}
-.ledger-message.anchored {
-  border-color: #3d69df;
-  background: #f2f6ff;
-}
-.message-meta {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #8793a4;
+  min-height: 0;
 }
 .diagnostics {
   max-height: 260px;
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.ledger-image {
-  max-width: 100%;
-  max-height: 260px;
-  border-radius: 8px;
-  margin-top: 12px;
-}
-.reply-composer {
-  border-top: 1px solid #e7ebf2;
-  padding-top: 12px;
-}
-.reply-composer .actions {
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-.upload-button {
-  cursor: pointer;
-  color: #3d69df;
-  border: 1px solid #d8e1ee;
-  border-radius: 6px;
-  padding: 8px 12px;
-  position: relative;
-  overflow: hidden;
-}
-.upload-button input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  width: 100%;
-  cursor: pointer;
 }
 .login-options {
   flex-wrap: wrap;
@@ -357,13 +315,23 @@
 @media (max-width: 680px) {
   .conversation-layout {
     grid-template-columns: minmax(0, 1fr);
+    height: auto;
   }
   .conversation-list {
     border-right: 0;
     border-bottom: 1px solid #edf0f5;
     padding: 0 0 16px;
-    max-height: 320px;
+    max-height: 560px;
     overflow: auto;
+  }
+  .conversation-layout.has-conversation .conversation-list {
+    display: none;
+  }
+  .conversation-layout:not(.has-conversation) .conversation-detail {
+    display: none;
+  }
+  .conversation-detail {
+    height: max(520px, calc(100dvh - 180px));
   }
   .admin-shell {
     display: block;

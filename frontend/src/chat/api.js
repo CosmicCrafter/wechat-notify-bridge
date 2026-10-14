@@ -17,6 +17,7 @@ export async function api(path, body, raw = false) {
           },
     body: body === undefined ? undefined : raw ? body : JSON.stringify(body),
   });
+  if (r.ok && raw && body === undefined) return r.blob();
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
     if (r.status === 401 && path !== "login") unauthorized();

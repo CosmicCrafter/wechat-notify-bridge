@@ -1,6 +1,7 @@
 <script setup>
 import {
   ref,
+  computed,
   reactive,
   watch,
   onMounted,
@@ -9,12 +10,9 @@ import {
 } from "vue";
 import { ElMessageBox, ElMessage } from "element-plus";
 import { api, run, session, adminDrafts } from "../session.js";
-import Markdown from "../../shared/Markdown.vue";
-import TaskCard from "../../chat/TaskCard.vue";
-import LedgerImage from "../components/LedgerImage.vue";
+import ConversationThread from "../../shared/ConversationThread.vue";
 import { preparePhoto } from "../../chat/images.js";
 import { date } from "../../shared/format.js";
-import { stateLabel } from "../delivery-state.js";
 const data = ref(null),
   history = ref(null),
   tasks = ref(null),
@@ -23,15 +21,28 @@ const data = ref(null),
   cid = ref(""),
   offset = ref(0),
   anchor = ref(0),
-  tab = ref("all");
+  tab = ref("all"),
+  scroll = ref();
 const reply = ref(""),
   pending = ref(null),
   attachments = ref([]),
   creating = ref(false),
   newPending = ref(null);
 const draft = reactive({ client_id: "", name: "", text: "" });
+const previews = reactive(new Map());
+const attachmentPreviews = computed(() =>
+  attachments.value.map((item) => ({ ...item, url: previews.get(item.id) })),
+);
+function releasePreview(id) {
+  if (previews.has(id)) URL.revokeObjectURL(previews.get(id));
+  previews.delete(id);
+}
+function clearPreviews() {
+  for (const id of [...previews.keys()]) releasePreview(id);
+}
 let generation = 0,
-  timer;
+  timer,
+  alive = true;
 adminDrafts.open(session.account.username);
 const saved = adminDrafts.get("new-conversation");
 if (saved) {
@@ -56,6 +67,29 @@ function persistReply() {
     });
 }
 watch(reply, persistReply);
+function setScroll(element) {
+  scroll.value = element;
+}
+async function bottom() {
+  await nextTick();
+  if (scroll.value) scroll.value.scrollTop = scroll.value.scrollHeight;
+}
+function backToList() {
+  persistReply();
+  clearPreviews();
+  generation++;
+  history.value = null;
+  cid.value = "";
+  reply.value = "";
+  pending.value = null;
+  attachments.value = [];
+  location.hash = "conversations";
+}
+function cancelPending() {
+  pending.value = null;
+  persistReply();
+  ElMessage.info("已取消重试。先前已到达服务器的消息仍会保留。");
+}
 async function readHistory(id, params = {}) {
   const result = await api(
     "conversations/" +
@@ -68,6 +102,7 @@ async function readHistory(id, params = {}) {
 async function select(id, around = 0) {
   if (session.busy) return;
   persistReply();
+  clearPreviews();
   cid.value = id;
   history.value = null;
   const g = ++generation;
@@ -85,8 +120,13 @@ async function select(id, around = 0) {
   if (around && g === generation) {
     await nextTick();
     document
-      .querySelector(".ledger-message.anchored")
+      .querySelector(".conversation-detail .message.focused")
       ?.scrollIntoView({ block: "center" });
+  } else if (g === generation) {
+    await bottom();
+    scroll.value
+      ?.closest(".conversation-thread")
+      ?.scrollIntoView({ block: "nearest" });
   }
 }
 async function load() {
@@ -105,39 +145,59 @@ async function load() {
   });
 }
 async function older() {
+  const target = cid.value,
+    g = generation;
+  const oldHeight = scroll.value?.scrollHeight || 0,
+    oldTop = scroll.value?.scrollTop || 0;
   await run(async () => {
-    const result = await readHistory(cid.value, {
+    const result = await readHistory(target, {
       before: history.value.messages[0].id,
     });
+    if (g !== generation || !history.value) return;
     history.value.messages = [...result.messages, ...history.value.messages];
     history.value.has_older = result.has_older;
+    await nextTick();
+    if (scroll.value)
+      scroll.value.scrollTop = oldTop + scroll.value.scrollHeight - oldHeight;
   });
 }
 async function newer() {
+  const target = cid.value,
+    g = generation;
+  const nearBottom =
+    scroll.value &&
+    scroll.value.scrollHeight -
+      scroll.value.scrollTop -
+      scroll.value.clientHeight <
+      100;
   await run(async () => {
-    const result = await readHistory(cid.value, {
+    const result = await readHistory(target, {
       after: history.value.messages.at(-1)?.id || 0,
     });
+    if (g !== generation || !history.value) return;
     const map = new Map(history.value.messages.map((m) => [m.id, m]));
     for (const m of result.messages) map.set(m.id, m);
     const ids = [...map.keys()];
     for (let i = 0; i < ids.length; i += 100) {
       const states = await api(
         "conversations/" +
-          cid.value +
+          target +
           "/message-states?ids=" +
           ids.slice(i, i + 100).join(","),
       );
+      if (g !== generation || !history.value) return;
       for (const state of states.states)
         Object.assign(map.get(state.id), state);
     }
     history.value.messages = [...map.values()].sort((a, b) => a.id - b.id);
     history.value.has_newer = result.has_newer;
     history.value.conversation = result.conversation;
+    if (nearBottom) await bottom();
   });
 }
 async function fresh() {
   await load();
+  if (!alive) return;
   if (history.value) await newer();
 }
 async function create() {
@@ -173,7 +233,8 @@ async function create() {
   }
 }
 async function sendReply() {
-  const target = cid.value;
+  const target = cid.value,
+    g = generation;
   const result = await run(async () => {
     if (!reply.value.trim() && !attachments.value.length)
       throw Error("请填写消息或添加图片。");
@@ -194,47 +255,69 @@ async function sendReply() {
     }
   });
   if (result) {
+    if (g !== generation || target !== cid.value) {
+      adminDrafts.set("reply:" + target, null);
+      return;
+    }
     pending.value = null;
     reply.value = "";
+    clearPreviews();
     attachments.value = [];
     adminDrafts.set("reply:" + target, null);
     await newer();
+    await bottom();
     ElMessage.success("已保存，等待应用领取。");
   }
 }
-async function upload(event) {
-  const file = event.target.files?.[0];
-  event.target.value = "";
-  if (!file) return;
-  const target = cid.value;
+async function upload(input) {
+  const files = [...(input.files || [])];
+  input.value = "";
+  if (
+    !files.length ||
+    session.busy ||
+    pending.value ||
+    !history.value?.conversation.can_reply
+  )
+    return;
+  const target = cid.value,
+    g = generation;
   await run(async () => {
-    if (attachments.value.length >= 3) throw Error("每条消息最多 3 张图片。");
-    const photo = await preparePhoto(file);
-    try {
-      const image = await api(
-        "conversations/" + target + "/images",
-        photo.blob,
-      );
-      if (target === cid.value) {
+    if (attachments.value.length + files.length > 3)
+      throw Error("每条消息最多 3 张图片。");
+    for (const file of files) {
+      const photo = await preparePhoto(file);
+      let retained = false;
+      try {
+        if (g !== generation) return;
+        const image = await api(
+          "conversations/" + target + "/images",
+          photo.blob,
+        );
+        if (g !== generation) return;
+        previews.set(image.id, photo.url);
+        retained = true;
         attachments.value.push(image);
         persistReply();
+      } finally {
+        if (!retained) URL.revokeObjectURL(photo.url);
       }
-    } finally {
-      URL.revokeObjectURL(photo.url);
     }
   });
 }
 function removeImage(id) {
+  releasePreview(id);
   attachments.value = attachments.value.filter((a) => a.id !== id);
   persistReply();
 }
 async function answered(result) {
+  if (result.task.conversation_id !== cid.value) return;
   for (const m of history.value?.messages || [])
     if (m.task?.id === result.task.id)
       m.task = { ...result.task, projection: result.projection };
   if (result.projection?.status === "failed")
     ElMessage.warning("答复已保存，平台卡片同步失败；可以再次尝试同步。");
   await load();
+  if (history.value) await newer();
 }
 async function manage(kind) {
   const chat = history.value.conversation;
@@ -302,10 +385,12 @@ onMounted(async () => {
   fromHash();
   window.addEventListener("hashchange", fromHash);
   timer = setInterval(() => {
-    if (history.value && !session.busy && !document.hidden) newer();
+    if (!session.busy && !document.hidden) fresh();
   }, 10000);
 });
 onBeforeUnmount(() => {
+  alive = false;
+  clearPreviews();
   persistReply();
   generation++;
   clearInterval(timer);
@@ -356,7 +441,7 @@ onBeforeUnmount(() => {
           :value="a.id" /></el-select
       ><el-button native-type="submit" :loading="session.busy">查询</el-button>
     </form>
-    <div class="conversation-layout">
+    <div class="conversation-layout" :class="{ 'has-conversation': cid }">
       <div class="conversation-list">
         <template v-if="tab === 'all'"
           ><el-skeleton v-if="!data" :rows="4" animated /><el-empty
@@ -428,134 +513,58 @@ onBeforeUnmount(() => {
         >
       </div>
       <section class="conversation-detail">
-        <el-empty
-          v-if="!history"
-          :description="cid ? '正在加载会话…' : '选择会话查看完整已记录历史'"
-        /><template v-else
-          ><div class="section-toolbar">
-            <div>
-              <h2>{{ history.conversation.name }}</h2>
-              <p class="help">
-                {{ history.conversation.caller }} · 仅包含中转站已记录的消息
-              </p>
-            </div>
-            <el-dropdown @command="manage"
-              ><el-button :disabled="session.busy">管理会话 ▾</el-button
-              ><template #dropdown
-                ><el-dropdown-menu
-                  ><el-dropdown-item command="pin"
+        <ConversationThread
+          :cid="cid"
+          :conversation="history?.conversation"
+          :messages="history?.messages || []"
+          v-model:reply="reply"
+          :images="attachmentPreviews"
+          :pending="pending"
+          :anchor="anchor"
+          :older="!!history?.has_older"
+          :newer="!!history?.has_newer"
+          :busy="session.busy"
+          :loading="!!cid && !history && session.busy"
+          :can-reply="!!history?.conversation.can_reply"
+          :mobile-back="true"
+          owner-label="本人（手机端）"
+          :request="api"
+          :draft-store="adminDrafts"
+          @scroll-element="setScroll"
+          @send="sendReply"
+          @choose-images="upload"
+          @remove-image="(item) => removeImage(item.id)"
+          @cancel-pending="cancelPending"
+          @older="older"
+          @newer="newer"
+          @answered="answered"
+          @back="backToList"
+          @refresh="select(cid, anchor)"
+          @clear-error="session.error = ''"
+        >
+          <template #actions>
+            <el-dropdown v-if="history" @command="manage">
+              <el-button :disabled="session.busy">管理会话 ▾</el-button>
+              <template #dropdown
+                ><el-dropdown-menu>
+                  <el-dropdown-item command="pin"
                     >置顶 / 取消置顶</el-dropdown-item
-                  ><el-dropdown-item command="rename">修改名称</el-dropdown-item
-                  ><el-dropdown-item command="archive">{{
+                  >
+                  <el-dropdown-item command="rename">修改名称</el-dropdown-item>
+                  <el-dropdown-item command="archive">{{
                     history.conversation.archived ? "恢复会话" : "归档会话"
-                  }}</el-dropdown-item
-                  ><el-dropdown-item command="delete" divided
+                  }}</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided
                     >永久删除</el-dropdown-item
-                  ></el-dropdown-menu
-                ></template
-              ></el-dropdown
-            >
-          </div>
-          <el-button
-            v-if="history.has_older"
-            :loading="session.busy"
-            @click="older"
-            >加载更早记录</el-button
-          >
-          <article
-            v-for="m in history.messages"
-            :key="m.id"
-            class="ledger-message"
-            :class="{ anchored: anchor === m.id }"
-          >
-            <div class="message-meta">
-              <strong>{{
-                m.direction === "assistant"
-                  ? history.conversation.caller
-                  : m.source === "admin"
-                    ? "管理员"
-                    : "用户"
-              }}</strong
-              ><span>{{ date(m.created_at) }} · #{{ m.id }}</span>
-            </div>
-            <TaskCard
-              v-if="m.task"
-              :task="m.task"
-              :readonly="!history.conversation.can_reply"
-              :request="api"
-              :draft-store="adminDrafts"
-              @answered="answered"
-            /><Markdown v-else :text="m.text || ''" /><LedgerImage
-              v-for="a in m.attachments || []"
-              :key="a.id"
-              :cid="cid"
-              :image="a"
-            />
-            <p class="help">{{ stateLabel(m.status) }}</p>
-            <p v-if="m.processing?.result" class="help">
-              应用报告：{{ m.processing.result }}
-            </p>
-            <el-alert
-              v-if="m.task?.projection?.status === 'failed'"
-              title="答复已保存，平台卡片同步失败。"
-              type="warning"
-              :closable="false"
-            />
-          </article>
-          <el-empty
-            v-if="!history.messages.length"
-            description="暂无已记录消息" /><el-button
-            v-if="history.has_newer"
-            @click="newer"
-            >加载后续记录</el-button
-          >
-          <form
-            v-if="history.conversation.can_reply"
-            class="reply-composer"
-            @submit.prevent="sendReply"
-          >
-            <p class="help">
-              消息保存到本会话，等待所属应用通过 HTTP/MCP
-              收件；读取数据不等于执行。
-            </p>
-            <el-input
-              v-model="reply"
-              type="textarea"
-              :rows="3"
-              maxlength="20000"
-              aria-label="回复当前会话"
-              placeholder="继续沟通…"
-              :disabled="session.busy || !!pending"
-            />
-            <div class="actions">
-              <label class="upload-button"
-                >添加图片<input
-                  type="file"
-                  accept="image/*"
-                  :disabled="session.busy || !!pending"
-                  @change="upload" /></label
-              ><el-tag
-                v-for="a in attachments"
-                :key="a.id"
-                :closable="!pending && !session.busy"
-                @close="removeImage(a.id)"
-                >图片 {{ attachments.indexOf(a) + 1 }}</el-tag
-              ><el-button
-                native-type="submit"
-                type="primary"
-                :loading="session.busy"
-                >{{ pending ? "用原请求重试" : "发送到应用" }}</el-button
+                  >
+                </el-dropdown-menu></template
               >
-            </div>
-          </form>
-          <el-alert
-            v-else
-            title="会话已归档、应用已停用或暂无有效接收凭据，仅能查看历史。"
-            type="info"
-            :closable="false"
-        /></template>
-      </section></div
-  ></el-card>
+            </el-dropdown>
+          </template>
+        </ConversationThread>
+      </section>
+    </div></el-card
+  >
   <el-dialog
     v-model="creating"
     title="新建会话并发送首条消息"

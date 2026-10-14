@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { taskCanSubmit, taskAnswerPayload } from "../src/chat/task-model.js";
 import { browserDrafts, createDrafts } from "../src/chat/drafts.js";
+import { api as phoneRequest, onUnauthorized } from "../src/chat/api.js";
 test("leading zero replies and multi-choice limits survive payload conversion", () => {
   const draft = {
     text: "001234",
@@ -90,4 +91,63 @@ test("admin drafts never load or erase the phone draft namespace", () => {
   });
   admin.clear();
   assert.equal(browserDrafts.get("reply:one").text, "phone-only");
+});
+
+test("phone image downloads return a Blob while image uploads still return metadata", async () => {
+  const original = globalThis.fetch;
+  const image = new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" });
+  globalThis.fetch = async (url, request) => {
+    assert.equal(
+      url,
+      "api/conversations/one/images" +
+        (request.method === "GET" ? "/image" : ""),
+    );
+    assert.equal(request.credentials, "same-origin");
+    assert.equal(request.headers.Authorization, undefined);
+    assert.equal(request.headers["X-Admin-CSRF"], undefined);
+    if (request.method === "GET") return new Response(image);
+    assert.equal(request.body, image);
+    assert.equal(request.headers["X-Chat-Request"], "1");
+    return new Response(JSON.stringify({ id: "image" }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  try {
+    const downloaded = await phoneRequest(
+      "conversations/one/images/image",
+      undefined,
+      true,
+    );
+    assert.ok(downloaded instanceof Blob);
+    assert.deepEqual(
+      [...new Uint8Array(await downloaded.arrayBuffer())],
+      [1, 2, 3],
+    );
+    assert.deepEqual(
+      await phoneRequest("conversations/one/images", image, true),
+      { id: "image" },
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("unauthorized image requests clear the phone session and retain the HTTP error", async () => {
+  const original = globalThis.fetch;
+  let cleared = 0;
+  onUnauthorized(() => cleared++);
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ detail: "chat_login_required" }), {
+      status: 401,
+    });
+  try {
+    await assert.rejects(
+      phoneRequest("conversations/one/images/image", undefined, true),
+      (e) => e.status === 401,
+    );
+    assert.equal(cleared, 1);
+  } finally {
+    globalThis.fetch = original;
+    onUnauthorized(() => {});
+  }
 });

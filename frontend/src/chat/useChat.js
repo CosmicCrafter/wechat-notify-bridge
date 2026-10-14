@@ -14,6 +14,7 @@ export function useChat() {
   const s = reactive({
     authenticated: false,
     busy: false,
+    loading: false,
     error: "",
     chats: [],
     cid: null,
@@ -87,6 +88,7 @@ export function useChat() {
   function unauthorized() {
     generation++;
     s.authenticated = false;
+    s.loading = false;
     s.scope = "";
     s.chat = null;
     s.messages = [];
@@ -134,6 +136,7 @@ export function useChat() {
     saveDraft();
     const gen = ++generation;
     s.cid = cid;
+    s.loading = true;
     s.anchor = anchor;
     s.chat = null;
     s.messages = [];
@@ -164,12 +167,15 @@ export function useChat() {
       await refreshChats();
     } catch (e) {
       if (gen === generation) fail(e);
+    } finally {
+      if (gen === generation) s.loading = false;
     }
   }
   function list() {
     saveDraft();
     generation++;
     s.cid = null;
+    s.loading = false;
     s.chat = null;
     s.messages = [];
     s.reply = "";

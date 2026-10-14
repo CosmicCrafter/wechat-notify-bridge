@@ -291,25 +291,15 @@ export function useChat() {
             scroll.value.scrollTop -
             scroll.value.clientHeight <
             100;
-      const ids = [
-        ...new Set(
-          s.messages
-            .filter(
-              (m) =>
-                m.task &&
-                ["pending", "answered", "processing"].includes(m.task.status),
-            )
-            .map((m) => m.task.id),
-        ),
-      ];
+      const ids = s.messages.map((m) => m.id);
       for (let i = 0; i < ids.length; i += 100) {
         const d = await api(
-          `conversations/${cid}/tasks?ids=${ids.slice(i, i + 100).join(",")}`,
+          `conversations/${cid}/message-states?ids=${ids.slice(i, i + 100).join(",")}`,
         );
         if (gen !== generation) return;
-        for (const t of d.tasks) {
-          const m = s.messages.find((m) => m.task?.id === t.id);
-          if (m) m.task = t;
+        for (const state of d.states) {
+          const m = s.messages.find((m) => m.id === state.id);
+          if (m) Object.assign(m, state);
         }
       }
       if (s.newer) return;

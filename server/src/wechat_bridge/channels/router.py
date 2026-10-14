@@ -43,6 +43,8 @@ class Channels:
 
     async def send(self, channel=None, bot_id=None, **kwargs):
         bot = self.registry.select(kwargs["identity"], bot_id, channel)
+        if kwargs.get("retry_preparation") and bot["platform"] != "feishu":
+            raise BridgeError(409, "delivery_retry_unsafe")
         result = await self.adapter(bot["id"]).send(**kwargs)
         return dict(result, bot_id=bot["id"], channel=bot["platform"])
 

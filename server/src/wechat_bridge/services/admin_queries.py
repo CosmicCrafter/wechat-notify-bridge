@@ -1,6 +1,7 @@
 """Administrator read views over the existing shared message ledger."""
 
 import time
+import hashlib
 
 
 class AdminQueries:
@@ -62,6 +63,9 @@ class AdminQueries:
         result.pop("read_through", None)
         return result
 
+    def message_states(self, cid, ids):
+        return self.store.portal.message_states(cid, ids)
+
     def deliveries(
         self,
         *,
@@ -78,7 +82,7 @@ class AdminQueries:
         where = ["1=1"]
         args = []
         for value, clause in (
-            (client_id, "c.client_id=?"),
+            (client_id, "coalesce(c.client_id,r.client_id)=?"),
             (bot_id, "d.bot_id=?"),
             (cid, "d.conversation_id=?"),
             (status, "d.status=?"),
@@ -93,8 +97,10 @@ class AdminQueries:
             where.append("d.attempted_at<=?")
             args.append(before)
         if q:
-            where.append("(d.key=? OR CAST(d.message_id AS TEXT)=? OR instr(d.caller,?)>0)")
-            args += [q, q, q]
+            where.append(
+                "(d.key=? OR CAST(d.message_id AS TEXT)=? OR instr(d.caller,?)>0 OR r.dedup_hash=?)"
+            )
+            args += [q, q, q, hashlib.sha256(q.encode()).hexdigest()]
         cte = """WITH d AS (
          SELECT o.key,o.status,o.attempted_at,o.finished_at,o.error_code,'wechat' AS channel,
           coalesce(b.bot_id,'default') AS bot_id,m.conversation_id,m.id AS message_id,o.caller
@@ -106,13 +112,14 @@ class AdminQueries:
          FROM channel_outgoing o LEFT JOIN chat_messages m ON m.outgoing_key=o.key
           LEFT JOIN conversations c ON c.id=o.conversation_id LEFT JOIN api_clients a ON a.id=c.client_id
         ) """
-        join = " FROM d LEFT JOIN conversations c ON c.id=d.conversation_id WHERE " + " AND ".join(
-            where
+        join = (
+            " FROM d LEFT JOIN conversations c ON c.id=d.conversation_id LEFT JOIN delivery_requests r ON r.key=d.key WHERE "
+            + " AND ".join(where)
         )
         total = self.db.execute(cte + "SELECT count(*)" + join, args).fetchone()[0]
         rows = self.db.execute(
             cte
-            + "SELECT d.*,c.client_id"
+            + "SELECT d.*,coalesce(c.client_id,r.client_id) AS client_id"
             + join
             + " ORDER BY d.attempted_at DESC,d.key LIMIT ? OFFSET ?",
             [*args, limit, offset],
@@ -133,6 +140,15 @@ class AdminQueries:
                     k: v for k, v in (data or {}).items() if k != "provider_message_id"
                 }
             item["phone_delivery"] = "unconfirmed"
+            item.update(self.store.delivery_journal.public(row["key"]))
+            evidence = item["diagnostics"] or {}
+            item["retryable"] = (
+                row["channel"] == "feishu"
+                and row["status"] == "not_sent"
+                and evidence.get("phase") == "preparation"
+                and evidence.get("platform_request_started") is False
+                and item["history_complete"]
+            )
             items.append(item)
         return {"deliveries": items, "total": total, "offset": offset, "limit": limit}
 

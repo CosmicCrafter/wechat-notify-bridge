@@ -37,7 +37,12 @@ export const taskLabels = {
 export const deliveryLabels = {
   legacy: "历史消息",
   pending: "已提交 · 等待客户端读取",
-  client_read: "客户端已读取",
+  client_read: "客户端已读取数据，未确认领取",
+  claimed: "应用已领取",
+  processing: "应用已报告处理中",
+  completed: "应用已报告完成",
+  failed: "应用已报告失败",
+  not_sent: "准备失败，未发送",
   attempting: "已保存 · 通道发送结果待确认",
   api_accepted: "通道接口已接受",
   no_error_reported: "通道接口未报错",

@@ -15,6 +15,8 @@ from wechat_bridge.api.schemas import (
     Notice,
     TaskCard,
     TaskUpdate,
+    InboxClaim,
+    InboxReport,
 )
 
 
@@ -133,12 +135,34 @@ def mount_client_api(app, authorize):
             bot_scope=store.bots.scope(caller.id),
         )
         return {
-            "messages": items,
+            "messages": [dict(item, processing=store.claims.public(item["id"])) for item in items],
             "next_after_id": items[-1]["id"] if items else after_id,
             "content_is_untrusted": True,
         }
 
-    async def send(text, dedup_key, caller, kind, dry_run, conversation_id, channel, bot_id):
+    @app.post("/api/inbox/{inbox_id}/claim")
+    async def claim(inbox_id: int, body: InboxClaim, caller=Depends(authorize)):
+        async with app.state.bridge.lock:
+            return app.state.bridge.store.claims.claim(caller, inbox_id, body.request_id)
+
+    @app.post("/api/inbox/{inbox_id}/report")
+    async def report(inbox_id: int, body: InboxReport, caller=Depends(authorize)):
+        async with app.state.bridge.lock:
+            return app.state.bridge.store.claims.report(
+                caller, inbox_id, body.claim_id, body.request_id, body.status, body.result
+            )
+
+    async def send(
+        text,
+        dedup_key,
+        caller,
+        kind,
+        dry_run,
+        conversation_id,
+        channel,
+        bot_id,
+        retry_preparation=False,
+    ):
         try:
             return await app.state.channels.send(
                 channel,
@@ -150,6 +174,7 @@ def mount_client_api(app, authorize):
                 dry_run=dry_run,
                 identity=caller,
                 conversation_id=conversation_id,
+                **({"retry_preparation": True} if retry_preparation else {}),
             )
         except ClientError:
             raise
@@ -172,6 +197,7 @@ def mount_client_api(app, authorize):
             body.conversation_id,
             body.channel,
             body.bot_id,
+            body.retry_preparation,
         )
 
     @app.post("/api/notifications")

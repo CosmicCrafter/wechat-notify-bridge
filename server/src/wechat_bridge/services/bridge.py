@@ -222,6 +222,8 @@ class Bridge:
                 if dry_run:
                     return {"status": "dry_run_ready", "sent_now": False, "network_checked": False}
                 diagnostics = {
+                    "phase": "preparation",
+                    "platform_request_started": False,
                     **context_diagnostics,
                     "request_characters": len(wire_text),
                     "request_utf8_bytes": len(wire_text.encode()),
@@ -259,6 +261,8 @@ class Bridge:
                         diagnostics["request_characters"] = len(wire_text)
                         diagnostics["request_utf8_bytes"] = len(wire_text.encode())
                     self.store.send_diagnostics.save(digest, diagnostics)
+                    if identity:
+                        self.store.delivery_journal.begin(digest,identity.id,self.store.bot_id,history_cid,dict(text=text,dedup_key=dedup_key,kind=kind,conversation_id=conversation_id,task_card=task_card))
                     if kind == "heartbeat":
                         self.store.set("last_heartbeat_attempt_at", now)
                     self.store.db.commit()
@@ -269,6 +273,7 @@ class Bridge:
             started = time.monotonic()
             try:
                 account = self.store.account()
+                diagnostics.update(phase="platform_send",platform_request_started=True)
                 value = await self.request(
                     "ilink/bot/sendmessage",
                     {
@@ -319,6 +324,7 @@ class Bridge:
                         "UPDATE chat_messages SET status=? WHERE outgoing_key=?", (status, digest)
                     )
                     self.store.send_diagnostics.save(digest, diagnostics)
+                    self.store.delivery_journal.finish(digest,status,error,diagnostics)
                     if status in ACCEPTED:
                         self.store.touch(finished)
                     if kind == "heartbeat":

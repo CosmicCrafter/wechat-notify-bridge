@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { taskCanSubmit, taskAnswerPayload } from "../src/chat/task-model.js";
-import { browserDrafts } from "../src/chat/drafts.js";
+import { browserDrafts, createDrafts } from "../src/chat/drafts.js";
 test("leading zero replies and multi-choice limits survive payload conversion", () => {
   const draft = {
     text: "001234",
@@ -71,4 +71,23 @@ test("draft storage keeps retry identities and isolates owners", () => {
   );
   browserDrafts.clear();
   assert.equal(values.has("wechat-drafts-v1:owner-one"), false);
+});
+test("admin drafts never load or erase the phone draft namespace", () => {
+  const values = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => values.get(k) || null,
+    setItem: (k, v) => values.set(k, v),
+    removeItem: (k) => values.delete(k),
+  };
+  browserDrafts.open("same-owner");
+  browserDrafts.set("reply:one", { text: "phone-only" });
+  const admin = createDrafts("notify-admin-drafts-v1:");
+  admin.open("same-owner");
+  assert.equal(admin.get("reply:one"), undefined);
+  admin.set("reply:one", {
+    text: "admin-only",
+    pending: { request_id: "stable-admin-retry" },
+  });
+  admin.clear();
+  assert.equal(browserDrafts.get("reply:one").text, "phone-only");
 });

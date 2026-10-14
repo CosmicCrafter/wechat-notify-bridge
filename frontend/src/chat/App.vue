@@ -266,7 +266,13 @@ async function action(kind) {
               ]"
             >
               <div class="message-meta">
-                <span>{{ m.direction === "user" ? "你" : s.chat?.caller }}</span
+                <span>{{
+                  m.direction === "user"
+                    ? m.source === "admin"
+                      ? "管理员"
+                      : "你"
+                    : s.chat?.caller
+                }}</span
                 ><time>{{ date(m.created_at) }}</time>
               </div>
               <TaskCard

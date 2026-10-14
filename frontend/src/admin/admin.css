@@ -280,6 +280,36 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.ledger-image {
+  max-width: 100%;
+  max-height: 260px;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+.reply-composer {
+  border-top: 1px solid #e7ebf2;
+  padding-top: 12px;
+}
+.reply-composer .actions {
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.upload-button {
+  cursor: pointer;
+  color: #3d69df;
+  border: 1px solid #d8e1ee;
+  border-radius: 6px;
+  padding: 8px 12px;
+  position: relative;
+  overflow: hidden;
+}
+.upload-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
 .login-options {
   margin-top: 16px;
   flex-wrap: wrap;

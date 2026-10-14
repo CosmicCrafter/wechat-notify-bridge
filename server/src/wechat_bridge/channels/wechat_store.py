@@ -32,6 +32,7 @@ class WeChatStore(Store):
             root.bots,
         )
         self.portal = root.portal
+        self.delivery_journal = root.delivery_journal
         self.clients = BotClients(root, bot_id)
         self.conversations = BotConversations(root.bots, bot_id)
         self.send_diagnostics = SendDiagnostics(self)

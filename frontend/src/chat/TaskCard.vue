@@ -8,9 +8,12 @@ import { date, taskLabels } from "../shared/format.js";
 const props = defineProps({
   task: { type: Object, required: true },
   readonly: Boolean,
+  request: { type: Function, default: api },
+  draftStore: { type: Object, default: () => browserDrafts },
 });
 const emit = defineEmits(["answered"]);
-const saved = browserDrafts.get("task:" + props.task.id);
+const drafts = props.draftStore;
+const saved = drafts.get("task:" + props.task.id);
 const draft = reactive(
   saved?.draft?.cid === props.task.conversation_id
     ? saved.draft
@@ -47,7 +50,7 @@ const radioChoice = computed({
     (draft.choice_id = value === "custom:" + props.task.id ? null : value),
 });
 function persist() {
-  browserDrafts.set("task:" + props.task.id, {
+  drafts.set("task:" + props.task.id, {
     draft: {
       ...draft,
       choice_ids: [...draft.choice_ids],
@@ -62,7 +65,7 @@ watch(
   (s) => {
     if (s !== "pending") {
       pending.value = null;
-      browserDrafts.set("task:" + props.task.id, null);
+      drafts.set("task:" + props.task.id, null);
     }
   },
 );
@@ -78,12 +81,12 @@ async function submit(choice) {
   busy.value = true;
   error.value = "";
   try {
-    const d = await api(
+    const d = await props.request(
       `conversations/${props.task.conversation_id}/tasks/${props.task.id}/answer`,
       pending.value,
     );
     pending.value = null;
-    browserDrafts.set("task:" + props.task.id, null);
+    drafts.set("task:" + props.task.id, null);
     emit("answered", d);
   } catch (e) {
     if (e.status >= 400 && e.status < 500) pending.value = null;
@@ -93,7 +96,28 @@ async function submit(choice) {
     busy.value = false;
   }
 }
+async function project() {
+  if (busy.value) return;
+  busy.value = true;
+  error.value = "";
+  try {
+    const result = await props.request(
+      "conversations/" +
+        props.task.conversation_id +
+        "/tasks/" +
+        props.task.id +
+        "/projection",
+      {},
+    );
+    emit("answered", result);
+  } catch (e) {
+    error.value = e.message;
+  } finally {
+    busy.value = false;
+  }
+}
 </script>
+<!-- Shared by owner and admin; transport and draft scope are explicitly injected. -->
 <template>
   <el-card class="task-card" shadow="never"
     ><div class="task-heading">
@@ -107,6 +131,18 @@ async function submit(choice) {
     </div>
     <h2>{{ task.title }}</h2>
     <Markdown :text="task.prompt" />
+    <el-alert
+      v-if="task.projection?.status === 'failed'"
+      title="答复已保存，平台卡片尚未同步。"
+      type="warning"
+      :closable="false"
+    />
+    <el-button
+      v-if="task.projection?.status === 'failed' && !readonly"
+      :loading="busy"
+      @click="project"
+      >重试同步卡片</el-button
+    >
     <template v-if="task.status !== 'pending'"
       ><div v-if="task.answer" class="task-answer">
         <strong>你的回复</strong>
@@ -242,7 +278,7 @@ async function submit(choice) {
         >{{ pending ? "重试提交" : "提交回复" }}</el-button
       >
       <p class="help">有效期至 {{ date(task.expires_at) }}</p>
-      <p v-if="browserDrafts.failed" class="help">
+      <p v-if="drafts.failed" class="help">
         草稿保存失败，请先复制内容。
       </p></el-form
     ></el-card

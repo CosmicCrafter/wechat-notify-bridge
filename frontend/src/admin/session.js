@@ -1,6 +1,8 @@
 import { reactive } from "vue";
 import { ElMessage } from "element-plus";
 import { errors } from "../shared/errors.js";
+import { createDrafts } from "../chat/drafts.js";
+export const adminDrafts = createDrafts("notify-admin-drafts-v1:");
 export const session = reactive({
   key: "",
   csrf: "",
@@ -16,6 +18,7 @@ export const session = reactive({
   epoch: 0,
 });
 export function clearSession() {
+  adminDrafts.clear();
   session.epoch++;
   session.key = "";
   session.csrf = "";
@@ -64,9 +67,19 @@ export async function api(path, body, binary = false) {
       ...(session.key ? { Authorization: "Bearer " + session.key } : {}),
       "X-Admin-Request": "1",
       ...(session.csrf ? { "X-Admin-CSRF": session.csrf } : {}),
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(body === undefined
+        ? {}
+        : {
+            "Content-Type":
+              body instanceof Blob ? body.type : "application/json",
+          }),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body:
+      body === undefined
+        ? undefined
+        : body instanceof Blob
+          ? body
+          : JSON.stringify(body),
     credentials: "same-origin",
     cache: "no-store",
   });
@@ -75,14 +88,17 @@ export async function api(path, body, binary = false) {
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
     if (r.status === 401 && d.detail === "admin_login_required") clearSession();
-    throw Error(
-      errors[d.detail] ||
-        {
-          401: "认证信息不正确或已失效",
-          404: "记录已变化，请刷新重试",
-          429: "尝试过于频繁，请稍后再试",
-        }[r.status] ||
-        "操作未完成，请稍后重试。",
+    throw Object.assign(
+      Error(
+        errors[d.detail] ||
+          {
+            401: "认证信息不正确或已失效",
+            404: "记录已变化，请刷新重试",
+            429: "尝试过于频繁，请稍后再试",
+          }[r.status] ||
+          "操作未完成，请稍后重试。",
+      ),
+      { status: r.status },
     );
   }
   return binary ? r.blob() : r.json();

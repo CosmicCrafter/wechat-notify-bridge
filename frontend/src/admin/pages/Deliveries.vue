@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { api, run, session, botName } from "../session.js";
 import { date } from "../../shared/format.js";
 import { stateLabel, stateType } from "../delivery-state.js";
+import { ElMessageBox } from "element-plus";
 const data = ref(null),
   status = ref(""),
   q = ref(""),
@@ -33,6 +34,27 @@ async function load(reset = false) {
   });
 }
 onMounted(() => load());
+async function retry() {
+  try {
+    await ElMessageBox.confirm(
+      "仅重试已经证明未开始平台发送的准备失败。复用原消息、连接和去重键。",
+      "重试准备步骤",
+      { confirmButtonText: "重试", cancelButtonText: "取消" },
+    );
+    const done = await run(async () => {
+      await api("deliveries/" + selected.value.key + "/retry-preparation", {});
+      return true;
+    });
+    if (done) {
+      const key = selected.value.key;
+      await load();
+      selected.value =
+        data.value.deliveries.find((row) => row.key === key) || null;
+    }
+  } catch (e) {
+    if (!["cancel", "close"].includes(e)) session.error = e.message;
+  }
+}
 </script>
 <template>
   <el-card shadow="never"
@@ -155,6 +177,32 @@ onMounted(() => load());
         JSON.stringify(selected.diagnostics, null, 2)
       }}</pre>
       <p class="help">手机收件：未确认。中转站仅展示实际平台响应。</p>
+      <p class="help">
+        原始去重键：{{ selected.dedup_key || "旧记录未保存原值" }}
+      </p>
+      <p class="help" v-if="!selected.history_complete">
+        旧记录没有完整请求和尝试历史，不推断缺失信息。
+      </p>
+      <pre v-if="selected.text" class="diagnostics">{{ selected.text }}</pre>
+      <el-timeline
+        ><el-timeline-item
+          v-for="attempt in selected.attempts"
+          :key="attempt.attempt"
+          :timestamp="date(attempt.started_at)"
+          >尝试 {{ attempt.attempt }} · {{ stateLabel(attempt.status) }} ·
+          {{ attempt.phase || "阶段未记录" }}
+          <p class="help">
+            {{ attempt.error_code || "未记录错误" }}
+          </p></el-timeline-item
+        ></el-timeline
+      >
+      <el-button
+        v-if="selected.retryable"
+        type="primary"
+        :loading="session.busy"
+        @click="retry"
+        >重试未发送的准备步骤</el-button
+      >
       <el-button v-if="selected.conversation_id" @click="go(selected)"
         >定位会话消息</el-button
       ></template

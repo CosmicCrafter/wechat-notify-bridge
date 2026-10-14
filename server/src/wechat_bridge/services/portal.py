@@ -220,6 +220,13 @@ class Portal:
             self.db.execute("DELETE FROM image_attachments WHERE conversation_id=?", (cid,))
             self.db.execute("DELETE FROM task_cards WHERE conversation_id=?", (cid,))
             self.db.execute(
+                "UPDATE delivery_requests SET encrypted=NULL WHERE conversation_id=?", (cid,)
+            )
+            self.db.execute(
+                "UPDATE inbox_claims SET result=NULL WHERE inbox_id IN (SELECT id FROM inbox WHERE conversation_id=?)",
+                (cid,),
+            )
+            self.db.execute(
                 "UPDATE channel_outgoing SET encrypted=NULL,provider_hash=NULL WHERE conversation_id=?",
                 (cid,),
             )
@@ -238,6 +245,8 @@ class Portal:
         task_id = content.pop("task_id", None)
         if task_id:
             content["task"] = self.tasks.get(row["conversation_id"], task_id)
+        if row["inbox_id"] and getattr(self.store, "claims", None):
+            content["processing"] = self.store.claims.public(row["inbox_id"])
         return dict(
             id=row["id"],
             conversation_id=row["conversation_id"],
@@ -248,6 +257,24 @@ class Portal:
             bot_id=row["bot_id"],
             **content,
         )
+
+    def message_states(self, cid, ids):
+        self.owner_chat(cid)
+        placeholders = ",".join("?" for _ in ids)
+        rows = self.db.execute(
+            "SELECT * FROM chat_messages WHERE conversation_id=? AND id IN (" + placeholders + ")",
+            [cid, *ids],
+        ).fetchall()
+        return {
+            "states": [
+                {
+                    k: v
+                    for k, v in self.decode(row).items()
+                    if k in ("id", "status", "task", "processing")
+                }
+                for row in rows
+            ]
+        }
 
     def history(self, cid, before=0, after=0, around=0, limit=50):
         chat = self.owner_chat(cid)
@@ -301,11 +328,14 @@ class Portal:
             ),
         )
 
-    def reply(self, cid, text, request_id, attachment_ids=None):
+    def reply(self, cid, text, request_id, attachment_ids=None, *, source="web", transaction=True):
         self.owner_chat(cid, writable=True)
+        if source not in ("web", "admin"):
+            raise ValueError("Unsupported trusted reply source")
         attachment_ids = attachment_ids or []
-        identity = "web:" + cid + ":" + request_id
-        self.db.execute("BEGIN IMMEDIATE")
+        identity = source + ":" + cid + ":" + request_id
+        if transaction:
+            self.db.execute("BEGIN IMMEDIATE")
         try:
             old = self.db.execute(
                 "SELECT id,encrypted FROM inbox WHERE identity=?", (identity,)
@@ -333,7 +363,7 @@ class Portal:
                         {
                             "text": text,
                             "item_types": ([1] if text else []) + ([2] if attachments else []),
-                            "source": "web",
+                            "source": source,
                             "attachments": attachments,
                         }
                     ).encode()
@@ -350,7 +380,7 @@ class Portal:
                 id = self.add(
                     cid,
                     "user",
-                    "web",
+                    source,
                     text,
                     "pending",
                     inbox_id=cursor.lastrowid,
@@ -358,9 +388,11 @@ class Portal:
                     attachments=attachments,
                 )
                 row = self.db.execute("SELECT * FROM chat_messages WHERE id=?", (id,)).fetchone()
-            self.db.commit()
+            if transaction:
+                self.db.commit()
         except Exception:
-            self.db.rollback()
+            if transaction:
+                self.db.rollback()
             raise
         # Web activity is not WeChat activity: never touch context_token or idle heartbeat.
         return dict(message=self.decode(row), duplicate=bool(old))

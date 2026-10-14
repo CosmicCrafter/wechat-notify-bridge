@@ -99,6 +99,8 @@ class SendDiagnostics:
         # Raw errmsg may contain upstream data. Keep it encrypted and never expose
         # arbitrary upstream text, credentials, message bodies or context tokens.
         names = (
+            "phase",
+            "platform_request_started",
             "context_received_at",
             "context_age_seconds",
             "accepted_sends_since_context",

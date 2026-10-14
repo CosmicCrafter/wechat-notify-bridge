@@ -9,6 +9,7 @@ from pathlib import Path
 from wechat_bridge.services.bridge import Bridge
 from wechat_bridge.storage.database import Store
 from wechat_bridge.storage.admin_accounts import AdminAccounts
+from wechat_bridge.services.admin_conversations import AdminConversations
 from wechat_bridge.wechat.pairing import Pairing
 from wechat_bridge.services.proxy import ProxyManager
 from wechat_bridge.channels import Channels
@@ -51,6 +52,7 @@ def create_lifespan(
             proxy = ProxyManager(active_bridge.store)
             stack.push_async_callback(proxy.close)
             app.state.admin_accounts = AdminAccounts(active_bridge.store.db)
+            app.state.admin_conversations = AdminConversations(active_bridge.store)
             app.state.bridge, app.state.channels = active_bridge, channels
             app.state.admin_hash, app.state.pairing, app.state.proxy = admin, active_pairing, proxy
             active_bridge.store.clients.seed(seed or {})

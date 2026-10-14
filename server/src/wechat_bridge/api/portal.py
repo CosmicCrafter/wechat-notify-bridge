@@ -136,6 +136,19 @@ def mount_portal(app, authorize_admin):
     ):
         return portal().pending_tasks(before, limit, q.strip())
 
+    @app.get(
+        "/chat/api/conversations/{cid}/message-states",
+        dependencies=[Depends(owner)],
+        include_in_schema=False,
+    )
+    async def message_states(cid: str, ids: str = Query(min_length=1, max_length=2200)):
+        values = ids.split(",")
+        if len(values) > 100 or any(
+            not v.isascii() or not v.isdigit() or len(v) > 20 for v in values
+        ):
+            raise HTTPException(422, "invalid_message_ids")
+        return portal().message_states(cid, [int(v) for v in values])
+
     @app.post(
         "/chat/api/conversations/{cid}/pin",
         dependencies=[Depends(owner), Depends(same_origin)],
@@ -215,6 +228,16 @@ def mount_portal(app, authorize_admin):
             result = portal().tasks.answer(cid, task_id, body)
         result["projection"] = await app.state.channels.project_task_answer(cid, task_id)
         return result
+
+    @app.post(
+        "/chat/api/conversations/{cid}/tasks/{tid}/projection",
+        dependencies=[Depends(owner), Depends(same_origin)],
+        include_in_schema=False,
+    )
+    async def projection(cid: str, tid: str):
+        portal().owner_chat(cid, writable=True)
+        result = await app.state.channels.project_task_answer(cid, tid)
+        return {"task": portal().tasks.get(cid, tid), "projection": result}
 
     @app.post(
         "/chat/api/conversations/{cid}/images",

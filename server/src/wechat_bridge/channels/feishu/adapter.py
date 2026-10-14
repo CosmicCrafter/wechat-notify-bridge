@@ -11,8 +11,8 @@ from wechat_bridge.channels.feishu.cards import card
 from wechat_bridge.config import chat_url
 from wechat_bridge.services.commands import format_time
 from wechat_bridge.channels.registry import BotConversations
-from wechat_bridge.storage.client_registry import ClientError
 from wechat_bridge.core.errors import BridgeError
+from wechat_bridge.channels.feishu.inbound import FeishuInbound
 
 BASE = "https://open.feishu.cn/open-apis"
 
@@ -26,9 +26,6 @@ class Rejected(Exception):
             if code in ("invalid_auth_response", "invalid_response", "card_content_too_large")
             else "invalid_upstream_code"
         )
-
-
-from wechat_bridge.channels.feishu.inbound import FeishuInbound
 
 
 class Feishu(FeishuInbound):
@@ -199,6 +196,8 @@ class Feishu(FeishuInbound):
         identity=None,
         conversation_id=None,
         task_card=None,
+        retry_preparation=False,
+        expected_digest=None,
     ):
         if not text.strip() or len(text) > 20000 or not dedup_key.strip() or len(dedup_key) > 200:
             raise BridgeError(422, "Invalid text or dedup_key")
@@ -220,6 +219,8 @@ class Feishu(FeishuInbound):
             elif cid:
                 raise BridgeError(401, "client_identity_required")
             digest = self.digest(config, dedup_key, identity, conversation_id)
+            if expected_digest and digest != expected_digest:
+                raise BridgeError(409, "delivery_destination_changed")
             canonical = (
                 json.dumps({"text": text, "task": task_card}, ensure_ascii=False, sort_keys=True)
                 if task_card
@@ -230,7 +231,19 @@ class Feishu(FeishuInbound):
             if previous:
                 if previous["message_hash"] != fingerprint:
                     raise BridgeError(409, "dedup_key already belongs to different content")
-                return self.public_receipt(previous, True)
+                evidence = self.state.decrypt(previous["encrypted"])
+                if not retry_preparation:
+                    return self.public_receipt(previous, True)
+                if (
+                    previous["status"] != "not_sent"
+                    or evidence.get("platform_request_started") is not False
+                    or evidence.get("phase") != "preparation"
+                ):
+                    raise BridgeError(409, "delivery_retry_unsafe")
+                if not self.store.delivery_journal.request(digest):
+                    raise BridgeError(409, "delivery_retry_history_incomplete")
+            elif retry_preparation:
+                raise BridgeError(409, "delivery_retry_history_incomplete")
             if dry_run:
                 return dict(
                     channel="feishu", status="dry_run_ready", sent_now=False, network_checked=False
@@ -239,12 +252,30 @@ class Feishu(FeishuInbound):
             db = self.store.db
             db.execute("BEGIN IMMEDIATE")
             try:
-                db.execute(
-                    "INSERT INTO channel_outgoing(key,channel,conversation_id,message_hash,status,attempted_at) "
-                    "VALUES (?,?,?,?,'attempting',?)",
-                    (digest, self.scope_name, cid, fingerprint, now),
-                )
-                if cid:
+                if previous:
+                    db.execute(
+                        "UPDATE channel_outgoing SET status='attempting',attempted_at=?,finished_at=NULL,error_code=NULL WHERE key=?",
+                        (now, digest),
+                    )
+                    message = db.execute(
+                        "SELECT id FROM chat_messages WHERE outgoing_key=?", (digest,)
+                    ).fetchone()
+                    message_id = message[0] if message else None
+                    task = db.execute(
+                        "SELECT id FROM task_cards WHERE outgoing_key=?", (digest,)
+                    ).fetchone()
+                    task_id = task[0] if task else None
+                    db.execute(
+                        "UPDATE chat_messages SET status='attempting' WHERE outgoing_key=?",
+                        (digest,),
+                    )
+                else:
+                    db.execute(
+                        "INSERT INTO channel_outgoing(key,channel,conversation_id,message_hash,status,attempted_at) "
+                        "VALUES (?,?,?,?,'attempting',?)",
+                        (digest, self.scope_name, cid, fingerprint, now),
+                    )
+                if cid and not previous:
                     task_id = (
                         self.store.portal.tasks.create(cid, digest, task_card, now)
                         if task_card
@@ -260,6 +291,20 @@ class Feishu(FeishuInbound):
                         at=now,
                         task_id=task_id,
                         bot_id=self.bot_id,
+                    )
+                if identity:
+                    self.store.delivery_journal.begin(
+                        digest,
+                        identity.id,
+                        self.bot_id,
+                        cid,
+                        dict(
+                            text=text,
+                            dedup_key=dedup_key,
+                            kind=kind,
+                            conversation_id=conversation_id,
+                            task_card=task_card,
+                        ),
                     )
                 db.commit()
             except Exception:
@@ -334,6 +379,7 @@ class Feishu(FeishuInbound):
                 db.execute(
                     "UPDATE chat_messages SET status=? WHERE outgoing_key=?", (status, digest)
                 )
+                self.store.delivery_journal.finish(digest, status, error, diagnostics)
                 db.commit()
             except Exception:
                 db.rollback()

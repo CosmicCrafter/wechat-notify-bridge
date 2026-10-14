@@ -35,11 +35,23 @@ class ConversationState(BaseModel):
     active: bool
 
 
+class InboxClaim(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    request_id: str = Field(pattern=r"^[a-zA-Z0-9_-]{16,80}$")
+
+
+class InboxReport(InboxClaim):
+    claim_id: str = Field(pattern=r"^[a-zA-Z0-9_-]{16,80}$")
+    status: Literal["processing", "completed", "failed"]
+    result: str = Field(default="", max_length=4000)
+
+
 class Message(BaseModel):
     model_config = ConfigDict(extra="forbid")
     text: str = Field(min_length=1, max_length=20000)
     dedup_key: str = Field(min_length=1, max_length=200)
     dry_run: bool = False
+    retry_preparation: bool = False
     conversation_id: str | None = Field(default=None, min_length=1, max_length=64)
     channel: Literal["wechat", "feishu"] | None = None
     bot_id: str | None = Field(default=None, pattern=r"^[a-zA-Z0-9_-]{1,64}$")

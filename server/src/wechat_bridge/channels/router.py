@@ -117,23 +117,17 @@ class Channels:
                 self.starts[bot["id"]] = asyncio.create_task(start())
 
     async def project_task_answer(self, cid, task_id):
-        row = self.store.portal.tasks.row(cid, task_id)
-        parent = self.store.db.execute(
-            "SELECT channel FROM channel_outgoing WHERE key=?", (row["outgoing_key"],)
-        ).fetchone()
-        if parent and parent[0].startswith("feishu:"):
-            bot_id = parent[0][len("feishu:") :]
-            try:
-                return await self.adapter(bot_id).project_task(cid, task_id)
-            except (BridgeError, ClientError) as exc:
-                result = {
-                    "status": "failed",
-                    "error": getattr(exc, "reason", None)
-                    or getattr(exc, "code", "projection_unavailable"),
-                }
-                self.store.set("task_projection:" + task_id, result)
-                return result
-        return {"status": "not_applicable"}
+        try:
+            await self.sync_task(cid, task_id)
+            return self.store.get("task_projection:" + task_id) or {"status": "not_applicable"}
+        except (BridgeError, ClientError) as exc:
+            result = {
+                "status": "failed",
+                "error": getattr(exc, "reason", None)
+                or getattr(exc, "code", "projection_unavailable"),
+            }
+            self.store.set("task_projection:" + task_id, result)
+            return result
 
     async def delete(self, bot_id):
         bot = self.registry.get(bot_id)

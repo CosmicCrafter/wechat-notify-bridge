@@ -8,6 +8,7 @@ from pathlib import Path
 
 from wechat_bridge.services.bridge import Bridge
 from wechat_bridge.storage.database import Store
+from wechat_bridge.storage.admin_accounts import AdminAccounts
 from wechat_bridge.wechat.pairing import Pairing
 from wechat_bridge.services.proxy import ProxyManager
 from wechat_bridge.channels import Channels
@@ -18,7 +19,9 @@ async def stop_task(task):
     await asyncio.gather(task, return_exceptions=True)
 
 
-def create_lifespan(bridge=None, clients=None, run_workers=True, *, admin_hash=None, pairing=None):
+def create_lifespan(
+    bridge=None, clients=None, run_workers=True, *, admin_hash=None, pairing=None, drivers=None
+):
     @asynccontextmanager
     async def lifespan(app):
         async with AsyncExitStack() as stack:
@@ -43,10 +46,11 @@ def create_lifespan(bridge=None, clients=None, run_workers=True, *, admin_hash=N
                 stack.push_async_callback(active_bridge.close)
             active_pairing = pairing or Pairing(active_bridge, run_workers=run_workers)
             stack.push_async_callback(active_pairing.close)
-            channels = Channels(active_bridge, active_pairing, run_workers)
+            channels = Channels(active_bridge, active_pairing, run_workers, drivers=drivers)
             stack.push_async_callback(channels.close)
             proxy = ProxyManager(active_bridge.store)
             stack.push_async_callback(proxy.close)
+            app.state.admin_accounts = AdminAccounts(active_bridge.store.db)
             app.state.bridge, app.state.channels = active_bridge, channels
             app.state.admin_hash, app.state.pairing, app.state.proxy = admin, active_pairing, proxy
             active_bridge.store.clients.seed(seed or {})

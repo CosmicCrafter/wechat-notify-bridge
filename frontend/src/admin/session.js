@@ -3,6 +3,10 @@ import { ElMessage } from "element-plus";
 import { errors } from "../shared/errors.js";
 export const session = reactive({
   key: "",
+  csrf: "",
+  account: null,
+  configured: false,
+  ready: false,
   authenticated: false,
   busy: false,
   error: "",
@@ -11,37 +15,73 @@ export const session = reactive({
   status: null,
   epoch: 0,
 });
-export function logout() {
+export function clearSession() {
   session.epoch++;
   session.key = "";
+  session.csrf = "";
+  session.account = null;
   session.authenticated = false;
   session.bots = [];
   session.clients = [];
   session.status = null;
   session.error = "";
 }
+export async function logout() {
+  try {
+    await api("auth/logout", {});
+  } finally {
+    clearSession();
+  }
+}
+export async function restore() {
+  try {
+    const result = await api("auth/status");
+    session.configured = result.configured;
+    if (result.authenticated) {
+      session.csrf = result.csrf;
+      session.account = result;
+      await refresh();
+      session.authenticated = true;
+    }
+  } finally {
+    session.ready = true;
+  }
+}
+export async function loginAccount(username, password) {
+  const result = await api("auth/login", { username, password });
+  session.csrf = result.csrf;
+  session.account = result;
+  session.configured = true;
+  session.epoch++;
+  await refresh();
+  return true;
+}
 export async function api(path, body, binary = false) {
   const epoch = session.epoch;
   const r = await fetch("api/" + path, {
     method: body === undefined ? "GET" : "POST",
     headers: {
-      Authorization: "Bearer " + session.key,
+      ...(session.key ? { Authorization: "Bearer " + session.key } : {}),
+      "X-Admin-Request": "1",
+      ...(session.csrf ? { "X-Admin-CSRF": session.csrf } : {}),
       ...(body === undefined ? {} : { "Content-Type": "application/json" }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
-    credentials: "omit",
+    credentials: "same-origin",
     cache: "no-store",
   });
   if (epoch !== session.epoch)
     throw Object.assign(Error("请求已取消"), { stale: true });
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
-    if (r.status === 401) logout();
+    if (r.status === 401 && d.detail === "admin_login_required") clearSession();
     throw Error(
       errors[d.detail] ||
-        { 401: "管理员密钥不正确或已失效", 404: "记录已变化，请刷新重试" }[
-          r.status
-        ] ||
+        {
+          401: "认证信息不正确或已失效",
+          404: "记录已变化，请刷新重试",
+          429: "尝试过于频繁，请稍后再试",
+        }[r.status] ||
         "操作未完成，请稍后重试。",
     );
   }

@@ -3,55 +3,73 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import {
   Connection,
   Key,
-  Switch,
+  Setting,
   ChatLineRound,
   Document,
-  ArrowRight,
+  DataAnalysis,
 } from "@element-plus/icons-vue";
-import { session, logout, run, refresh } from "./session.js";
+import { session, logout, run, refresh, restore } from "./session.js";
+import Login from "./components/Login.vue";
 import Bots from "./pages/Bots.vue";
 import Keys from "./pages/Keys.vue";
-import Proxy from "./pages/Proxy.vue";
-import Sessions from "./pages/Sessions.vue";
+import Settings from "./pages/Settings.vue";
 import Developer from "./pages/Developer.vue";
+import Account from "./pages/Account.vue";
+import Overview from "./pages/Overview.vue";
+import Conversations from "./pages/Conversations.vue";
+import Deliveries from "./pages/Deliveries.vue";
 const navigation = [
-  ["bots", "Bot 管理", Connection],
-  ["keys", "接入密钥", Key],
-  ["proxy", "代理设置", Switch],
-  ["sessions", "会话登录", ChatLineRound],
-  ["developer", "开发者文档", Document],
+  ["overview", "总览", DataAnalysis],
+  ["conversations", "会话中心", ChatLineRound],
+  ["deliveries", "投递记录", Document],
+  ["keys", "接入应用", Key],
+  ["bots", "通信连接", Connection],
+  ["settings", "系统设置", Setting],
 ];
 const pages = {
-  bots: Bots,
+  overview: Overview,
+  conversations: Conversations,
+  deliveries: Deliveries,
   keys: Keys,
-  proxy: Proxy,
-  sessions: Sessions,
-  developer: Developer,
+  bots: Bots,
+  settings: Settings,
+  help: Developer,
+  account: Account,
 };
-const page = ref("bots"),
-  loginKey = ref("");
+const descriptions = {
+  overview: "掌握消息流转，及时处理需要关注的事项。",
+  conversations: "与接入应用持续沟通，与手机端共享已记录历史。",
+  deliveries: "区分平台接收、投递失败与结果未知。",
+  keys: "为每个接入程序建立独立身份与授权。",
+  bots: "连接微信与飞书，统一管理通信状态。",
+  settings: "管理代理、节点与运行设置。",
+  help: "部署维护、AI 接入与业务系统接入。",
+  account: "管理登录身份与恢复方式。",
+};
+const page = ref("overview");
 let timer,
   refreshing = false;
+const title = computed(
+  () =>
+    navigation.find((n) => n[0] === page.value)?.[1] ||
+    { account: "管理员账号", help: "帮助与接入" }[page.value],
+);
 function route() {
-  let name = location.hash.slice(1);
-  name =
-    { nodes: "proxy", subscription: "proxy", feishu: "bots", overview: "bots" }[
-      name
-    ] || name;
-  page.value = pages[name] ? name : "bots";
-  document.title = "通知桥 · " + navigation.find((n) => n[0] === page.value)[1];
+  const name = location.hash.slice(1).split("?")[0];
+  page.value = pages[name]
+    ? name
+    : {
+        proxy: "settings",
+        nodes: "settings",
+        subscription: "settings",
+        sessions: "settings",
+        developer: "help",
+        feishu: "bots",
+      }[name] || "overview";
+  document.title = "Notify Bridge · " + title.value;
 }
 function navigate(name) {
   location.hash = name;
-}
-async function login() {
-  await run(async () => {
-    session.key = loginKey.value.trim();
-    loginKey.value = "";
-    session.epoch++;
-    await refresh();
-    session.authenticated = true;
-  });
 }
 async function poll() {
   if (!session.authenticated || session.busy || refreshing || document.hidden)
@@ -68,57 +86,27 @@ async function poll() {
 onMounted(() => {
   route();
   window.addEventListener("hashchange", route);
-  window.addEventListener("pagehide", logout);
+  restore().catch((e) => {
+    session.error = e.message;
+  });
   timer = setInterval(poll, 10000);
 });
 onBeforeUnmount(() => {
   clearInterval(timer);
   window.removeEventListener("hashchange", route);
-  window.removeEventListener("pagehide", logout);
-  logout();
 });
-const title = computed(() => navigation.find((n) => n[0] === page.value)[1]);
 </script>
 <template>
-  <el-config-provider
-    ><div v-if="!session.authenticated" class="login-page">
-      <div class="login-brand">↗</div>
-      <h1>通知桥</h1>
-      <p>连接你的程序与消息平台</p>
-      <el-card shadow="never" class="login-card"
-        ><h2>登录管理中心</h2>
-        <p class="help">使用部署时设置的管理员密钥，非程序调用密钥。</p>
-        <el-form label-position="top" @submit.prevent="login"
-          ><el-form-item label="管理员密钥"
-            ><el-input
-              v-model="loginKey"
-              type="password"
-              show-password
-              autocomplete="off"
-              placeholder="请输入管理员密钥" /></el-form-item
-          ><el-button
-            type="primary"
-            native-type="submit"
-            :loading="session.busy"
-            class="full"
-            >进入管理中心</el-button
-          ></el-form
-        ><el-alert
-          v-if="session.error"
-          :title="session.error"
-          type="error"
-          :closable="false"
-        />
-        <p class="help">
-          密钥只保存在当前页面内存中，刷新后需重新登录。
-        </p></el-card
-      >
+  <el-config-provider>
+    <div v-if="!session.ready" class="login-page" aria-busy="true">
+      <p>正在恢复管理会话…</p>
     </div>
+    <Login v-else-if="!session.authenticated" />
     <div v-else class="admin-shell">
       <aside class="sidebar">
         <div class="brand">
           <span>↗</span>
-          <div><strong>通知桥</strong><small>Notify Bridge</small></div>
+          <div><strong>Notify Bridge</strong><small>统一消息中转站</small></div>
         </div>
         <p class="nav-label">工作空间</p>
         <el-menu :default-active="page" @select="navigate"
@@ -131,20 +119,38 @@ const title = computed(() => navigation.find((n) => n[0] === page.value)[1]);
           ></el-menu
         >
         <div class="sidebar-bottom">
-          <el-tag type="success" effect="plain">管理员已登录</el-tag
-          ><el-button text @click="logout">退出登录</el-button>
+          <el-tag effect="plain">统一收发 · 独立授权</el-tag
+          ><small class="help">程序接入，平台通信，持续沟通。</small>
         </div>
       </aside>
       <div class="main-shell">
         <header class="topbar">
-          <span
-            >工作空间 <el-icon><ArrowRight /></el-icon> {{ title }}</span
-          ><el-link href="../chat/" target="_blank">会话页 ↗</el-link>
+          <span>{{ title }}</span>
+          <div class="actions">
+            <el-button text @click="navigate('help')">帮助与接入</el-button
+            ><el-dropdown
+              @command="
+                (command) =>
+                  command === 'logout' ? logout() : navigate(command)
+              "
+              ><el-button text
+                >{{ session.account?.username || "管理员" }} ▾</el-button
+              ><template #dropdown
+                ><el-dropdown-menu
+                  ><el-dropdown-item command="account"
+                    >账号与安全</el-dropdown-item
+                  ><el-dropdown-item command="logout"
+                    >退出登录</el-dropdown-item
+                  ></el-dropdown-menu
+                ></template
+              ></el-dropdown
+            >
+          </div>
         </header>
         <main class="page-content">
           <div class="page-heading">
             <h1>{{ title }}</h1>
-            <p>统一连接，专注沟通。</p>
+            <p>{{ descriptions[page] }}</p>
           </div>
           <el-alert
             v-if="session.error"
@@ -154,6 +160,7 @@ const title = computed(() => navigation.find((n) => n[0] === page.value)[1]);
             @close="session.error = ''"
           /><component :is="pages[page]" :key="page" />
         </main>
-      </div></div
-  ></el-config-provider>
+      </div>
+    </div>
+  </el-config-provider>
 </template>

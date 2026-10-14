@@ -15,6 +15,10 @@ def install_security(app):
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
+        if request.url.path.startswith(("/admin/api/auth", "/admin/api/account")):
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse({"detail": "invalid_admin_request"}, status_code=422)
         if request.url.path.startswith("/admin/api/onboarding"):
             from fastapi.responses import JSONResponse
 
@@ -51,18 +55,35 @@ def install_security(app):
             return await app.state.oauth.api_identity(auth.credentials)
         return app.state.bridge.store.clients.authenticate(auth.credentials)
 
-    def authorize_admin(auth: HTTPAuthorizationCredentials | None = Depends(bearer)):
+    async def authorize_admin(
+        request: Request, auth: HTTPAuthorizationCredentials | None = Depends(bearer)
+    ):
+        from wechat_bridge.storage.admin_accounts import ADMIN_COOKIE
+        from wechat_bridge.api.admin_auth import same_origin
+
+        accounts = getattr(app.state, "admin_accounts", None)
+        legacy_enabled = not accounts or accounts.metadata()["legacy_enabled"]
         expected = app.state.admin_hash
-        if not expected:
-            raise HTTPException(503, "admin_not_configured")
         if (
-            auth is None
-            or auth.scheme.lower() != "bearer"
-            or not hmac.compare_digest(
-                hashlib.sha256(auth.credentials.encode()).hexdigest(), expected
-            )
+            legacy_enabled
+            and expected
+            and auth
+            and auth.scheme.lower() == "bearer"
+            and hmac.compare_digest(hashlib.sha256(auth.credentials.encode()).hexdigest(), expected)
         ):
-            raise HTTPException(401, "Invalid administrator key")
+            return {"source": "legacy"}
+        row = accounts.session(request.cookies.get(ADMIN_COOKIE, "")) if accounts else None
+        if not row:
+            if not expected and (not accounts or not accounts.account()):
+                raise HTTPException(503, "admin_not_configured")
+            raise HTTPException(401, "admin_login_required")
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            same_origin(request)
+            if not hmac.compare_digest(
+                request.headers.get("X-Admin-CSRF", "").encode(), row["csrf"].encode()
+            ):
+                raise HTTPException(403, "admin_csrf_required")
+        return {"source": "session"}
 
     @app.exception_handler(BridgeError)
     async def bridge_error(request, exc):

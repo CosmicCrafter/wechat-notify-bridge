@@ -438,32 +438,14 @@ class Feishu(FeishuInbound):
             )
 
     async def sync_task(self, cid, tid):
-        task_row = self.store.portal.tasks.row(cid, tid)
-        row = self.state.receipt(task_row["outgoing_key"])
-        if not row or row["channel"] != self.scope_name:
-            return None
-        diagnostics = self.state.decrypt(row["encrypted"])
-        message_id = diagnostics.get("provider_message_id")
-        if not message_id:
-            return "unconfirmed_do_not_retry"
-        async with self.lock:
-            try:
-                config = self.ready()
-                token = await self.access_token(config)
-                task = self.store.portal.tasks.get(cid, tid)
-                chat = self.store.portal.owner_chat(cid)
-                projected = card(
-                    "", "[" + chat["caller"] + "-" + chat["name"] + "]", chat_url(cid), task
-                )
-                response = await self.client().patch(
-                    BASE + "/im/v1/messages/" + message_id,
-                    headers={"Authorization": "Bearer " + token},
-                    json={"content": json.dumps(projected, ensure_ascii=False)},
-                )
-                response.raise_for_status()
-                return "api_updated" if response.json().get("code") == 0 else "api_rejected"
-            except Exception:
-                return "unconfirmed_do_not_retry"
+        # Keep the existing caller API's result contract on the shared projector.
+        result = await self.project_task(cid, tid)
+        return {
+            "synced": "api_updated",
+            "unavailable": "unconfirmed_do_not_retry",
+            "pending": "unconfirmed_do_not_retry",
+            "failed": "unconfirmed_do_not_retry",
+        }[result["status"]]
 
     async def close(self):
         if self.http:

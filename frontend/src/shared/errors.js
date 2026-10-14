@@ -1,4 +1,13 @@
 export const errors = {
+  invalid_admin_credentials: "用户名或密码不正确。",
+  invalid_admin_password: "密码须为 15–128 字符。",
+  invalid_admin_username:
+    "用户名须为 3–32 位中英文、数字、点、下划线或短横线。",
+  admin_state_changed: "账号状态已改变，请重新登录。",
+  admin_already_initialized: "已建立管理员账号，请登录。",
+  admin_same_origin_required: "请求来源不匹配，请从本服务管理页面重试。",
+  invalid_admin_request: "请检查账号参数；不允许额外字段。",
+  admin_csrf_required: "安全会话已变化，请刷新后重试。",
   invalid_onboarding_settings: "接入参数不完整或格式不正确，请检查所选方式。",
   public_base_not_configured:
     "尚未配置服务公开地址，请先设置 WECHAT_PUBLIC_BASE_URL。",

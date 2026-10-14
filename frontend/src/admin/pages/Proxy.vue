@@ -3,7 +3,9 @@ import { ref, reactive, onMounted, onBeforeUnmount, computed } from "vue";
 import { api, run, session } from "../session.js";
 import { date } from "../../shared/format.js";
 import { errors } from "../../shared/errors.js";
+import { ElMessage } from "element-plus";
 const state = ref(null),
+  statusError = ref(""),
   node = ref(""),
   dirty = ref(false),
   form = reactive({
@@ -35,7 +37,10 @@ async function load() {
   loading = true;
   try {
     const p = await api("proxy");
-    if (alive) apply(p);
+    if (alive) {
+      apply(p);
+      statusError.value = "";
+    }
   } finally {
     loading = false;
   }
@@ -47,6 +52,10 @@ async function operation(path, body) {
     if (path === "select") dirty.value = false;
     if (path === "config") form.subscription_url = "";
     apply(p);
+    if (p.busy) ElMessage.info("正在执行，请查看运行结果；页面会自动刷新。");
+    else if (p.last_error)
+      ElMessage.warning(errors[p.last_error] || "操作未完成，保留现有配置。");
+    else ElMessage.success(path === "config" ? "设置已保存。" : "操作已完成。");
   });
 }
 const disabled = computed(
@@ -60,7 +69,10 @@ const size = (n) => (n == null ? "—" : (n / 2 ** 30).toFixed(2) + " GiB");
 onMounted(() => {
   run(load);
   timer = setInterval(() => {
-    if (!session.busy) load().catch(() => {});
+    if (!session.busy)
+      load().catch((e) => {
+        if (alive && !e.stale) statusError.value = e.message;
+      });
   }, 5000);
 });
 onBeforeUnmount(() => {
@@ -69,6 +81,12 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
+  <el-alert
+    v-if="statusError"
+    :title="'状态读取失败，保留最近显示：' + statusError"
+    type="warning"
+    :closable="false"
+  />
   <el-alert
     title="微信和飞书直连；代理仅用于 Codex / GPT 云端回调。"
     type="info"
@@ -92,7 +110,7 @@ onBeforeUnmount(() => {
         <strong>{{ state.current_node || "尚未选择节点" }}</strong
         ><el-tag
           >{{
-            state.nodes.find((n) => n.name === state.current_node)?.delay || "—"
+            state.nodes.find((n) => n.name === state.current_node)?.delay ?? "—"
           }}
           ms</el-tag
         >
@@ -109,7 +127,10 @@ onBeforeUnmount(() => {
               :key="n.name"
               :value="n.name"
               :label="
-                n.name + (n.delay ? ' · ' + n.delay + ' ms' : '')
+                n.name +
+                (n.delay != null
+                  ? ' · ' + n.delay + ' ms'
+                  : ' · 尚无有效检测结果')
               " /></el-select></el-form-item
         ><el-button
           type="primary"
@@ -118,6 +139,15 @@ onBeforeUnmount(() => {
           >应用选择</el-button
         ></el-form
       >
+      <p class="help">
+        {{
+          state.busy
+            ? "正在应用或检测，当前显示仍为上次验证的节点。"
+            : dirty
+              ? "所选节点尚未应用，当前节点保持不变。"
+              : "选择节点后点击“应用选择”。"
+        }}
+      </p>
       <p class="help">
         最近检测：{{ date(state.last_check_at) }} · 优先级：{{
           state.priorities.join(" → ") || "自动选择可用节点"
@@ -138,7 +168,7 @@ onBeforeUnmount(() => {
           <h2>代理订阅</h2>
           <p class="help">
             {{ state.subscription_label || "未配置订阅" }} ·
-            {{ state.source === "admin" ? "管理页配置" : ".env 初始配置" }}
+            {{ state.source === "admin" ? "管理页配置" : "启动配置" }}
           </p>
         </div>
         <el-button :disabled="disabled" @click="operation('update', {})"

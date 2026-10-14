@@ -3,6 +3,7 @@ import { ref, reactive, computed, onBeforeUnmount, watch, nextTick } from "vue";
 import { ElMessageBox, ElMessage } from "element-plus";
 import { api, run, session, refresh, copy } from "../session.js";
 import { date, connectionLabels } from "../../shared/format.js";
+import { confirmConnectionChange } from "../connection-impact.js";
 const visible = ref(false),
   step = ref(0),
   bot = ref(null),
@@ -25,6 +26,7 @@ const callback = ref(""),
 let generation = 0,
   timer = null,
   qrVersion = "";
+let savedConfig = null;
 const contentTop = ref();
 watch(step, async () => {
   await nextTick();
@@ -42,6 +44,7 @@ function clearQr() {
   qrVersion = "";
 }
 function reset() {
+  savedConfig = null;
   generation++;
   clearInterval(timer);
   clearQr();
@@ -108,6 +111,7 @@ async function load() {
     for (const k of Object.keys(config))
       config[k] = d[k] ?? (k === "enabled" ? false : "");
     config.owner_open_id = d.owner_open_id || d.default_owner_open_id || "";
+    savedConfig = { ...config };
     callback.value = d.callback_url || "";
     lastEvent.value = d.last_event_at;
   } else {
@@ -123,7 +127,7 @@ async function load() {
 async function next() {
   await run(async () => {
     if (step.value === 0) {
-      if (!name.value.trim()) throw Error("请填写 Bot 名称。");
+      if (!name.value.trim()) throw Error("请填写连接名称。");
       bot.value = await api("bots", {
         name: name.value.trim(),
         platform: platform.value,
@@ -145,7 +149,25 @@ async function next() {
       ])
         if (!String(config[k]).trim())
           throw Error("请完整填写应用凭据与接收人 Open ID。");
-      await api(`bots/${bot.value.id}/feishu`, { ...config });
+      if (
+        savedConfig &&
+        Object.keys(config).some((k) => savedConfig[k] !== config[k]) &&
+        !(await confirmConnectionChange(bot.value, "更新配置", {
+          repair: config.enabled,
+        }))
+      )
+        return;
+      const password =
+        bot.value.last_recovery_protected &&
+        savedConfig &&
+        Object.keys(config).some((k) => savedConfig[k] !== config[k])
+          ? await currentPassword()
+          : undefined;
+      if (password === null) return;
+      await api(`bots/${bot.value.id}/feishu`, {
+        ...config,
+        ...(password ? { admin_password: password } : {}),
+      });
       await load();
       step.value = 2;
       await refresh();
@@ -153,28 +175,49 @@ async function next() {
   });
 }
 async function startPair() {
+  let password;
   if (pair.value?.service.bound) {
     try {
-      await ElMessageBox.confirm(
-        "将更新此 Bot 的绑定凭据，请使用原来的微信账号。历史记录保留。",
-        "重新绑定微信",
-        {
-          type: "warning",
-          confirmButtonText: "重新绑定",
-          cancelButtonText: "取消",
-        },
-      );
-    } catch {
+      if (
+        !(await confirmConnectionChange(bot.value, "重新绑定", {
+          repair: true,
+        }))
+      )
+        return;
+      if (bot.value.last_recovery_protected) {
+        password = await currentPassword();
+        if (password === null) return;
+      }
+    } catch (e) {
+      session.error = e.message;
       return;
     }
   }
   await run(async () => {
     await api(`bots/${bot.value.id}/pairing/start`, {
       replace: !!pair.value?.service.bound,
+      ...(password ? { admin_password: password } : {}),
     });
     step.value = 1;
     await poll();
   });
+}
+async function currentPassword() {
+  try {
+    const result = await ElMessageBox.prompt(
+      "这是最后恢复连接。请输入当前管理密码，修复后重新验证本人恢复用途。",
+      "验证管理身份",
+      {
+        inputType: "password",
+        confirmButtonText: "继续修复",
+        cancelButtonText: "取消",
+      },
+    );
+    return result.value;
+  } catch (e) {
+    if (["cancel", "close"].includes(e)) return null;
+    throw e;
+  }
 }
 async function verify() {
   await run(async () => {
@@ -192,7 +235,7 @@ onBeforeUnmount(reset);
 <template>
   <el-dialog
     v-model="visible"
-    :title="bot ? '配置 Bot · ' + name : '新增 Bot'"
+    :title="bot ? '配置连接 · ' + name : '新增通信连接'"
     width="640px"
     class="setup-modal"
     :close-on-click-modal="false"
@@ -206,14 +249,14 @@ onBeforeUnmount(reset);
     <div class="step-body">
       <template v-if="step === 0"
         ><h3>选择通信平台</h3>
-        <p class="help">每个 Bot 是独立的通信连接，创建后不能更换平台。</p>
+        <p class="help">每个连接独立配置平台账号，创建后不能更换平台。</p>
         <el-radio-group v-model="platform" class="platform-options"
           ><el-radio value="wechat" border>微信 ClawBot</el-radio
           ><el-radio value="feishu" border
             >飞书应用机器人</el-radio
           ></el-radio-group
         ><el-form label-position="top" @submit.prevent="next"
-          ><el-form-item label="Bot 名称" required
+          ><el-form-item label="连接名称" required
             ><el-input
               v-model="name"
               maxlength="40"

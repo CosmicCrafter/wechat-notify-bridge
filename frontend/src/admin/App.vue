@@ -148,6 +148,12 @@ onBeforeUnmount(() => {
           </div>
         </header>
         <main class="page-content">
+          <el-alert
+            v-if="session.status?.environment?.platforms === 'simulated'"
+            title="隔离验收实例 · 独立数据 · 平台通信与代理出口使用测试替身"
+            type="warning"
+            :closable="false"
+          />
           <div class="page-heading">
             <h1>{{ title }}</h1>
             <p>{{ descriptions[page] }}</p>

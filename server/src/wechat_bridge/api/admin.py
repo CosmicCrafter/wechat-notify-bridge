@@ -4,6 +4,7 @@ import os
 import io
 import json
 import zipfile
+from typing import Literal
 
 from fastapi import Depends, HTTPException, Query
 from fastapi.responses import FileResponse, RedirectResponse, Response
@@ -11,12 +12,23 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 
 from wechat_bridge.config import WEB
 from wechat_bridge.api.schemas import PairStart, ClientName, PairSession, PairVerify
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ClientCreate(ClientName):
     bot_ids: list[str] | None = Field(default=None, max_length=32)
     default_bot_id: str | None = None
+    key_format: Literal["legacy", "nb"] = "legacy"
+
+
+class Rotation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    overlap_seconds: int = Field(default=3600, ge=0, le=86400)
+
+
+class ClientEnabled(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool
 
 
 WEB = WEB / "admin"
@@ -62,7 +74,15 @@ def mount_admin(app, authorize_admin):
         store = app.state.bridge.store
         return {
             "clients": [
-                dict(client, **store.bots.grants(client["id"])) for client in store.clients.list()
+                dict(
+                    client,
+                    credentials=store.clients.credentials.list(client["id"]),
+                    receive_method="http_inbox"
+                    if store.clients.credentials.can_receive(client["id"])
+                    else None,
+                    **store.bots.grants(client["id"]),
+                )
+                for client in store.clients.list()
             ],
             "base_url": os.environ.get("WECHAT_PUBLIC_BASE_URL", ""),
         }
@@ -71,6 +91,7 @@ def mount_admin(app, authorize_admin):
         bridge = app.state.bridge
         async with bridge.lock:
             result = getattr(bridge.store.clients, operation)(*args)
+            app.state.admin_accounts.audit("app_" + operation, "web:" + str(args[0]))
             if operation in ("create", "rotate"):
                 client, key = result
                 return {
@@ -88,17 +109,19 @@ def mount_admin(app, authorize_admin):
         async with bridge.lock:
             bridge.store.db.execute("BEGIN IMMEDIATE")
             try:
-                client, key = bridge.store.clients.create(body.name)
+                client, key = bridge.store.clients.create(body.name, modern=body.key_format == "nb")
                 if body.bot_ids is not None:
                     bridge.store.bots.set_grants(client["id"], body.bot_ids, body.default_bot_id)
                 result = dict(client, **bridge.store.bots.grants(client["id"]))
                 bridge.store.db.commit()
+                app.state.admin_accounts.audit("app_create", "web:" + client["id"])
             except Exception:
                 bridge.store.db.rollback()
                 raise
             return {
                 "client": result,
                 "api_key": key,
+                "credential": bridge.store.clients.credentials.list(client["id"])[0],
                 "base_url": os.environ.get("WECHAT_PUBLIC_BASE_URL", ""),
             }
 
@@ -134,6 +157,66 @@ def mount_admin(app, authorize_admin):
     async def client_rename(client_id: str, body: ClientName):
         return await change_client("rename", client_id, body.name)
 
+    @app.post(
+        "/admin/api/clients/{client_id}/credentials/rotate",
+        dependencies=[Depends(authorize_admin)],
+        include_in_schema=False,
+    )
+    async def normal_rotation(client_id: str, body: Rotation):
+        async with app.state.bridge.lock:
+            result = app.state.bridge.store.clients.credentials.rotate(
+                client_id, body.overlap_seconds
+            )
+            app.state.admin_accounts.audit(
+                "key_rotate", "web:" + client_id + ":" + result["credential"]["id"]
+            )
+            return dict(
+                result,
+                client=app.state.bridge.store.clients.public(
+                    app.state.bridge.store.clients.get(client_id)
+                ),
+                base_url=os.environ.get("WECHAT_PUBLIC_BASE_URL", ""),
+            )
+
+    @app.post(
+        "/admin/api/clients/{client_id}/credentials/finish",
+        dependencies=[Depends(authorize_admin)],
+        include_in_schema=False,
+    )
+    async def finish_rotation(client_id: str):
+        async with app.state.bridge.lock:
+            result = app.state.bridge.store.clients.credentials.finish(client_id)
+            app.state.admin_accounts.audit("key_finish", "web:" + client_id)
+            return result
+
+    @app.post(
+        "/admin/api/clients/{client_id}/credentials/{credential_id}/revoke",
+        dependencies=[Depends(authorize_admin)],
+        include_in_schema=False,
+    )
+    async def revoke_credential(client_id: str, credential_id: str):
+        async with app.state.bridge.lock:
+            result = app.state.bridge.store.clients.credentials.revoke(client_id, credential_id)
+            app.state.admin_accounts.audit("key_revoke", "web:" + client_id + ":" + credential_id)
+            return result
+
+    @app.post(
+        "/admin/api/clients/{client_id}/enabled",
+        dependencies=[Depends(authorize_admin)],
+        include_in_schema=False,
+    )
+    async def enabled(client_id: str, body: ClientEnabled):
+        store = app.state.bridge.store
+        async with app.state.bridge.lock:
+            store.clients.get(client_id)
+            store.db.execute(
+                "UPDATE api_clients SET enabled=? WHERE id=?", (int(body.enabled), client_id)
+            )
+            app.state.admin_accounts.audit(
+                "app_enable" if body.enabled else "app_disable", "web:" + client_id
+            )
+            return {"client": store.clients.public(store.clients.get(client_id))}
+
     @app.get("/", include_in_schema=False)
     def index():
         return RedirectResponse("admin/")
@@ -156,7 +239,11 @@ def mount_admin(app, authorize_admin):
 
     @app.get("/admin/api/status", dependencies=[Depends(authorize_admin)], include_in_schema=False)
     async def admin_status():
-        return {"service": app.state.bridge.store.status(), "pairing": app.state.pairing.snapshot()}
+        return {
+            "service": app.state.bridge.store.status(),
+            "pairing": app.state.pairing.snapshot(),
+            "environment": getattr(app.state, "test_environment", None),
+        }
 
     @app.post(
         "/admin/api/pairing/start", dependencies=[Depends(authorize_admin)], include_in_schema=False
@@ -165,6 +252,15 @@ def mount_admin(app, authorize_admin):
         bot = app.state.channels.registry.get("default")
         if not bot["enabled"]:
             raise HTTPException(409, "bot_disabled")
+        if body.replace and app.state.connection_tests.impact("default")["last_recovery_protected"]:
+            from wechat_bridge.api.admin_auth import verify_admin_password
+            from wechat_bridge.storage.client_registry import ClientError
+
+            if body.admin_password is None:
+                raise ClientError("admin_password_required", 409)
+            await verify_admin_password(
+                app.state.admin_accounts, body.admin_password.get_secret_value()
+            )
         return await app.state.channels.pairing("default").start(body.replace)
 
     @app.get(

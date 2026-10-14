@@ -178,9 +178,13 @@ class AdminAccounts:
             )
             self.db.execute("DELETE FROM admin_sessions")
             self.db.execute("DELETE FROM admin_limits")
+            if self.db.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='admin_recovery_challenges'"
+            ).fetchone():
+                self.db.execute("DELETE FROM admin_recovery_challenges")
             self.audit(
                 "password_reset"
-                if source == "terminal"
+                if source in ("terminal", "recovery")
                 else "password_change"
                 if encoded
                 else "username_change",

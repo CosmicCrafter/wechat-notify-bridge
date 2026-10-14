@@ -10,6 +10,7 @@ from wechat_bridge.api.admin import mount_admin
 from wechat_bridge.api.admin_auth import mount_admin_auth
 from wechat_bridge.api.admin_queries import mount_admin_queries
 from wechat_bridge.api.admin_conversations import mount_admin_conversations
+from wechat_bridge.api.admin_recovery import mount_admin_recovery
 from wechat_bridge.api.onboarding import mount_onboarding
 from wechat_bridge.api.clients import mount_client_api
 from wechat_bridge.api.channels import mount_channels
@@ -18,7 +19,14 @@ from wechat_bridge.mcp.server import mount_remote_mcp
 
 
 def create_app(
-    bridge=None, clients=None, run_workers=True, *, admin_hash=None, pairing=None, drivers=None
+    bridge=None,
+    clients=None,
+    run_workers=True,
+    *,
+    admin_hash=None,
+    pairing=None,
+    drivers=None,
+    proxy_factory=None,
 ):
     app = FastAPI(
         title="Notify Bridge API",
@@ -27,7 +35,13 @@ def create_app(
         redoc_url=None,
         openapi_url=None,
         lifespan=create_lifespan(
-            bridge, clients, run_workers, admin_hash=admin_hash, pairing=pairing, drivers=drivers
+            bridge,
+            clients,
+            run_workers,
+            admin_hash=admin_hash,
+            pairing=pairing,
+            drivers=drivers,
+            proxy_factory=proxy_factory,
         ),
         servers=(
             [{"url": os.environ["WECHAT_PUBLIC_BASE_URL"]}]
@@ -40,6 +54,7 @@ def create_app(
     mount_admin_auth(app, authorize_admin)
     mount_admin_queries(app, authorize_admin)
     mount_admin_conversations(app, authorize_admin)
+    mount_admin_recovery(app, authorize_admin)
     mount_admin(app, authorize_admin)
     mount_onboarding(app, authorize_admin)
     mount_proxy(app, authorize_admin)

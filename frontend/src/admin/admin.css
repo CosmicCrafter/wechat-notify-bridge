@@ -311,8 +311,20 @@
   cursor: pointer;
 }
 .login-options {
+  flex-wrap: wrap;
   margin-top: 16px;
   flex-wrap: wrap;
+}
+.credential-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid #edf0f5;
+}
+.credential-row .el-tag {
+  margin-left: 12px;
 }
 .el-dialog {
   max-width: calc(100vw - 32px);

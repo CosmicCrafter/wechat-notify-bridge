@@ -97,12 +97,16 @@ class Portal:
             raise ClientError("conversation_not_found", 404)
         if writable and (not row["active"] or not row["enabled"]):
             raise ClientError("conversation_closed", 409)
+        can_reply = bool(row['active'] and row['enabled'] and self.store.clients.credentials.can_receive(row['client_id']))
+        if writable and not can_reply:
+            raise ClientError('client_receive_unavailable',409)
         return dict(
             id=row["id"],
             name=row["name"],
             caller=row["caller"],
             active=bool(row["active"] and row["enabled"]),
             archived=not bool(row["active"]),
+            can_reply=can_reply,
         )
 
     def chats(self):

@@ -21,6 +21,7 @@ class Identity:
     name: str
     key_hash: str
     legacy_name: str | None = None
+    credential_id: str | None = None
 
 
 def client_name(value):
@@ -42,6 +43,9 @@ class ClientRegistry:
               rotated_at REAL, revoked_at REAL, last_seen_at REAL, legacy_name TEXT);
             CREATE TABLE IF NOT EXISTS client_seed (name TEXT PRIMARY KEY);
         """)
+        from wechat_bridge.storage.credentials import Credentials
+
+        self.credentials = Credentials(self)
 
     def seed(self, clients):
         """Import each legacy file entry once; revoked/renamed keys never resurrect."""
@@ -57,6 +61,7 @@ class ClientRegistry:
                     (uuid.uuid4().hex, name, digest, time.time(), name),
                 )
                 self.db.execute("INSERT INTO client_seed VALUES (?)", (name,))
+            self.credentials.migrate()
             self.db.commit()
         except Exception:
             self.db.rollback()
@@ -102,16 +107,20 @@ class ClientRegistry:
         key = secrets.choice("123456789") + "".join(secrets.choice("0123456789") for _ in range(39))
         return key, hashlib.sha256(key.encode()).hexdigest()
 
-    def create(self, name):
+    def create(self, name, *, modern=False):
         name = client_name(name)
         if self.db.execute("SELECT 1 FROM api_clients WHERE name=?", (name,)).fetchone():
             raise ClientError("client_exists")
         key, digest = self.new_key()
+        if modern:
+            key = "nb_" + secrets.token_urlsafe(32)
+            digest = hashlib.sha256(key.encode()).hexdigest()
         id = uuid.uuid4().hex
         self.db.execute(
             "INSERT INTO api_clients(id,name,key_hash,created_at) VALUES (?,?,?,?)",
             (id, name, digest, time.time()),
         )
+        self.credentials.issue(id, digest, key[-4:], "nb" if modern else "legacy")
         if getattr(self, "on_create", None):
             self.on_create(id)
         return self.public(self.get(id)), key
@@ -119,6 +128,11 @@ class ClientRegistry:
     def rotate(self, id):
         self.get(id)
         key, digest = self.new_key()
+        self.db.execute(
+            "UPDATE api_credentials SET status='revoked',revoked_at=? WHERE client_id=? AND status IN ('active','retiring')",
+            (time.time(), id),
+        )
+        self.credentials.issue(id, digest, key[-4:], "legacy")
         self.db.execute(
             "UPDATE api_clients SET key_hash=?,enabled=1,rotated_at=?,revoked_at=NULL WHERE id=?",
             (digest, time.time(), id),
@@ -145,6 +159,7 @@ class ClientRegistry:
                 (id,),
             )
             self.db.execute("DELETE FROM api_clients WHERE id=?", (id,))
+            self.db.execute("DELETE FROM api_credentials WHERE client_id=?", (id,))
             if self.db.execute(
                 "SELECT 1 FROM sqlite_master WHERE name='client_bot_grants'"
             ).fetchone():
@@ -168,24 +183,44 @@ class ClientRegistry:
         self.db.execute("UPDATE api_clients SET name=? WHERE id=?", (name, id))
         return self.public(self.get(id))
 
-    def authenticate(self, key):
+    def authenticate(self, key, *, touch=True):
         digest = hashlib.sha256(key.encode()).hexdigest()
         row = self.db.execute(
-            "SELECT * FROM api_clients WHERE key_hash=? AND enabled=1", (digest,)
+            "SELECT a.*,k.id AS credential_id FROM api_clients a JOIN api_credentials k ON k.client_id=a.id "
+            "WHERE k.key_hash=? AND a.enabled=1 AND k.status IN ('active','retiring') AND (k.expires_at IS NULL OR k.expires_at>?)",
+            (digest, time.time()),
         ).fetchone()
         if not row:
             raise ClientError("invalid_client_key", 401)
-        self.db.execute(
-            "UPDATE api_clients SET last_seen_at=? WHERE id=?", (time.time(), row["id"])
-        )
-        return Identity(row["id"], row["name"], row["key_hash"], row["legacy_name"])
+        if touch:
+            self.db.execute(
+                "UPDATE api_clients SET last_seen_at=? WHERE id=?", (time.time(), row["id"])
+            )
+            self.db.execute(
+                "UPDATE api_credentials SET last_used_at=? WHERE id=?",
+                (time.time(), row["credential_id"]),
+            )
+        return Identity(row["id"], row["name"], digest, row["legacy_name"], row["credential_id"])
 
     def revalidate(self, identity):
         row = self.db.execute("SELECT * FROM api_clients WHERE id=?", (identity.id,)).fetchone()
         if (
             not row
             or not row["enabled"]
-            or not hmac.compare_digest(row["key_hash"], identity.key_hash)
+            or (
+                not self.credentials.valid(identity.id, identity.key_hash, identity.credential_id)
+                if identity.credential_id
+                else not hmac.compare_digest(row["key_hash"], identity.key_hash)
+            )
         ):
             raise ClientError("invalid_client_key", 401)
-        return Identity(row["id"], row["name"], row["key_hash"], row["legacy_name"])
+        return Identity(
+            row["id"], row["name"], identity.key_hash, row["legacy_name"], identity.credential_id
+        )
+
+    def api_identity(self, id, digest, credential_id=None):
+        row = self.get(id)
+        key = self.credentials.valid(id, digest, credential_id)
+        if not key:
+            raise ClientError("invalid_client_key", 401)
+        return self.revalidate(Identity(id, row["name"], digest, row["legacy_name"], key["id"]))

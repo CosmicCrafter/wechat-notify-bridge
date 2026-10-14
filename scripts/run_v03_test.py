@@ -16,6 +16,7 @@ from pathlib import Path
 import secrets
 import sys
 import time
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "server/src"))
@@ -35,9 +36,10 @@ from wechat_bridge.services.bridge import Bridge
 from wechat_bridge.storage.admin_accounts import AdminAccounts, password_hash
 from wechat_bridge.storage.database import Store
 from wechat_bridge.wechat.pairing import Pairing
+from wechat_bridge.services.proxy import ProxyManager, GROUP
 
 
-def platform(request):
+def platform(request, scope=None):
     if request.url.path.endswith("get_bot_qrcode"):
         return httpx.Response(
             200,
@@ -55,11 +57,88 @@ def platform(request):
         raise httpx.ReadTimeout("test transport timeout", request=request)
     if "[test:reject]" in text:
         return httpx.Response(200, json={"ret": 400, "code": 99991663, "errmsg": "test rejection"})
+    nonce = re.search(r"nb-test:[a-f0-9]{32}", text)
+    if nonce and scope and "msg" in data:
+        account = scope.account()
+        if account:
+            scope.ingest(
+                {
+                    "msgs": [
+                        {
+                            "message_id": secrets.token_hex(16),
+                            "from_user_id": account["user_id"],
+                            "message_type": 1,
+                            "message_state": 2,
+                            "context_token": account["context_token"],
+                            "create_time_ms": int(time.time() * 1000),
+                            "item_list": [{"type": 1, "text_item": {"text": nonce[0]}}],
+                        }
+                    ]
+                },
+                time.time(),
+            )
     if "open-apis" in request.url.path:
         return httpx.Response(
             200, json={"code": 0, "data": {"message_id": "test-" + secrets.token_hex(8)}}
         )
     return httpx.Response(200, json={"ret": 0})
+
+
+def make_proxy(store):
+    nodes = [
+        {
+            "name": name,
+            "type": "ss",
+            "server": "8.8.8.8",
+            "port": 443,
+            "cipher": "aes-128-gcm",
+            "password": secrets.token_urlsafe(24),
+        }
+        for name in ("日本 Pro 测试 A", "日本 Pro 测试 B", "美国 Pro 测试")
+    ]
+    selected = {"name": None}
+
+    def control(request):
+        if request.url.path == "/configs":
+            return httpx.Response(204)
+        if request.url.path == "/proxies/" + GROUP:
+            if request.method == "PUT":
+                selected["name"] = json.loads(request.content)["name"]
+                return httpx.Response(204)
+            return httpx.Response(200, json={"now": selected["name"]})
+        if request.url.path.endswith("/delay"):
+            return httpx.Response(200, json={"delay": 45 if "A" in request.url.path else 80})
+        return httpx.Response(404)
+
+    config = {
+        "controller_url": "http://127.0.0.1:9090",
+        "controller_secret": secrets.token_urlsafe(32),
+        "allowed_hosts": ["connectors.api.openai.com"],
+        "callback": {
+            "host": "127.0.0.1",
+            "port": 7890,
+            "username": "local-test",
+            "password": secrets.token_urlsafe(32),
+        },
+        "base_config": {"port": 7890, "proxies": nodes, "rules": ["MATCH,REJECT"]},
+    }
+    value = ProxyManager(
+        store,
+        config,
+        transport=httpx.MockTransport(control),
+        downloader=lambda url: (
+            json.dumps({"proxies": nodes}, ensure_ascii=False).encode(),
+            {"total": 100 * 2**30, "download": 4 * 2**30},
+        ),
+    )
+
+    async def verify():
+        return selected["name"] != "日本 Pro 测试 A"
+
+    value.verify_selected = verify
+    if not value.settings.get("subscription_url"):
+        value.settings["subscription_url"] = "https://subscription.example.com/test"
+    return value
 
 
 def main():
@@ -91,11 +170,16 @@ def main():
                 bound_at=time.time(),
             )
         )
-    transport = httpx.MockTransport(platform)
+    transport = httpx.MockTransport(lambda request: platform(request, store))
     bridge = Bridge(store, transport)
     drivers = dict(BUILTIN_DRIVERS)
+
+    def make_wechat(s, b):
+        scope = WeChatStore(s, b)
+        return Bridge(scope, httpx.MockTransport(lambda request: platform(request, scope)))
+
     drivers["wechat"] = ChannelDriver(
-        lambda s, b: Bridge(WeChatStore(s, b), transport),
+        make_wechat,
         drivers["wechat"].status,
         drivers["wechat"].delivery,
         pairing=lambda adapter, workers: Pairing(adapter, run_workers=False, transport=transport),
@@ -113,7 +197,13 @@ def main():
         admin_hash=hashlib.sha256(access["legacy_admin_key"].encode()).hexdigest(),
         drivers=drivers,
         pairing=Pairing(bridge, run_workers=False, transport=transport),
+        proxy_factory=make_proxy,
     )
+    app.state.test_environment = {
+        "platforms": "simulated",
+        "candidate": "v0.3",
+        "receive_workers": False,
+    }
     print("Isolated HTTP acceptance: http://127.0.0.1:19865/admin/")
     print(
         "Random local login stored in .private/test-v03/local-access.json; platform responses are simulated."

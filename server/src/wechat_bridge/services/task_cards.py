@@ -113,7 +113,7 @@ class TaskCards:
             updated_at=row["updated_at"],
             answer=self.decrypt(row["answer"]),
             result=self.decrypt(row["result"]) or "",
-            can_answer=chat["active"] and status == "pending",
+            can_answer=chat["can_reply"] and status == "pending",
             projection=self.store.get("task_projection:" + row["id"]),
         )
 

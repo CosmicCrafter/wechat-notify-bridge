@@ -1,4 +1,6 @@
 export const errors = {
+  client_receive_unavailable:
+    "所属应用暂无有效接收凭据，请联系管理员恢复授权。",
   image_too_large: "图片过大，请选择较小的图片。",
   invalid_image: "无法读取图片，请选择 JPG、PNG 或 WebP。",
   image_storage_full: "图片空间已满，请清理不需要的对话。",

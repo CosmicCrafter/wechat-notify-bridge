@@ -49,6 +49,10 @@ class FeishuInbound:
         now = time.time()
         stamp = msg.get("create_time", "")
         at = min(now, int(stamp) / 1000) if isinstance(stamp, str) and stamp.isdigit() else now
+        observer = getattr(self.store, "connection_tests", None)
+        if observer and observer.receive(self.bot_id, text, at):
+            self.store.set(self.scope_name + ":last_event_at", now)
+            return {"accepted": True, "connection_test": True}
         identity = hashlib.sha256(
             (self.scope_name + ":" + config["app_id"] + ":" + message_id).encode()
         ).hexdigest()

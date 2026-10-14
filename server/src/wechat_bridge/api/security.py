@@ -15,7 +15,7 @@ def install_security(app):
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
-        if request.url.path.startswith(("/admin/api/auth", "/admin/api/account")):
+        if request.url.path.startswith(("/admin/api/auth", "/admin/api/account", "/admin/api/recovery")):
             from fastapi.responses import JSONResponse
 
             return JSONResponse({"detail": "invalid_admin_request"}, status_code=422)
@@ -27,7 +27,7 @@ def install_security(app):
             from fastapi.responses import JSONResponse
 
             return JSONResponse({"detail": "invalid_proxy_settings"}, status_code=422)
-        if request.url.path.startswith(("/admin/api/bots", "/admin/api/channels")):
+        if request.url.path.startswith(("/admin/api/bots", "/admin/api/channels", "/admin/api/pairing")):
             from fastapi.responses import JSONResponse
 
             return JSONResponse({"detail": "invalid_bot_settings"}, status_code=422)

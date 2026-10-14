@@ -14,7 +14,7 @@ watch(
 </script>
 <template>
   <el-form label-position="top"
-    ><el-form-item label="允许调用的 Bot"
+    ><el-form-item label="允许使用的通信连接"
       ><el-checkbox-group v-model="model.bot_ids" class="grant-grid"
         ><el-checkbox
           v-for="bot in session.bots"
@@ -28,11 +28,11 @@ watch(
           ></el-checkbox
         ></el-checkbox-group
       ></el-form-item
-    ><el-form-item label="默认 Bot"
+    ><el-form-item label="默认通信连接"
       ><el-select
         v-model="model.default_bot_id"
         clearable
-        placeholder="不设默认，每次调用时指定 Bot"
+        placeholder="不设默认，每次调用时指定连接"
         ><el-option
           v-for="id in model.bot_ids"
           :key="id"
@@ -42,8 +42,8 @@ watch(
           " /></el-select
     ></el-form-item>
     <p class="help">
-      未指定 bot_id 时使用默认 Bot；默认 Bot 必须在授权范围内。未授权任何 Bot
-      的密钥不能发送通知。
+      未指定 bot_id
+      时使用默认连接；默认连接必须在授权范围内。未授权任何连接的应用不能发送通知。
     </p></el-form
   >
 </template>

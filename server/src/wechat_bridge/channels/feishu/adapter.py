@@ -64,6 +64,17 @@ class Feishu(FeishuInbound):
                 and other.get("app_id") == value["app_id"]
             ):
                 raise BridgeError(409, "bot_binding_conflict")
+        if previous and (
+            not value["enabled"]
+            or any(
+                value.get(f) != previous.get(f)
+                for f in (
+                    "app_id",
+                    "owner_open_id",
+                )
+            )
+        ):
+            self.store.bots.assert_safe_change(self.bot_id)
         self.state.save_settings(self.scope_name, value)
         self.store.db.execute(
             "UPDATE bots SET enabled=? WHERE id=?", (int(value["enabled"]), self.bot_id)

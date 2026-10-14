@@ -359,7 +359,7 @@ class Events:
                 raise ValueError("subscription limit")
             # The lock itself may have waited after authentication. Recheck the
             # local credential generation and OAuth grant without yielding.
-            self.provider.identity(identity.id, identity.key_hash)
+            self.store.clients.revalidate(identity)
             token_row = None
             if token.startswith("wna_"):
                 token_row = self.provider.token_row(token, "access")
@@ -387,6 +387,7 @@ class Events:
                 "client": identity.id,
                 "key_hash": identity.key_hash,
                 "oauth_client": oauth_client,
+                "credential_id": identity.credential_id,
             }
             if token.startswith("wna_"):
                 value["grant_id"] = token_row["grant_id"]
@@ -414,7 +415,12 @@ class Events:
             return {"id": sid, "refreshBefore": iso(expiry), "cursor": None, "truncated": False}
 
     def permitted(self, value, cid):
-        self.provider.identity(value["client"], value["key_hash"])
+        if value["oauth_client"].startswith("api-key:"):
+            self.store.clients.api_identity(
+                value["client"], value["key_hash"], value.get("credential_id")
+            )
+        else:
+            self.provider.identity(value["client"], value["key_hash"])
         self.store.conversations.get(value["client"], cid, require_active=True)
         if not value["oauth_client"].startswith("api-key:"):
             row = self.store.db.execute(

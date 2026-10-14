@@ -1,7 +1,5 @@
 """Admin-only onboarding exports; existing credentials and grants are never rotated."""
 
-import hashlib
-import hmac
 from typing import Literal
 from urllib.parse import urlsplit
 
@@ -11,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from wechat_bridge.config import public_base, oauth_base
 from wechat_bridge.services.onboarding import package, template_files
+from wechat_bridge.storage.client_registry import ClientError
 
 
 class ExportRequest(BaseModel):
@@ -81,9 +80,12 @@ def mount_onboarding(app, authorize_admin):
                         client = store.clients.public(row)
                         if body.transport == "local":
                             key = body.api_key.get_secret_value()
-                            if not key or not hmac.compare_digest(
-                                hashlib.sha256(key.encode()).hexdigest(), row["key_hash"]
-                            ):
+                            try:
+                                identity = store.clients.authenticate(key, touch=False)
+                                valid = identity.id == row["id"]
+                            except ClientError:
+                                valid = False
+                            if not key or not valid:
                                 raise HTTPException(422, "client_key_mismatch")
                 blob = package(
                     files,

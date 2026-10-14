@@ -62,6 +62,11 @@ class BotRegistry:
             raise ClientError("bot_not_found", 404)
         return dict(row)
 
+    def assert_safe_change(self, id):
+        protect = getattr(self, "protection", None)
+        if protect:
+            protect(id)
+
     def list(self):
         return [dict(row) for row in self.db.execute("SELECT * FROM bots ORDER BY created_at,id")]
 
@@ -78,6 +83,8 @@ class BotRegistry:
         return self.get(id)
 
     def update(self, id, name, enabled):
+        if not enabled:
+            self.assert_safe_change(id)
         self.get(id)
         name = self.name(name)
         if self.db.execute("SELECT 1 FROM bots WHERE name=? AND id<>?", (name, id)).fetchone():
@@ -87,6 +94,7 @@ class BotRegistry:
 
     def delete(self, id):
         self.get(id)
+        self.assert_safe_change(id)
         self.db.execute("SAVEPOINT delete_bot")
         try:
             self.db.execute("DELETE FROM client_bot_grants WHERE bot_id=?", (id,))

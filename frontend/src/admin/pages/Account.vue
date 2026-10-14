@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { api, run, session, clearSession } from "../session.js";
+import RecoveryBindings from "../components/RecoveryBindings.vue";
 const account = ref(null),
   kind = ref(""),
   old = ref(""),
@@ -62,6 +63,11 @@ async function save() {
       >
     </div></el-card
   >
+  <RecoveryBindings
+    v-if="account?.configured"
+    :account="account"
+    @updated="(value) => (account = value)"
+  />
   <el-dialog
     v-model="visible"
     :title="kind === 'username' ? '修改用户名' : '修改密码'"

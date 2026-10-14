@@ -481,7 +481,7 @@ onBeforeUnmount(() => {
             <TaskCard
               v-if="m.task"
               :task="m.task"
-              :readonly="!history.conversation.active"
+              :readonly="!history.conversation.can_reply"
               :request="api"
               :draft-store="adminDrafts"
               @answered="answered"
@@ -510,7 +510,7 @@ onBeforeUnmount(() => {
             >加载后续记录</el-button
           >
           <form
-            v-if="history.conversation.active"
+            v-if="history.conversation.can_reply"
             class="reply-composer"
             @submit.prevent="sendReply"
           >
@@ -550,7 +550,7 @@ onBeforeUnmount(() => {
           </form>
           <el-alert
             v-else
-            title="会话已归档或所属应用已停用，仅能查看历史。"
+            title="会话已归档、应用已停用或暂无有效接收凭据，仅能查看历史。"
             type="info"
             :closable="false"
         /></template>

@@ -1,13 +1,14 @@
 """Validated HTTP request models."""
 
 from typing import Annotated, Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from wechat_bridge.mcp.tools import CardField
 
 
 class PairStart(BaseModel):
     model_config = ConfigDict(extra="forbid")
     replace: bool = False
+    admin_password: SecretStr | None = Field(default=None, max_length=128)
 
 
 class ClientName(BaseModel):

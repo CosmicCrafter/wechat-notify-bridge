@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineAsyncComponent } from "vue";
+import { ref, computed, defineAsyncComponent } from "vue";
 import {
   ArrowLeft,
   Plus,
@@ -45,6 +45,7 @@ const actionChat = ref(null),
   fileInput = ref(),
   cameraInput = ref(),
   imageUrl = ref("");
+const canReply = computed(() => s.chat?.can_reply ?? s.chat?.active);
 function actions(chat) {
   if (chat && !s.busy) actionChat.value = chat;
 }
@@ -278,7 +279,7 @@ async function action(kind) {
               <TaskCard
                 v-if="m.task"
                 :task="m.task"
-                :readonly="!s.chat?.active"
+                :readonly="!canReply"
                 @answered="applyTask"
               />
               <div v-else class="message-bubble">
@@ -334,7 +335,7 @@ async function action(kind) {
                 circle
                 :icon="Plus"
                 aria-label="添加图片"
-                :disabled="!s.chat?.active || s.busy || !!replyPending"
+                :disabled="!canReply || s.busy || !!replyPending"
                 @click="attachments = !attachments"
               /><el-input
                 v-model="s.reply"
@@ -343,7 +344,7 @@ async function action(kind) {
                 maxlength="20000"
                 aria-label="回复当前会话"
                 placeholder="回复当前会话…"
-                :disabled="!s.chat?.active"
+                :disabled="!canReply"
                 :readonly="!!replyPending"
                 @input="saveDraft"
                 @focus="attachments = false"
@@ -354,7 +355,7 @@ async function action(kind) {
                 type="primary"
                 :loading="s.busy"
                 :disabled="
-                  !s.chat?.active || (!s.reply.trim() && !selectedImages.length)
+                  !canReply || (!s.reply.trim() && !selectedImages.length)
                 "
                 >{{ replyPending ? "重试" : "发送" }}</el-button
               >

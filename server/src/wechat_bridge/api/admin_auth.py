@@ -46,6 +46,19 @@ def same_origin(request):
         raise HTTPException(403, "admin_same_origin_required")
 
 
+async def verify_admin_password(accounts, value):
+    row = accounts.account()
+    bucket = "current-password:" + str(row["version"] if row else 0)
+    accounts.limit(bucket)
+    if not row or not await asyncio.to_thread(password_matches, value, row["password_hash"]):
+        accounts.failure(bucket)
+        raise ClientError("invalid_admin_credentials", 401)
+    if accounts.account()["version"] != row["version"]:
+        raise ClientError("admin_state_changed", 409)
+    accounts.db.execute("DELETE FROM admin_limits WHERE bucket=?", (bucket,))
+    return row["version"]
+
+
 def mount_admin_auth(app, authorize_admin):
     lock = asyncio.Lock()
 
@@ -58,13 +71,7 @@ def mount_admin_auth(app, authorize_admin):
         ).hexdigest()
 
     async def verify_old(value):
-        a = accounts()
-        row = a.account()
-        if not row or not await asyncio.to_thread(password_matches, value, row["password_hash"]):
-            raise ClientError("invalid_admin_credentials", 401)
-        if a.account()["version"] != row["version"]:
-            raise ClientError("admin_state_changed", 409)
-        return row["version"]
+        return await verify_admin_password(accounts(), value)
 
     @app.get("/admin/api/auth/status", include_in_schema=False)
     async def status(request: Request):

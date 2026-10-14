@@ -16,6 +16,8 @@ class AdminConversations:
         client = self.store.clients.get(client_id)
         if not client["enabled"]:
             raise ClientError("client_disabled", 409)
+        if not self.store.clients.credentials.can_receive(client_id):
+            raise ClientError("client_receive_unavailable", 409)
         return client
 
     def create(self, client_id, name, text, request_id):

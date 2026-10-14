@@ -1,4 +1,23 @@
 export const errors = {
+  admin_password_required:
+    "修复最后恢复连接需要当前管理密码，并在修复后重新验证。",
+  admin_not_initialized: "请先使用原管理 Key 建立管理员账号。",
+  invalid_admin_code: "验证码不正确、已过期或已使用，请检查后重试。",
+  admin_code_retry_later: "验证码请求须至少间隔 60 秒，请稍后重试。",
+  admin_code_send_unconfirmed: "验证码发送未确认，请检查恢复连接后再试。",
+  recovery_connection_unavailable:
+    "连接尚不可用于恢复；请先完成配置并收到本人消息。",
+  last_admin_recovery_protected:
+    "最后一个已验证恢复连接受保护，请先验证另一个连接。",
+  verified_recovery_required: "请先验证一个恢复连接，再停用原管理 Key。",
+  connection_test_retry_later: "连接测试须至少间隔 10 秒。",
+  delivery_retry_unsafe: "此次投递不满足安全重试条件，请先核实原结果。",
+  delivery_retry_history_incomplete: "历史请求资料不完整，不能自动复原发送。",
+  client_receive_unavailable:
+    "应用暂无有效接收凭据，请先恢复 Key 或 OAuth 授权。",
+  credential_rotation_pending: "已有 Key 正在迁移，请先完成当前轮换。",
+  credential_not_found: "Key 已变化，请刷新应用详情。",
+  invalid_key_overlap: "Key 过渡时间须在 0–24 小时之间。",
   invalid_admin_credentials: "用户名或密码不正确。",
   invalid_admin_password: "密码须为 15–128 字符。",
   invalid_admin_username:

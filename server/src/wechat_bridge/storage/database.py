@@ -84,6 +84,9 @@ class Store:
 
     def save_account(self, value):
         validate_base(value["base_url"])
+        previous = self.account()
+        if previous and any(previous.get(f) != value.get(f) for f in ("user_id",)):
+            self.bots.assert_safe_change(self.bot_id)
         self.bots.check_wechat_binding(self.bot_id, value)
         encrypted = self.cipher.encrypt(json.dumps(value).encode())
         self.db.execute("INSERT OR REPLACE INTO account VALUES (1,?)", (encrypted,))
@@ -240,8 +243,10 @@ class Store:
                     if isinstance(text, str):
                         texts.append(text)
                 content = {"text": "\n".join(texts), "item_types": kinds}
+                observer = getattr(getattr(self, "root", self), "connection_tests", None)
+                probe = bool(observer and observer.receive(self.bot_id, content["text"], at))
                 conversation_id, route_status = None, "shared"
-                if command is None:
+                if command is None and not probe:
                     conversation_id, route_status, content["text"], tag = BotConversations(
                         self.bots, self.bot_id
                     ).route(content["text"])
@@ -255,7 +260,11 @@ class Store:
                         now,
                         at,
                         self.cipher.encrypt(json.dumps(content).encode()),
-                        "command" if command is not None else "message",
+                        "connection_test"
+                        if probe
+                        else "command"
+                        if command is not None
+                        else "message",
                         conversation_id,
                         route_status,
                         self.bot_id,
@@ -264,7 +273,7 @@ class Store:
                 changed = cursor.rowcount
                 if changed:
                     added += 1
-                    if command is None and conversation_id:
+                    if command is None and not probe and conversation_id:
                         self.portal.add(
                             conversation_id,
                             "user",

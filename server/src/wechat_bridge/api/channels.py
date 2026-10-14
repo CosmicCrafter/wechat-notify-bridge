@@ -1,7 +1,8 @@
 """Administrator channel configuration and authenticated Feishu callbacks."""
 
 from fastapi import BackgroundTasks, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from wechat_bridge.api.admin_auth import verify_admin_password
 
 from wechat_bridge.channels.feishu.security import verify
 from wechat_bridge.core.errors import BridgeError
@@ -21,6 +22,7 @@ class FeishuSettings(BaseModel):
     app_secret: str = Field(default="", max_length=256)
     verification_token: str = Field(default="", max_length=256)
     encrypt_key: str = Field(default="", max_length=256)
+    admin_password: SecretStr | None = Field(default=None, max_length=128)
 
 
 class BotCreate(BaseModel):
@@ -42,19 +44,49 @@ class BotGrants(BaseModel):
 
 
 def mount_channels(app, authorize_admin):
+    async def credential_repair(bot_id, password):
+        if app.state.connection_tests.impact(bot_id)["last_recovery_protected"]:
+            if password is None:
+                raise ClientError("admin_password_required", 409)
+            await verify_admin_password(app.state.admin_accounts, password.get_secret_value())
+
     @app.get("/admin/api/bots", dependencies=[Depends(authorize_admin)], include_in_schema=False)
     async def bots():
-        return {"bots": app.state.channels.bots()}
+        return {
+            "bots": [
+                dict(bot, **app.state.connection_tests.impact(bot["id"]))
+                for bot in app.state.channels.bots()
+            ]
+        }
+
+    @app.get(
+        "/admin/api/bots/{bot_id}/impact",
+        dependencies=[Depends(authorize_admin)],
+        include_in_schema=False,
+    )
+    async def impact(bot_id: str):
+        return app.state.connection_tests.impact(bot_id)
+
+    @app.post(
+        "/admin/api/bots/{bot_id}/test",
+        dependencies=[Depends(authorize_admin)],
+        include_in_schema=False,
+    )
+    async def test(bot_id: str):
+        return await app.state.connection_tests.send(bot_id)
 
     @app.post("/admin/api/bots", dependencies=[Depends(authorize_admin)], include_in_schema=False)
     async def create(body: BotCreate):
-        return app.state.channels.registry.create(body.name, body.platform)
+        result = app.state.channels.registry.create(body.name, body.platform)
+        app.state.admin_accounts.audit("connection_create", "web:" + result["id"])
+        return result
 
     @app.post(
         "/admin/api/bots/{bot_id}", dependencies=[Depends(authorize_admin)], include_in_schema=False
     )
     async def update(bot_id: str, body: BotUpdate):
         result = app.state.channels.registry.update(bot_id, body.name, body.enabled)
+        app.state.admin_accounts.audit("connection_update", "web:" + bot_id)
         await app.state.channels.reconcile()
         return result
 
@@ -64,7 +96,9 @@ def mount_channels(app, authorize_admin):
         include_in_schema=False,
     )
     async def delete_bot(bot_id: str):
-        return await app.state.channels.delete(bot_id)
+        result = await app.state.channels.delete(bot_id)
+        app.state.admin_accounts.audit("connection_delete", "web:" + bot_id)
+        return result
 
     @app.get(
         "/admin/api/clients/{client_id}/bots",
@@ -111,7 +145,15 @@ def mount_channels(app, authorize_admin):
             raise ClientError("bot_platform_conflict", 422)
         adapter = app.state.channels.adapter(bot_id)
         async with adapter.lock:
-            return adapter.configure(body.model_dump())
+            config = adapter.config()
+            if any(
+                getattr(body, f) and getattr(body, f) != config.get(f)
+                for f in ("app_secret", "verification_token", "encrypt_key")
+            ):
+                await credential_repair(bot_id, body.admin_password)
+            result = adapter.configure(body.model_dump(exclude={"admin_password"}))
+            app.state.admin_accounts.audit("connection_credentials", "web:" + bot_id)
+            return result
 
     @app.get(
         "/admin/api/bots/{bot_id}/pairing",
@@ -130,6 +172,8 @@ def mount_channels(app, authorize_admin):
     async def pair_start(bot_id: str, body: PairStart):
         if not app.state.channels.registry.get(bot_id)["enabled"]:
             raise ClientError("bot_disabled")
+        if body.replace:
+            await credential_repair(bot_id, body.admin_password)
         return await app.state.channels.pairing(bot_id).start(body.replace)
 
     @app.get(
@@ -175,7 +219,15 @@ def mount_channels(app, authorize_admin):
     async def configure(body: FeishuSettings):
         adapter = app.state.channels.feishu
         async with adapter.lock:
-            return adapter.configure(body.model_dump())
+            config = adapter.config()
+            if any(
+                getattr(body, f) and getattr(body, f) != config.get(f)
+                for f in ("app_secret", "verification_token", "encrypt_key")
+            ):
+                await credential_repair(adapter.bot_id, body.admin_password)
+            result = adapter.configure(body.model_dump(exclude={"admin_password"}))
+            app.state.admin_accounts.audit("connection_credentials", "web:" + adapter.bot_id)
+            return result
 
     @app.post("/channels/feishu/{bot_id}/callback", include_in_schema=False)
     @app.post("/channels/feishu/callback", include_in_schema=False)

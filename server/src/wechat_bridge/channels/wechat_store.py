@@ -42,6 +42,9 @@ class WeChatStore(Store):
 
     def save_account(self, value):
         validate_base(value["base_url"])
+        previous = self.account()
+        if previous and any(previous.get(f) != value.get(f) for f in ("user_id",)):
+            self.bots.assert_safe_change(self.bot_id)
         self.bots.check_wechat_binding(self.bot_id, value)
         self.channels.save_settings("wechat:" + self.bot_id, value)
 

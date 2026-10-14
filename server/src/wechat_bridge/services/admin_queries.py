@@ -53,7 +53,10 @@ class AdminQueries:
                     "SELECT count(*) FROM task_cards WHERE conversation_id=? AND status='pending' AND expires_at>?",
                     (row["id"], time.time()),
                 ).fetchone()[0],
-                receive_method="http_inbox" if row["client_enabled"] else None,
+                receive_method="http_inbox"
+                if row["client_enabled"]
+                and self.store.clients.credentials.can_receive(row["client_id"])
+                else None,
             )
             items.append(item)
         return {"conversations": items, "total": total, "offset": offset, "limit": limit}

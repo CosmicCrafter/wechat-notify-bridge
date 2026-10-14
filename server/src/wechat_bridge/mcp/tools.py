@@ -128,6 +128,10 @@ def register_tools(mcp, request):
             str, Field(min_length=1, max_length=20, pattern=r"^[a-zA-Z0-9_\-\u4e00-\u9fff]+$")
         ]
         | None = None,
+        receiver_mode: Literal["legacy", "protected"] = "legacy",
+        host_type: Literal[
+            "unknown", "http", "codex", "claude", "chatgpt_work", "chatgpt"
+        ] = "unknown",
     ) -> dict:
         """Register this chat once under the API key. Sends no WeChat message.
         Use a stable host chat/thread ID as conversation_key, or generate one unique token and retain it in this chat.
@@ -136,9 +140,10 @@ def register_tools(mcp, request):
         With no name the server assigns a number. Duplicate names get a suffix. Re-registration preserves its name.
         Save returned id as conversation_id for send/read/delivery calls; do not store current-chat identity in process-global state.
         One active chat displays [client]; multiple active chats display [client-name]. reply_tag always identifies the chat."""
-        return await request(
-            "/api/conversations", {"conversation_key": conversation_key, "name": name}
-        )
+        payload = {"conversation_key": conversation_key, "name": name}
+        if receiver_mode != "legacy":
+            payload.update(receiver_mode=receiver_mode, host_type=host_type)
+        return await request("/api/conversations", payload)
 
     @mcp.tool(title="列出微信会话", annotations=READ)
     async def listConversations(include_closed: bool = False) -> dict:

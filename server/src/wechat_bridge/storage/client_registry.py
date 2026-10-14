@@ -22,6 +22,7 @@ class Identity:
     key_hash: str
     legacy_name: str | None = None
     credential_id: str | None = None
+    receiver_hash: str | None = None
 
 
 def client_name(value):
@@ -215,7 +216,12 @@ class ClientRegistry:
         ):
             raise ClientError("invalid_client_key", 401)
         return Identity(
-            row["id"], row["name"], identity.key_hash, row["legacy_name"], identity.credential_id
+            row["id"],
+            row["name"],
+            identity.key_hash,
+            row["legacy_name"],
+            identity.credential_id,
+            identity.receiver_hash,
         )
 
     def api_identity(self, id, digest, credential_id=None):

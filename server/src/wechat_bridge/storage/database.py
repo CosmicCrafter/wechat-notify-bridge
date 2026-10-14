@@ -10,6 +10,7 @@ from wechat_bridge.storage.conversations import Conversations
 from wechat_bridge.storage.send_diagnostics import SendDiagnostics
 from wechat_bridge.storage.inbox_claims import InboxClaims
 from wechat_bridge.storage.delivery_journal import DeliveryJournal
+from wechat_bridge.storage.receivers import Receivers
 from wechat_bridge.services.commands import command_text, execute as execute_command
 from wechat_bridge.services.portal import Portal
 from wechat_bridge.channels.storage import ChannelState
@@ -61,6 +62,8 @@ class Store:
         self.channels = ChannelState(self)
         self.bots = BotRegistry(self)
         self.portal = Portal(self)
+        self.receivers = Receivers(self)
+        self.conversations.receivers = self.receivers
         self.send_diagnostics = SendDiagnostics(self)
         self.claims = InboxClaims(self)
         self.delivery_journal = DeliveryJournal(self)

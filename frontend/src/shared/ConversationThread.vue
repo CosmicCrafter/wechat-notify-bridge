@@ -104,6 +104,21 @@ watch(
       </div>
       <slot name="actions" />
     </header>
+    <div v-if="conversation?.receiver" class="receiver-summary">
+      <template v-if="conversation.receiver.mode === 'legacy'"
+        ><span>应用级接收 · 同一 Key 下未隔离具体聊天</span></template
+      >
+      <template v-else
+        ><strong>{{
+          conversation.receiver.status === "active"
+            ? "会话接收权限已验证"
+            : conversation.receiver.status === "expired"
+              ? "接收绑定已过期"
+              : "待接收绑定 · 消息可靠入箱"
+        }}</strong
+        ><span>具体 AI 聊天身份未验证</span></template
+      >
+    </div>
     <el-alert
       v-if="error"
       :title="error"

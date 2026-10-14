@@ -4,6 +4,7 @@ import asyncio
 import base64
 from datetime import datetime, timezone
 import hashlib
+from dataclasses import replace
 import hmac
 import http.client
 import ipaddress
@@ -250,8 +251,14 @@ class Events:
             },
         }
 
-    async def handle(self, method, params, token):
+    async def handle(self, method, params, token, receiver_token=None):
         principal, identity, oauth_client = await self.auth(token)
+        if receiver_token:
+            if len(receiver_token) > 128 or not receiver_token.startswith("nrb_"):
+                raise PermissionError()
+            identity = replace(
+                identity, receiver_hash=hashlib.sha256(receiver_token.encode()).hexdigest()
+            )
         if method == "server/discover":
             return {
                 "resultType": "complete",
@@ -265,6 +272,7 @@ class Events:
             raise ValueError("invalid event filter")
         cid = params["arguments"]["conversation_id"]
         self.store.conversations.get(identity.id, cid, require_active=method == "events/subscribe")
+        self.store.receivers.authorize(identity, cid)
         delivery = params.get("delivery", {})
         if delivery.get("mode") != "webhook":
             raise ValueError("only webhook delivery is supported")
@@ -371,6 +379,7 @@ class Events:
                 ):
                     raise PermissionError("connection revoked")
             self.store.conversations.get(identity.id, cid, require_active=True)
+            self.store.receivers.authorize(identity, cid)
             old = self.store.db.execute(
                 "SELECT * FROM mcp_event_subscriptions WHERE id=?", (sid,)
             ).fetchone()
@@ -388,6 +397,7 @@ class Events:
                 "key_hash": identity.key_hash,
                 "oauth_client": oauth_client,
                 "credential_id": identity.credential_id,
+                "receiver_hash": identity.receiver_hash,
             }
             if token.startswith("wna_"):
                 value["grant_id"] = token_row["grant_id"]
@@ -416,11 +426,13 @@ class Events:
 
     def permitted(self, value, cid):
         if value["oauth_client"].startswith("api-key:"):
-            self.store.clients.api_identity(
+            identity = self.store.clients.api_identity(
                 value["client"], value["key_hash"], value.get("credential_id")
             )
         else:
-            self.provider.identity(value["client"], value["key_hash"])
+            identity = self.provider.identity(value["client"], value["key_hash"])
+        identity = replace(identity, receiver_hash=value.get("receiver_hash"))
+        self.store.receivers.authorize(identity, cid)
         self.store.conversations.get(value["client"], cid, require_active=True)
         if not value["oauth_client"].startswith("api-key:"):
             row = self.store.db.execute(
@@ -614,7 +626,9 @@ class EventGateway:
                 raise PermissionError()
             if value.get("jsonrpc") != "2.0" or not isinstance(value.get("params", {}), dict):
                 raise ValueError("invalid request")
-            result = await self.events.handle(method, value.get("params", {}), auth[7:])
+            result = await self.events.handle(
+                method, value.get("params", {}), auth[7:], request.headers.get("X-Notify-Receiver")
+            )
             response = {"jsonrpc": "2.0", "id": rid, "result": result}
         except PermissionError:
             base = urlsplit(self.events.provider.base)

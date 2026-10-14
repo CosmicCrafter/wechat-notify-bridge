@@ -1,8 +1,16 @@
 export const errors = {
+  receiver_primary_exists: "已有主接收绑定。确需换绑时，请明确撤销或勾选换绑。",
+  receiver_protected_conversation_required:
+    "这是旧应用级会话。请新建受保护会话；不会自动关闭旧客户端。",
+  receiver_access_denied:
+    "接收绑定无效、已过期或权限不足，请重新核对配对资料。",
+  receiver_scope_mismatch: "接收能力不属于这条会话或不允许执行此操作。",
+  receiver_pairing_invalid: "配对资料已使用或过期，请由管理员重新生成。",
+  inbox_assignment_conflict: "消息已经归属到其他会话，不能再次改投。",
   http_requires_local_config: "HTTP 系统使用私有 HTTP 配置，无需远程 MCP。",
   admin_password_required:
     "修复最后恢复连接需要当前管理密码，并在修复后重新验证。",
-  admin_not_initialized: "请先使用原管理 Key 建立管理员账号。",
+  admin_not_initialized: "请由获授权的维护者使用服务器终端工具建立管理员账号。",
   invalid_admin_code: "验证码不正确、已过期或已使用，请检查后重试。",
   admin_code_retry_later: "验证码请求须至少间隔 60 秒，请稍后重试。",
   admin_code_send_unconfirmed: "验证码发送未确认，请检查恢复连接后再试。",

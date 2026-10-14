@@ -5,6 +5,130 @@
     "version": "1.16.0"
   },
   "paths": {
+    "/api/receivers/exchange": {
+      "post": {
+        "summary": "Exchange",
+        "operationId": "exchange_api_receivers_exchange_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairExchange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/receivers/verify": {
+      "post": {
+        "summary": "Verify",
+        "operationId": "verify_api_receivers_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiverProof"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/conversations/{conversation_id}/receiver": {
+      "get": {
+        "summary": "Status",
+        "operationId": "status_api_conversations__conversation_id__receiver_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -1006,6 +1130,28 @@
               }
             ],
             "title": "Name"
+          },
+          "receiver_mode": {
+            "type": "string",
+            "enum": [
+              "legacy",
+              "protected"
+            ],
+            "title": "Receiver Mode",
+            "default": "legacy"
+          },
+          "host_type": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "http",
+              "codex",
+              "claude",
+              "chatgpt_work",
+              "chatgpt"
+            ],
+            "title": "Host Type",
+            "default": "unknown"
           }
         },
         "additionalProperties": false,
@@ -1287,6 +1433,42 @@
           "dedup_key"
         ],
         "title": "Notice"
+      },
+      "PairExchange": {
+        "properties": {
+          "pairing_code": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 32,
+            "format": "password",
+            "title": "Pairing Code",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "pairing_code"
+        ],
+        "title": "PairExchange"
+      },
+      "ReceiverProof": {
+        "properties": {
+          "challenge": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 16,
+            "format": "password",
+            "title": "Challenge",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "challenge"
+        ],
+        "title": "ReceiverProof"
       },
       "TaskCard": {
         "properties": {

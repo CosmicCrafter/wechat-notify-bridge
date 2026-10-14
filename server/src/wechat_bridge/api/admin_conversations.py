@@ -4,6 +4,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import Depends, Request, Query, HTTPException, Response
 from pydantic import Field
+from typing import Literal
 from wechat_bridge.api.portal import WebReply, RenameChat, ArchiveChat, PinChat
 from wechat_bridge.api.schemas import TaskAnswer
 from wechat_bridge.storage.images import normalize, MAX_UPLOAD
@@ -12,6 +13,7 @@ from wechat_bridge.storage.images import normalize, MAX_UPLOAD
 class NewConversation(WebReply):
     client_id: str = Field(pattern=r"^[a-f0-9]{32}$")
     name: str = Field(pattern=r"^[a-zA-Z0-9_\-\u4e00-\u9fff]{1,20}$")
+    receiver_mode: Literal["legacy", "protected"] = "legacy"
 
 
 def mount_admin_conversations(app, authorize_admin):
@@ -37,7 +39,7 @@ def mount_admin_conversations(app, authorize_admin):
             raise HTTPException(422, "first_message_text_required")
         async with writes():
             return app.state.admin_conversations.create(
-                body.client_id, body.name, body.text, body.request_id
+                body.client_id, body.name, body.text, body.request_id, body.receiver_mode
             )
 
     @app.post(

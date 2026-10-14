@@ -334,7 +334,7 @@ def test_chat_input_reply_preserves_zero_and_deduplicates(feishu):
     portal, calls = feishu
     store, client, _, _, chats, _, _ = portal
     first = input_task(feishu,'chat-input-one')
-    incoming = message('001234')
+    incoming = message('001234',parent_id=first['diagnostics']['provider_message_id'])
     response = callback(client,incoming).json()
     assert response['task_id'] == first['task']['id']
     assert store.portal.tasks.get(chats[0]['id'],first['task']['id'])['answer']['text'] == '001234'

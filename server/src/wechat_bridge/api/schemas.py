@@ -29,6 +29,8 @@ class ConversationRegistration(BaseModel):
     model_config = ConfigDict(extra="forbid")
     conversation_key: str = Field(min_length=1, max_length=128)
     name: str | None = Field(default=None, min_length=1, max_length=20)
+    receiver_mode: Literal["legacy","protected"] = "legacy"
+    host_type: Literal["unknown","http","codex","claude","chatgpt_work","chatgpt"] = "unknown"
 
 
 class ConversationState(BaseModel):

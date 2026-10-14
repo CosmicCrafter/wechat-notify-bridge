@@ -33,8 +33,11 @@ class FeishuInbound:
         ):
             raise BridgeError(422, "invalid_feishu_message")
         cid, routed, text, tag = self.conversations.route(text)
-        if routed == "shared" and msg.get("parent_id"):
+        original_text = content["text"]
+        if msg.get("parent_id"):
             parent = self.state.parent(self.scope_name, msg["parent_id"])
+            selected_cid = cid
+            cid, routed = None, "unknown"
             if parent and parent["conversation_id"]:
                 try:
                     chat = self.store.portal.owner_chat(parent["conversation_id"], writable=True)
@@ -43,9 +46,18 @@ class FeishuInbound:
                     ).fetchone()
                     if not self.store.bots.allowed(client[0], self.bot_id):
                         raise ClientError("bot_access_denied", 403)
-                    cid, routed = parent["conversation_id"], "direct"
+                    if selected_cid and selected_cid != parent["conversation_id"]:
+                        routed, text = "conflict", original_text
+                    else:
+                        cid, routed = parent["conversation_id"], "direct"
                 except ClientError:
                     routed = "unknown"
+        elif cid:
+            mode = self.store.db.execute(
+                "SELECT receiver_mode FROM conversations WHERE id=?", (cid,)
+            ).fetchone()
+            if mode and mode[0] == "protected" and not (tag and tag.startswith("[conversation:")):
+                cid, routed, text = None, "unassigned", original_text
         now = time.time()
         stamp = msg.get("create_time", "")
         at = min(now, int(stamp) / 1000) if isinstance(stamp, str) and stamp.isdigit() else now
@@ -59,7 +71,12 @@ class FeishuInbound:
         if self.store.db.execute("SELECT 1 FROM inbox WHERE identity=?", (identity,)).fetchone():
             return {"accepted": True, "duplicate": True}
         candidates = []
-        if routed in ("shared", "direct") and not text.lstrip().startswith("/") and now - at < 600:
+        if (
+            routed == "direct"
+            and msg.get("parent_id")
+            and not text.lstrip().startswith("/")
+            and now - at < 600
+        ):
             parent = (
                 self.state.parent(self.scope_name, msg["parent_id"])
                 if msg.get("parent_id")

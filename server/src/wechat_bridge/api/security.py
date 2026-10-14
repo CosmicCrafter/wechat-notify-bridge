@@ -24,6 +24,10 @@ def install_security(app):
             from fastapi.responses import JSONResponse
 
             return JSONResponse({"detail": "invalid_onboarding_settings"}, status_code=422)
+        if request.url.path.startswith("/api/receivers"):
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse({"detail": "invalid_receiver_request"}, status_code=422)
         if request.url.path.startswith("/admin/api/proxy"):
             from fastapi.responses import JSONResponse
 
@@ -51,12 +55,18 @@ def install_security(app):
         )
         return response
 
-    async def authorize(auth: HTTPAuthorizationCredentials | None = Depends(bearer)):
+    async def authorize(
+        request: Request, auth: HTTPAuthorizationCredentials | None = Depends(bearer)
+    ):
         if auth is None or auth.scheme.lower() != "bearer":
             raise HTTPException(401, "Bearer token required")
         if auth.credentials.startswith("wna_") and app.state.oauth:
-            return await app.state.oauth.api_identity(auth.credentials)
-        return app.state.bridge.store.clients.authenticate(auth.credentials)
+            identity = await app.state.oauth.api_identity(auth.credentials)
+        else:
+            identity = app.state.bridge.store.clients.authenticate(auth.credentials)
+        from wechat_bridge.api.receivers import receiver_identity
+
+        return await receiver_identity(app, request, identity)
 
     async def authorize_admin(request: Request):
         from wechat_bridge.storage.admin_accounts import ADMIN_COOKIE

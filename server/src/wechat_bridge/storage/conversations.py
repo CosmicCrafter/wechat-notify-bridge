@@ -10,6 +10,7 @@ from wechat_bridge.storage.client_registry import ClientError
 class Conversations:
     def __init__(self, db):
         self.db = db
+        self.receivers = None
         db.executescript("""
             CREATE TABLE IF NOT EXISTS conversations (
               id TEXT PRIMARY KEY, client_id TEXT NOT NULL, conversation_key TEXT NOT NULL,
@@ -43,6 +44,11 @@ class Conversations:
         db.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS active_conversation_name ON conversations(client_id,name) WHERE active=1 AND deleted=0"
         )
+        columns = {r["name"] for r in db.execute("PRAGMA table_info(conversations)")}
+        if "receiver_mode" not in columns:
+            db.execute(
+                "ALTER TABLE conversations ADD COLUMN receiver_mode TEXT NOT NULL DEFAULT 'legacy'"
+            )
 
     def rows(self, client_id=None, active_only=True):
         where, args = ["c.enabled=1", "s.deleted=0"], []
@@ -79,13 +85,17 @@ class Conversations:
             caller=row["caller"],
             created_at=row["created_at"],
             display_tag="[" + tag + "]",
-            reply_tag="[" + row["caller"] + "-" + row["name"] + "]",
+            reply_tag="[conversation:" + row["id"] + "]"
+            if row["receiver_mode"] == "protected"
+            else "[" + row["caller"] + "-" + row["name"] + "]",
+            receiver_mode=row["receiver_mode"],
+            receiver=self.receivers.summary(row["id"]) if self.receivers else None,
         )
 
     def list(self, client_id=None, include_closed=False):
         return [self.public(row) for row in self.rows(client_id, not include_closed)]
 
-    def register(self, client_id, conversation_key, name=None):
+    def register(self, client_id, conversation_key, name=None, receiver_mode="legacy"):
         if not isinstance(conversation_key, str) or not re.fullmatch(
             r"[a-zA-Z0-9_.:\-]{1,128}", conversation_key
         ):
@@ -98,6 +108,11 @@ class Conversations:
             (client_id, conversation_key),
         ).fetchone()
         if existing:
+            if (
+                receiver_mode == "protected"
+                and self.get(client_id, existing["id"])["receiver_mode"] != "protected"
+            ):
+                raise ClientError("receiver_mode_conflict", 409)
             return self.public(self.get(client_id, existing["id"]))
         existing_names = {r["name"] for r in self.rows(client_id)}
         if name is None:
@@ -112,8 +127,8 @@ class Conversations:
             name, number = base[: 20 - len(suffix)] + suffix, number + 1
         id = uuid.uuid4().hex
         self.db.execute(
-            "INSERT INTO conversations(id,client_id,conversation_key,name,created_at) VALUES (?,?,?,?,?)",
-            (id, client_id, conversation_key, name, time.time()),
+            "INSERT INTO conversations(id,client_id,conversation_key,name,created_at,receiver_mode) VALUES (?,?,?,?,?,?)",
+            (id, client_id, conversation_key, name, time.time(), receiver_mode),
         )
         return self.public(self.get(client_id, id))
 
@@ -162,6 +177,8 @@ class Conversations:
 
     def label(self, client_id, id):
         row = self.get(client_id, id, require_active=True)
+        if row["receiver_mode"] == "protected":
+            return "[" + row["caller"] + "-" + row["name"] + "]"
         item = self.public(row)
         # Client names can themselves contain hyphens: never emit an ambiguous tag.
         for candidate in (item["display_tag"], item["reply_tag"]):
@@ -174,6 +191,21 @@ class Conversations:
         if not match:
             return None, "shared", text, None
         tag = match.group(1)
+        if re.fullmatch(r"conversation:[a-f0-9]{32}", tag):
+            candidate = next(
+                (row for row in self.rows() if row["id"] == tag.split(":", 1)[1]), None
+            )
+            return (
+                (candidate["id"], "direct", text.lstrip()[match.end() :], "[" + tag + "]")
+                if candidate
+                else (None, "unknown", text, "[" + tag + "]")
+            )
         id, status = self.resolve(tag)
+        if id:
+            row = self.db.execute(
+                "SELECT receiver_mode FROM conversations WHERE id=?", (id,)
+            ).fetchone()
+            if row and row[0] == "protected":
+                return None, "unassigned", text, "[" + tag + "]"
         body = text.lstrip()[match.end() :] if status == "direct" else text
         return id, status, body, "[" + tag + "]"

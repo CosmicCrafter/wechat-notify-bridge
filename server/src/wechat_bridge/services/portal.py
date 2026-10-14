@@ -107,6 +107,8 @@ class Portal:
             active=bool(row["active"] and row["enabled"]),
             archived=not bool(row["active"]),
             can_reply=can_reply,
+            receiver_mode=row["receiver_mode"],
+            receiver=self.store.receivers.summary(cid) if hasattr(self.store,"receivers") else None,
         )
 
     def chats(self):

@@ -11,6 +11,8 @@ import {
 import { ElMessageBox, ElMessage } from "element-plus";
 import { api, run, session, adminDrafts } from "../session.js";
 import ConversationThread from "../../shared/ConversationThread.vue";
+import ReceiverPanel from "../components/ReceiverPanel.vue";
+import UnassignedReplies from "../components/UnassignedReplies.vue";
 import { preparePhoto } from "../../chat/images.js";
 import { date } from "../../shared/format.js";
 const data = ref(null),
@@ -28,7 +30,13 @@ const reply = ref(""),
   attachments = ref([]),
   creating = ref(false),
   newPending = ref(null);
-const draft = reactive({ client_id: "", name: "", text: "" });
+const receiverPanel = ref();
+const draft = reactive({
+  client_id: "",
+  name: "",
+  text: "",
+  receiver_mode: "protected",
+});
 const previews = reactive(new Map());
 const attachmentPreviews = computed(() =>
   attachments.value.map((item) => ({ ...item, url: previews.get(item.id) })),
@@ -48,6 +56,8 @@ const saved = adminDrafts.get("new-conversation");
 if (saved) {
   Object.assign(draft, saved.draft);
   newPending.value = saved.pending;
+  if (newPending.value && !newPending.value.receiver_mode)
+    draft.receiver_mode = "legacy";
 }
 watch(
   draft,
@@ -130,6 +140,7 @@ async function select(id, around = 0) {
   }
 }
 async function load() {
+  if (tab.value === "unassigned") return;
   await run(async () => {
     if (tab.value === "tasks")
       tasks.value = await api("tasks?" + new URLSearchParams({ q: q.value }));
@@ -225,7 +236,12 @@ async function create() {
   if (result) {
     creating.value = false;
     newPending.value = null;
-    Object.assign(draft, { client_id: "", name: "", text: "" });
+    Object.assign(draft, {
+      client_id: "",
+      name: "",
+      text: "",
+      receiver_mode: "protected",
+    });
     adminDrafts.set("new-conversation", null);
     await load();
     await select(result.conversation.id);
@@ -320,6 +336,10 @@ async function answered(result) {
   if (history.value) await newer();
 }
 async function manage(kind) {
+  if (kind === "receiver") {
+    receiverPanel.value.open();
+    return;
+  }
   const chat = history.value.conversation;
   try {
     let body = {};
@@ -402,8 +422,9 @@ onBeforeUnmount(() => {
     ><div class="section-toolbar">
       <el-radio-group v-model="tab" @change="load"
         ><el-radio-button value="all">全部会话</el-radio-button
-        ><el-radio-button value="tasks"
-          >待处理任务</el-radio-button
+        ><el-radio-button value="tasks">待处理任务</el-radio-button
+        ><el-radio-button value="unassigned"
+          >待归属回复</el-radio-button
         ></el-radio-group
       >
       <div class="actions">
@@ -441,7 +462,12 @@ onBeforeUnmount(() => {
           :value="a.id" /></el-select
       ><el-button native-type="submit" :loading="session.busy">查询</el-button>
     </form>
-    <div class="conversation-layout" :class="{ 'has-conversation': cid }">
+    <UnassignedReplies v-if="tab === 'unassigned'" />
+    <div
+      v-else
+      class="conversation-layout"
+      :class="{ 'has-conversation': cid }"
+    >
       <div class="conversation-list">
         <template v-if="tab === 'all'"
           ><el-skeleton v-if="!data" :rows="4" animated /><el-empty
@@ -550,7 +576,10 @@ onBeforeUnmount(() => {
                   <el-dropdown-item command="pin"
                     >置顶 / 取消置顶</el-dropdown-item
                   >
-                  <el-dropdown-item command="rename">修改名称</el-dropdown-item>
+                  <el-dropdown-item command="rename">修改名称</el-dropdown-item
+                  ><el-dropdown-item command="receiver"
+                    >接收绑定与权限</el-dropdown-item
+                  >
                   <el-dropdown-item command="archive">{{
                     history.conversation.archived ? "恢复会话" : "归档会话"
                   }}</el-dropdown-item>
@@ -565,6 +594,7 @@ onBeforeUnmount(() => {
       </section>
     </div></el-card
   >
+  <ReceiverPanel v-if="cid" ref="receiverPanel" :cid="cid" @updated="fresh" />
   <el-dialog
     v-model="creating"
     title="新建会话并发送首条消息"
@@ -585,6 +615,19 @@ onBeforeUnmount(() => {
       ></el-form-item>
       <p class="help">
         接收方式：应用 HTTP/MCP 收件箱。主机是否在线未知；离线时消息等待领取。
+      </p>
+      <el-form-item label="接收权限"
+        ><el-select
+          v-model="draft.receiver_mode"
+          :disabled="!!newPending || session.busy"
+          ><el-option
+            label="受保护会话（需独立接收绑定）"
+            value="protected" /><el-option
+            label="旧应用级模式（无会话安全隔离）"
+            value="legacy" /></el-select
+      ></el-form-item>
+      <p class="help">
+        受保护会话先可靠入箱，验证接收端前不能由共享应用 Key 领取。
       </p>
       <el-form-item label="会话名称" required
         ><el-input

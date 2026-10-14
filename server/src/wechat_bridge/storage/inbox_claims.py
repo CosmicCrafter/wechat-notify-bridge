@@ -27,6 +27,7 @@ class InboxClaims:
         if not row:
             raise ClientError("inbox_message_not_found", 404)
         self.store.conversations.get(identity.id, row["conversation_id"], require_active=True)
+        self.store.receivers.authorize(identity,row["conversation_id"],write=True)
         if row["bot_id"] is not None and not self.store.bots.allowed(identity.id, row["bot_id"]):
             raise ClientError("inbox_message_not_found", 404)
         return row

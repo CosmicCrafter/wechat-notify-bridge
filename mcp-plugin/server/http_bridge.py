@@ -9,6 +9,8 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from credential_store import dpapi
 from api_errors import request_json
+from receiver_store import ReceiverSession
+from toolkit import register_tools
 
 mcp = FastMCP("WeChat Notifications API", log_level="WARNING")
 
@@ -70,7 +72,7 @@ def settings():
 
 async def request(path, payload=None, params=None):
     config = configuration()
-    base, key = config["base_url"], config["api_key"]
+    base = config["base_url"]
     bot = config.get("default_bot_id")
     if (
         bot
@@ -82,17 +84,25 @@ async def request(path, payload=None, params=None):
     if bot and path == "/api/deliveries" and not (params or {}).get("bot_id"):
         params = {**(params or {}), "bot_id": bot}
     async with httpx.AsyncClient(timeout=30, follow_redirects=False) as client:
-        return await request_json(
+        receiver = ReceiverSession(config)
+        if (
+            path == "/api/conversations"
+            and (payload or {}).get("receiver_mode") == "protected"
+            and receiver.path is None
+        ):
+            raise ValueError(
+                "host_receiver_storage_unverified: configure a private receiver_file for this actual context; never share it across chats"
+            )
+        await receiver.prepare(client)
+        result = await request_json(
             client,
             base + path,
             path,
-            headers={"Authorization": "Bearer " + key},
+            headers=receiver.headers,
             payload=payload,
             params=params,
         )
-
-
-from toolkit import register_tools
+        return await receiver.finish(client, result)
 
 
 async def request_proxy(path, payload=None, params=None):

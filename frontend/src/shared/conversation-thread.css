@@ -6,6 +6,16 @@
   flex-direction: column;
   background: #f5f7fb;
 }
+.conversation-thread .receiver-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f0f4fc;
+  color: #687b9b;
+  font-size: 11px;
+  border-bottom: 1px solid #e7ebf2;
+}
 .conversation-thread .thread-header {
   min-height: 78px;
   flex-shrink: 0;

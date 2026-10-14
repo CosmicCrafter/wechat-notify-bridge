@@ -20,12 +20,15 @@ class AdminConversations:
             raise ClientError("client_receive_unavailable", 409)
         return client
 
-    def create(self, client_id, name, text, request_id):
+    def create(self, client_id, name, text, request_id, receiver_mode="legacy"):
         self.receiving(client_id)
         if not text.strip():
             raise ClientError("empty_message", 422)
         payload_hash = hashlib.sha256(
-            json.dumps([client_id, name, text], ensure_ascii=False).encode()
+            json.dumps(
+                [client_id, name, text] + ([receiver_mode] if receiver_mode != "legacy" else []),
+                ensure_ascii=False,
+            ).encode()
         ).hexdigest()
         self.db.execute("BEGIN IMMEDIATE")
         try:
@@ -38,7 +41,9 @@ class AdminConversations:
                 cid = previous["conversation_id"]
                 self.portal.owner_chat(cid, writable=True)
             else:
-                chat = self.store.conversations.register(client_id, "admin:" + request_id, name)
+                chat = self.store.conversations.register(
+                    client_id, "admin:" + request_id, name, receiver_mode
+                )
                 cid = chat["id"]
                 self.db.execute(
                     "INSERT INTO admin_conversation_requests VALUES (?,?,?,?)",

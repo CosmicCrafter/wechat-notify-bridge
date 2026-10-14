@@ -24,6 +24,9 @@ def mount_client_api(app, authorize):
     @app.get("/api/status")
     async def status(caller=Depends(authorize)):
         chats = app.state.bridge.store.conversations.list(caller.id)
+        if caller.receiver_hash:
+            cid = app.state.bridge.store.receivers.resolve(caller)["conversation_id"]
+            chats = [chat for chat in chats if chat["id"] == cid]
         hub = app.state.channels
         legacy_status = (
             app.state.bridge.store.status()
@@ -44,6 +47,9 @@ def mount_client_api(app, authorize):
     @app.get("/api/conversations")
     async def conversation_list(include_closed: bool = False, caller=Depends(authorize)):
         chats = app.state.bridge.store.conversations.list(caller.id, include_closed)
+        if caller.receiver_hash:
+            cid = app.state.bridge.store.receivers.resolve(caller)["conversation_id"]
+            chats = [chat for chat in chats if chat["id"] == cid]
         return {
             "caller": caller.name,
             "conversations": chats,
@@ -55,7 +61,27 @@ def mount_client_api(app, authorize):
         bridge = app.state.bridge
         async with bridge.lock:
             bridge.store.clients.revalidate(caller)
-            return bridge.store.conversations.register(caller.id, body.conversation_key, body.name)
+            existing = bridge.store.db.execute(
+                "SELECT id FROM conversations WHERE client_id=? AND conversation_key=?",
+                (caller.id, body.conversation_key),
+            ).fetchone()
+            bridge.store.db.execute("BEGIN IMMEDIATE")
+            try:
+                result = bridge.store.conversations.register(
+                    caller.id, body.conversation_key, body.name, body.receiver_mode
+                )
+                if not existing and body.receiver_mode == "protected":
+                    result["receiver_setup"] = bridge.store.receivers.issue(
+                        caller.id,
+                        result["id"],
+                        host_type=body.host_type,
+                        source="client:" + caller.id,
+                    )
+                bridge.store.db.commit()
+            except Exception:
+                bridge.store.db.rollback()
+                raise
+            return result
 
     @app.post("/api/conversations/{conversation_id}/state")
     async def conversation_state(
@@ -103,6 +129,8 @@ def mount_client_api(app, authorize):
         caller=Depends(authorize),
     ):
         store = app.state.bridge.store
+        if caller.receiver_hash and not conversation_id:
+            conversation_id = store.receivers.resolve(caller)["conversation_id"]
         if conversation_id:
             store.conversations.get(caller.id, conversation_id)
         return app.state.channels.delivery(channel, dedup_key, caller, conversation_id, bot_id)
@@ -143,6 +171,10 @@ def mount_client_api(app, authorize):
         caller=Depends(authorize),
     ):
         store = app.state.bridge.store
+        if caller.receiver_hash and include_unaddressed:
+            raise ClientError("receiver_unaddressed_denied", 403)
+        if caller.receiver_hash and not conversation_id:
+            conversation_id = store.receivers.resolve(caller)["conversation_id"]
         if conversation_id:
             store.conversations.get(caller.id, conversation_id)
         items = store.inbox(

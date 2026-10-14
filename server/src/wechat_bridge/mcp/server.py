@@ -142,6 +142,12 @@ def mount_remote_mcp(app):
         token = get_access_token()
         if not token:
             raise ValueError("OAuth authorization required")
+        if path == "/api/conversations" and (payload or {}).get("receiver_mode") == "protected":
+            raise ValueError(
+                "host_receiver_storage_unverified: remote registration must not return a receiver secret to the model"
+            )
+        context_request = getattr(mcp.get_context().request_context,"request",None)
+        receiver = getattr(context_request, "headers", {}).get("X-Notify-Receiver")
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url=base, timeout=30
         ) as client:
@@ -149,7 +155,10 @@ def mount_remote_mcp(app):
                 client,
                 "http://internal" + path,
                 path,
-                headers={"Authorization": "Bearer " + token.token},
+                headers={
+                    "Authorization": "Bearer " + token.token,
+                    **({"X-Notify-Receiver": receiver} if receiver else {}),
+                },
                 payload=payload,
                 params=params,
             )

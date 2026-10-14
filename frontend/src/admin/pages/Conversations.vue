@@ -32,7 +32,7 @@ const reply = ref(""),
 const draft = reactive({ client_id: "", name: "", text: "" });
 let generation = 0,
   timer;
-adminDrafts.open(session.account?.username || "legacy");
+adminDrafts.open(session.account.username);
 const saved = adminDrafts.get("new-conversation");
 if (saved) {
   Object.assign(draft, saved.draft);

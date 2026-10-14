@@ -38,7 +38,7 @@ docker compose up -d --no-build
 
 容器内位置固定为 `/data/wechat.sqlite3` 和 `/run/secrets/`；真实宿主机位置由 volumes 决定，不能只凭源码目录猜测。自定义部署可通过 `WECHAT_DATA`、`WECHAT_SECRETS` 指定路径。
 
-本机启动另生成 `admin-key.txt`，首次服务器初始化的管理员明文密钥保存在 `.private/provisioned/admin/admin.json`。这些文件只供管理员妥善保管，不公开、不发到聊天。
+新版不生成管理员Key。管理员账号的带盐密码摘要和会话摘要保存在数据库中；首次初始化与忘记密码的终端兜底见[管理与恢复](../product-v3/OPERATIONS.md)。历史admin-key.txt、secrets/admin.json可以保留用于旧版恢复，新版不读取它们进行认证。
 
 ## 数据如何保存
 

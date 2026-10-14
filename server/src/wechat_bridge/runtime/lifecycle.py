@@ -35,7 +35,7 @@ def create_lifespan(
     @asynccontextmanager
     async def lifespan(app):
         async with AsyncExitStack() as stack:
-            active_bridge, seed, admin = bridge, clients, admin_hash
+            active_bridge, seed = bridge, clients
             if active_bridge is None:
                 secrets = Path(os.environ.get("WECHAT_SECRETS", "/run/secrets"))
                 data = Path(os.environ.get("WECHAT_DATA", "/data"))
@@ -47,10 +47,6 @@ def create_lifespan(
                 if (secrets / "bootstrap.enc").exists():
                     store.bootstrap((secrets / "bootstrap.enc").read_bytes())
                 seed = json.loads((secrets / "clients.json").read_text(encoding="utf-8"))
-                if (secrets / "admin.json").exists():
-                    admin = json.loads((secrets / "admin.json").read_text(encoding="utf-8"))[
-                        "key_sha256"
-                    ]
                 active_bridge = Bridge(store)
             if bridge is None or run_workers:
                 stack.push_async_callback(active_bridge.close)
@@ -69,7 +65,8 @@ def create_lifespan(
                 active_bridge.store, channels, app.state.admin_recovery
             )
             app.state.bridge, app.state.channels = active_bridge, channels
-            app.state.admin_hash, app.state.pairing, app.state.proxy = admin, active_pairing, proxy
+            # admin_hash is accepted only for old callers; management Key auth has been removed.
+            app.state.pairing, app.state.proxy = active_pairing, proxy
             active_bridge.store.clients.seed(seed or {})
             if run_workers:
                 proxy.start()

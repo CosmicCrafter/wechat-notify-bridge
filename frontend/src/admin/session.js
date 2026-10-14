@@ -4,7 +4,6 @@ import { errors } from "../shared/errors.js";
 import { createDrafts } from "../chat/drafts.js";
 export const adminDrafts = createDrafts("notify-admin-drafts-v1:");
 export const session = reactive({
-  key: "",
   csrf: "",
   account: null,
   configured: false,
@@ -20,7 +19,6 @@ export const session = reactive({
 export function clearSession() {
   adminDrafts.clear();
   session.epoch++;
-  session.key = "";
   session.csrf = "";
   session.account = null;
   session.authenticated = false;
@@ -64,7 +62,6 @@ export async function api(path, body, binary = false) {
   const r = await fetch("api/" + path, {
     method: body === undefined ? "GET" : "POST",
     headers: {
-      ...(session.key ? { Authorization: "Bearer " + session.key } : {}),
       "X-Admin-Request": "1",
       ...(session.csrf ? { "X-Admin-CSRF": session.csrf } : {}),
       ...(body === undefined

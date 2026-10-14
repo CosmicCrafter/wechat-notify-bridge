@@ -17,6 +17,7 @@ def unpack(response):
 def base_url(portal, monkeypatch):
     monkeypatch.setenv("WECHAT_PUBLIC_BASE_URL", "https://notify.example.com/bridge")
     monkeypatch.setenv("WECHAT_OAUTH_BASE_URL", "https://notify.example.com/wechat")
+    monkeypatch.setitem(ADMIN, "Origin", "https://notify.example.com")
 
 
 def test_configured_local_issues_only_selected_grant_and_keeps_key_private(portal):
@@ -133,6 +134,7 @@ def test_export_auth_permissions_validation_and_loopback_policy(portal, monkeypa
     )
     monkeypatch.setenv("WECHAT_PUBLIC_BASE_URL", "http://127.0.0.1:8092")
     monkeypatch.setenv("WECHAT_OAUTH_BASE_URL", "http://127.0.0.1:8092")
+    monkeypatch.setitem(ADMIN, "Origin", "http://127.0.0.1:8092")
     assert client.get("/admin/api/onboarding", headers=ADMIN).json()["remote_available"] is False
     assert (
         client.post(
@@ -202,6 +204,7 @@ def test_downloaded_local_package_starts_and_discovers_tools(portal, monkeypatch
         url = "http://127.0.0.1:" + str(http.server_port)
         monkeypatch.setenv("WECHAT_PUBLIC_BASE_URL", url)
         monkeypatch.setenv("WECHAT_OAUTH_BASE_URL", url)
+        monkeypatch.setitem(ADMIN, "Origin", url)
         files = unpack(
             portal[1].post(
                 "/admin/api/onboarding/package",

@@ -17,8 +17,27 @@ def checked(response):
 
 def main():
     access = json.loads((PRIVATE / "local-access.json").read_text(encoding="utf-8"))
-    admin = {"Authorization": "Bearer " + access["legacy_admin_key"]}
     with httpx.Client(base_url=BASE, timeout=30) as client:
+        # Historical local credentials are used only to prove that the removed path stays closed.
+        legacy = {"Authorization": "Bearer " + access.get("legacy_admin_key", "removed-admin-key")}
+        assert client.get("/admin/api/clients", headers=legacy).status_code == 401
+        assert client.post("/admin/api/auth/setup", headers=legacy, json={}).status_code == 404
+        origin = {"Origin": BASE, "X-Admin-Request": "1"}
+        login = checked(
+            client.post(
+                "/admin/api/auth/login",
+                headers=origin,
+                json={"username": access["username"], "password": access["password"]},
+            )
+        )
+        admin = {**origin, "X-Admin-CSRF": login["csrf"]}
+        assert client.get("/admin/api/account").json()["legacy_enabled"] is False
+        assert (
+            client.post(
+                "/admin/api/account/legacy-key", headers=admin, json={"enabled": True}
+            ).status_code
+            == 404
+        )
         credentials = json.loads((PRIVATE / "browser-app.json").read_text(encoding="utf-8"))
         caller = {"Authorization": "Bearer " + credentials["api_key"]}
         status = checked(client.get("/api/status", headers=caller))

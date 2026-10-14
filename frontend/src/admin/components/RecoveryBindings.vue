@@ -3,8 +3,6 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { api, run, session, refresh } from "../session.js";
 import { ElMessage } from "element-plus";
 import { date } from "../../shared/format.js";
-const props = defineProps({ account: Object });
-const emit = defineEmits(["updated"]);
 const bindings = ref([]),
   dialog = ref(false),
   kind = ref("bind"),
@@ -53,10 +51,6 @@ async function submit() {
         old_password: old.value,
         enabled: false,
       });
-    return await api("account/legacy-key", {
-      old_password: old.value,
-      enabled: !props.account.legacy_enabled,
-    });
   });
   old.value = "";
   if (!result) return;
@@ -67,7 +61,6 @@ async function submit() {
   }
   dialog.value = false;
   code.value = "";
-  if (kind.value === "legacy") emit("updated", result);
   await load();
   await refresh();
   ElMessage.success("恢复设置已更新。");
@@ -114,26 +107,6 @@ onBeforeUnmount(() => {
       >
     </div></el-card
   ><el-card shadow="never"
-    ><h2>原管理 Key 迁移</h2>
-    <p class="help">
-      {{
-        account.legacy_enabled
-          ? "原管理 Key 仍可进入管理端。建议账号登录和恢复验证完成后显式停用。"
-          : "原管理 Key 已停用，管理端使用账号会话。"
-      }}
-    </p>
-    <el-button
-      :disabled="session.busy || !session.csrf"
-      @click="open('legacy')"
-      >{{
-        account.legacy_enabled ? "停用原管理 Key" : "重新启用原管理 Key"
-      }}</el-button
-    >
-    <p v-if="!session.csrf" class="help">
-      请先使用账号密码登录，再操作旧管理 Key。
-    </p>
-    <p class="help">此设置只控制旧管理 Key，不影响应用调用 Key。</p></el-card
-  ><el-card shadow="never"
     ><h2>服务器终端兜底</h2>
     <p class="help">
       丢失所有恢复方式时，由获授权且有服务器文件权限的维护者执行
@@ -143,13 +116,7 @@ onBeforeUnmount(() => {
   >
   <el-dialog
     v-model="dialog"
-    :title="
-      kind === 'bind'
-        ? '验证并绑定本人恢复连接'
-        : kind === 'remove'
-          ? '解除旧恢复连接'
-          : '迁移原管理 Key'
-    "
+    :title="kind === 'bind' ? '验证并绑定本人恢复连接' : '解除旧恢复连接'"
     width="500px"
     :close-on-click-modal="false"
     @closed="old = code = challenge = ''"

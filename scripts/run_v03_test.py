@@ -9,7 +9,6 @@ created connections. This is an HTTP/UI test version, not real recipient proof.
 # ruff: noqa: E402
 
 import asyncio
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -154,7 +153,6 @@ def main():
         access = {
             "username": "local-admin",
             "password": secrets.token_urlsafe(32),
-            "legacy_admin_key": secrets.token_urlsafe(32),
         }
         accounts.initialize(access["username"], password_hash(access["password"]))
         access_path.write_text(json.dumps(access, indent=2), encoding="utf-8")
@@ -194,7 +192,6 @@ def main():
         bridge,
         {},
         False,
-        admin_hash=hashlib.sha256(access["legacy_admin_key"].encode()).hexdigest(),
         drivers=drivers,
         pairing=Pairing(bridge, run_workers=False, transport=transport),
         proxy_factory=make_proxy,

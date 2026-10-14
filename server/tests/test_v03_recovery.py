@@ -254,21 +254,9 @@ def test_same_owner_credential_repair_requires_password_and_reverification(accou
     assert client.get("/admin/api/account/recovery", headers=ADMIN).json()["bindings"][0]["valid"]
 
 
-def test_old_password_checks_limited_and_legacy_key_migration_requires_verified_cookie(account):
+def test_old_password_checks_are_limited(account):
     portal, password = account
     store, client, *_ = portal
-    body = {"old_password": password, "enabled": False}
-    assert client.post("/admin/api/account/legacy-key", headers=ADMIN, json=body).status_code == 401
-    headers, _ = signin(account)
-    assert (
-        client.post("/admin/api/account/legacy-key", headers=headers, json=body).status_code == 409
-    )
-    bind(account)
-    assert (
-        client.post("/admin/api/account/legacy-key", headers=headers, json=body).status_code == 200
-    )
-    client.cookies.clear()
-    assert client.get("/admin/api/clients", headers=ADMIN).status_code == 401
     headers, _ = signin(account)
     for _ in range(5):
         assert (

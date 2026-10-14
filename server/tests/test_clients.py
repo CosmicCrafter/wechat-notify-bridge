@@ -18,7 +18,8 @@ from wechat_bridge.services.bridge import Bridge
 from wechat_bridge.storage.database import Store
 from wechat_bridge.services.commands import format_time, execute
 
-ADMIN={'Authorization':'Bearer fixture-admin'}
+from admin_support import configure_admin
+ADMIN={}
 
 
 @pytest.mark.parametrize('utc_hour,expected', [(15, '2026-10-02 23:48'), (18, '2026-10-03 02:48')])
@@ -211,6 +212,7 @@ def test_admin_and_wechat_share_clients_and_api_cannot_manage_keys(store):
     bridge=Bridge(store,httpx.MockTransport(handler))
     app=create_app(bridge,{},False,admin_hash=hashlib.sha256(b'fixture-admin').hexdigest())
     with TestClient(app) as client:
+        configure_admin(app, ADMIN)
         for headers in ({},{'Authorization':'Bearer wrong'}):
             assert client.get('/admin/api/clients',headers=headers).status_code==401
             assert client.post('/admin/api/clients',headers=headers,json={'name':'codex'}).status_code==401
@@ -302,6 +304,7 @@ def test_admin_delete_invalidates_key_preserves_history_and_allows_new_identity(
     bridge=Bridge(store,httpx.MockTransport(lambda r:httpx.Response(200,json={'ret':0})))
     app=create_app(bridge,{},False,admin_hash=hashlib.sha256(b'fixture-admin').hexdigest())
     with TestClient(app) as client:
+        configure_admin(app, ADMIN)
         first=client.post('/admin/api/clients',headers=ADMIN,json={'name':'codex'}).json()
         id,key=first['client']['id'],first['api_key']
         auth={'Authorization':'Bearer '+key}

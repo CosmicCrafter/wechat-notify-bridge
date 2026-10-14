@@ -80,7 +80,15 @@ async def run():
                 )
                 assert receipt["status"] == sent["status"]
                 async with httpx.AsyncClient(base_url=BASE, timeout=30) as client:
-                    admin = {"Authorization": "Bearer " + access["legacy_admin_key"]}
+                    origin = {"Origin": BASE, "X-Admin-Request": "1"}
+                    login = checked(
+                        await client.post(
+                            "/admin/api/auth/login",
+                            headers=origin,
+                            json={"username": access["username"], "password": access["password"]},
+                        )
+                    )
+                    admin = {**origin, "X-Admin-CSRF": login["csrf"]}
                     reply = checked(
                         await client.post(
                             "/admin/api/conversations/" + cid + "/messages",

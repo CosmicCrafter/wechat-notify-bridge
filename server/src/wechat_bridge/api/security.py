@@ -1,6 +1,5 @@
 """HTTP authentication, redacted validation errors and browser response policy."""
 
-import hashlib
 import hmac
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -15,7 +14,9 @@ def install_security(app):
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request, exc):
-        if request.url.path.startswith(("/admin/api/auth", "/admin/api/account", "/admin/api/recovery")):
+        if request.url.path.startswith(
+            ("/admin/api/auth", "/admin/api/account", "/admin/api/recovery")
+        ):
             from fastapi.responses import JSONResponse
 
             return JSONResponse({"detail": "invalid_admin_request"}, status_code=422)
@@ -27,7 +28,9 @@ def install_security(app):
             from fastapi.responses import JSONResponse
 
             return JSONResponse({"detail": "invalid_proxy_settings"}, status_code=422)
-        if request.url.path.startswith(("/admin/api/bots", "/admin/api/channels", "/admin/api/pairing")):
+        if request.url.path.startswith(
+            ("/admin/api/bots", "/admin/api/channels", "/admin/api/pairing")
+        ):
             from fastapi.responses import JSONResponse
 
             return JSONResponse({"detail": "invalid_bot_settings"}, status_code=422)
@@ -55,26 +58,14 @@ def install_security(app):
             return await app.state.oauth.api_identity(auth.credentials)
         return app.state.bridge.store.clients.authenticate(auth.credentials)
 
-    async def authorize_admin(
-        request: Request, auth: HTTPAuthorizationCredentials | None = Depends(bearer)
-    ):
+    async def authorize_admin(request: Request):
         from wechat_bridge.storage.admin_accounts import ADMIN_COOKIE
         from wechat_bridge.api.admin_auth import same_origin
 
         accounts = getattr(app.state, "admin_accounts", None)
-        legacy_enabled = not accounts or accounts.metadata()["legacy_enabled"]
-        expected = app.state.admin_hash
-        if (
-            legacy_enabled
-            and expected
-            and auth
-            and auth.scheme.lower() == "bearer"
-            and hmac.compare_digest(hashlib.sha256(auth.credentials.encode()).hexdigest(), expected)
-        ):
-            return {"source": "legacy"}
         row = accounts.session(request.cookies.get(ADMIN_COOKIE, "")) if accounts else None
         if not row:
-            if not expected and (not accounts or not accounts.account()):
+            if not accounts or not accounts.account():
                 raise HTTPException(503, "admin_not_configured")
             raise HTTPException(401, "admin_login_required")
         if request.method not in ("GET", "HEAD", "OPTIONS"):

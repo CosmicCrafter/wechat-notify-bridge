@@ -6,7 +6,7 @@
 
 1.15.0 起，发送与查回执接受 `bot_id`，按当前 Key 的授权列表路由。`GET /api/status` 返回允许的 Bot 和默认 Bot；原 Key 仍默认使用原微信连接。完整规则见 [多 Bot 与 Key 授权](BOTS.md)。`channel` 是可选平台过滤条件，不能代替多个同平台 Bot 的明确选择。
 
-下表除 `/health` 外的消息 API 需要 `Authorization: Bearer <API_KEY>`。新 nb_ 与旧数字 Key 均为字符串。收件人由服务器绑定确定，请求不能指定其他收件人。管理端使用独立账号 Cookie/CSRF；旧管理 Key 只在受控迁移期兼容，应用 Key 不能代替管理身份。
+下表除 `/health` 外的消息 API 需要 `Authorization: Bearer <API_KEY>`。新 nb_ 与旧数字 Key 均为字符串。收件人由服务器绑定确定，请求不能指定其他收件人。管理端仅使用独立账号 Cookie/CSRF；原管理员 Key 登录已移除，应用 Key 不能代替管理身份。
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
@@ -109,7 +109,7 @@ conversation_key 为稳定宿主聊天 ID 或一次性生成后保存的唯一�
 
 `GET /admin/` 及其 CSS/JS 为公开页面框架，不包含任何凭据、二维码或账号数据。根路径跳转到该页面。
 
-以下操作必须带 `Authorization: Bearer <ADMIN_KEY>`，不属于 MCP 工具，也不进入供 AI 使用的 OpenAPI。服务器未配置管理员密钥时返回 503。
+以下操作必须使用账号密码登录产生的管理员Cookie；写请求同时需要同源Origin、X-Admin-Request: 1与X-Admin-CSRF。不属于MCP工具，也不进入供AI使用的OpenAPI。尚未建立管理员账号时返回503，需通过[授权终端工具](../product-v3/OPERATIONS.md)初始化；原管理员Key不能用于初始化或鉴权。
 
 | 方法 | 路径 | 参数 / 用途 |
 | --- | --- | --- |
@@ -119,11 +119,11 @@ conversation_key 为稳定宿主聊天 ID 或一次性生成后保存的唯一�
 | POST | /admin/api/pairing/verify | JSON `{ "session_id": "...", "code": "手机显示的数字" }` |
 | POST | /admin/api/pairing/cancel | JSON `{ "session_id": "..." }`；取消尚未确认的本次扫码 |
 
-活动扫码会话重复 start 会复用已有会话。结束后两秒内重复 start 返回 429。验证码与取消请求必须匹配当前 session_id，旧页面不能操作后来的会话。管理页面用 Authorization 头请求二维码，再生成内存图片地址，不把管理员密钥放进 URL、本地存储或日志。所有响应禁止缓存，未开放跨域接口。
+活动扫码会话重复 start 会复用已有会话。结束后两秒内重复 start 返回 429。验证码与取消请求必须匹配当前 session_id，旧页面不能操作后来的会话。管理页面用独立管理Cookie请求二维码，再生成内存图片地址，不把认证凭据放进URL、本地存储或日志。所有响应禁止缓存，未开放跨域接口。
 
 ## 管理客户端
 
-以下接口同样仅接受独立的 `ADMIN_KEY`；微信的同名操作作用于同一份客户端记录。
+以下接口同样仅接受独立管理账号会话；微信的同名操作作用于同一份客户端记录。
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |

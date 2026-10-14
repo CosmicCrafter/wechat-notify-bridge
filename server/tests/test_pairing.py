@@ -18,7 +18,8 @@ from wechat_bridge.wechat.protocol import INTERVAL
 from wechat_bridge.storage.database import Store
 from wechat_bridge.wechat.pairing import Pairing
 
-ADMIN = {'Authorization': 'Bearer fixture-admin'}
+from admin_support import configure_admin
+ADMIN = {}
 CLIENT = {'Authorization': 'Bearer fixture-client'}
 
 
@@ -55,6 +56,7 @@ def test_unbound_server_web_auth_is_separate_from_mcp_and_qr_is_private(store):
     app = create_app(bridge, {'codex': hashlib.sha256(b'fixture-client').hexdigest()}, False,
                      admin_hash=hashlib.sha256(b'fixture-admin').hexdigest(), pairing=pairing)
     with TestClient(app) as client:
+        configure_admin(app, ADMIN)
         page = client.get('/admin/')
         assert page.status_code == 200 and '<div id="app"></div>' in page.text
         assert page.headers['cache-control'] == 'no-store'

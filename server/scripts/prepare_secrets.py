@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import secrets
 import sys
 from urllib.parse import urlsplit
@@ -36,7 +35,7 @@ def write_private(path, value):
 
 
 def prepare_admin(output, base_url):
-    """Add web administration to an existing installation without rotating its keys."""
+    """Write account setup instructions without generating a management Key or password."""
     validate_public_url(base_url)
     output = Path(output).resolve()
     private = output / "secrets"
@@ -45,16 +44,18 @@ def prepare_admin(output, base_url):
     if (private / "admin.json").exists() or (output / "admin").exists():
         raise FileExistsError("Administrator configuration already exists")
     (output / "admin").mkdir(mode=0o700)
-    key = secrets.token_urlsafe(40)
     write_private(
         output / "admin" / "admin.json",
         json.dumps(
-            {"admin_url": base_url.rstrip("/") + "/admin/", "admin_key": key}, indent=2
+            {
+                "admin_url": base_url.rstrip("/") + "/admin/",
+                "login_method": "account_password",
+                "initialize_tool": "python -m wechat_bridge.admin_reset --database <instance-database> "
+                "--backup-dir <private-backup-directory> --authorize RESET_ADMIN "
+                "--initialize --username <administrator>",
+            },
+            indent=2,
         ).encode(),
-    )
-    write_private(
-        private / "admin.json",
-        json.dumps({"key_sha256": hashlib.sha256(key.encode()).hexdigest()}, indent=2).encode(),
     )
     return output
 
@@ -146,7 +147,9 @@ def main():
         )
         output = prepare(credentials, args.output, args.base_url, args.clients)
     print("Prepared server secrets and client configurations in: " + str(output))
-    print("Open the admin_url and use admin_key from the private admin/admin.json file.")
+    print(
+        "Management uses account/password login. Initialize the account with the authorized admin_reset terminal tool after the database exists."
+    )
     print("No tokens printed. Keep this directory out of source control.")
 
 

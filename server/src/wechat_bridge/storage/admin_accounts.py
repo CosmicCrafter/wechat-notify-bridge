@@ -1,4 +1,4 @@
-"""Single administrator and isolated browser sessions, additive to legacy Key auth."""
+"""Single administrator with password authentication and isolated browser sessions."""
 
 import base64
 import hashlib
@@ -66,7 +66,7 @@ class AdminAccounts:
           CREATE TABLE IF NOT EXISTS admin_account (
             id INTEGER PRIMARY KEY CHECK(id=1),username TEXT NOT NULL UNIQUE,password_hash TEXT NOT NULL,
             version INTEGER NOT NULL DEFAULT 1,created_at REAL NOT NULL,password_changed_at REAL NOT NULL,
-            legacy_enabled INTEGER NOT NULL DEFAULT 1);
+            legacy_enabled INTEGER NOT NULL DEFAULT 0);
           CREATE TABLE IF NOT EXISTS admin_sessions (
             token_hash TEXT PRIMARY KEY,csrf TEXT NOT NULL,version INTEGER NOT NULL,
             created_at REAL NOT NULL,expires_at REAL NOT NULL);
@@ -89,7 +89,8 @@ class AdminAccounts:
             "configured": bool(row),
             "username": row["username"] if row else None,
             "password_changed_at": row["password_changed_at"] if row else None,
-            "legacy_enabled": bool(row["legacy_enabled"]) if row else True,
+            # Kept as read-only compatibility metadata; historical DB flags cannot enable Key auth.
+            "legacy_enabled": False,
         }
 
     def audit(self, action, source="web"):
@@ -104,7 +105,7 @@ class AdminAccounts:
         name = username(name)
         now = time.time()
         self.db.execute(
-            "INSERT INTO admin_account VALUES (1,?,?,1,?,?,1)", (name, encoded, now, now)
+            "INSERT INTO admin_account VALUES (1,?,?,1,?,?,0)", (name, encoded, now, now)
         )
         self.audit("initialize")
         return self.metadata()

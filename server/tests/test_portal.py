@@ -15,9 +15,10 @@ from wechat_bridge.app import create_app
 from wechat_bridge.services.bridge import Bridge
 from wechat_bridge.storage.database import Store
 from wechat_bridge.services.commands import execute
+from admin_support import configure_admin
 
 ORIGIN = {'Origin':'https://testserver', 'X-Chat-Request':'1'}
-ADMIN = {'Authorization':'Bearer fixture-admin'}
+ADMIN = {}
 
 
 @pytest.fixture
@@ -35,6 +36,7 @@ def portal(tmp_path, monkeypatch):
         return httpx.Response(200,json={'ret':0})
     bridge=Bridge(store,httpx.MockTransport(handler))
     with TestClient(create_app(bridge,{},False,admin_hash=hashlib.sha256(b'fixture-admin').hexdigest()),base_url='https://testserver') as client:
+        configure_admin(client.app, ADMIN)
         yield store,client,{'Authorization':'Bearer '+k},{'Authorization':'Bearer '+gk},chats,calls,key
     asyncio.run(bridge.close());store.close()
 

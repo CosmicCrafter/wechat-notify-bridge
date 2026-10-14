@@ -48,9 +48,9 @@ async function save() {
       ><el-descriptions-item label="用户名">{{
         account.username || "尚未建立账号"
       }}</el-descriptions-item
-      ><el-descriptions-item label="原管理 Key">{{
-        account.legacy_enabled ? "仍可使用" : "已停用"
-      }}</el-descriptions-item></el-descriptions
+      ><el-descriptions-item label="登录方式"
+        >账号密码</el-descriptions-item
+      ></el-descriptions
     >
     <div class="actions">
       <el-button :disabled="!account.configured" @click="open('username')"
@@ -63,11 +63,7 @@ async function save() {
       >
     </div></el-card
   >
-  <RecoveryBindings
-    v-if="account?.configured"
-    :account="account"
-    @updated="(value) => (account = value)"
-  />
+  <RecoveryBindings v-if="account?.configured" />
   <el-dialog
     v-model="visible"
     :title="kind === 'username' ? '修改用户名' : '修改密码'"

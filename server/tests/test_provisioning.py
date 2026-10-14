@@ -39,20 +39,24 @@ def test_web_pairing_provisions_unbound_server_and_private_admin(tmp_path, monke
     output=setup.prepare(None,tmp_path/'provisioned','https://notify.example.com/wechat',['codex'])
     assert not (output/'secrets/bootstrap.enc').exists()
     admin=json.loads((output/'admin/admin.json').read_text())
-    registry=json.loads((output/'secrets/admin.json').read_text())
-    assert setup.hashlib.sha256(admin['admin_key'].encode()).hexdigest()==registry['key_sha256']
+    assert admin['login_method']=='account_password' and 'admin_key' not in admin
+    assert not (output/'secrets/admin.json').exists()
     assert admin['admin_url']=='https://notify.example.com/wechat/admin/'
     monkeypatch.setenv('WECHAT_SECRETS',str(output/'secrets'))
     monkeypatch.setenv('WECHAT_DATA',str(tmp_path/'data'))
     with TestClient(create_app(run_workers=False)) as client:
-        response=client.get('/admin/api/status',headers={'Authorization':'Bearer '+admin['admin_key']})
+        assert client.get('/admin/api/status',headers={'Authorization':'Bearer historical-admin'}).status_code==503
+        from admin_support import configure_admin
+        headers=configure_admin(client.app,{})
+        response=client.get('/admin/api/status',headers=headers)
         assert response.status_code==200
         assert response.json()['service']['connection_status']=='unbound'
         client.app.state.bridge.store.bind({'user_id':'fixture-owner','bot_id':'fixture-bot',
             'bot_token':'fixture-token','base_url':'https://ilinkai.weixin.qq.com'})
     with TestClient(create_app(run_workers=False)) as client:
         assert client.get('/health').status_code==200
-        value=client.get('/admin/api/status',headers={'Authorization':'Bearer '+admin['admin_key']}).json()
+        headers=configure_admin(client.app,{})
+        value=client.get('/admin/api/status',headers=headers).json()
         assert value['service']['bound'] is True
         assert value['service']['connection_status']=='waiting_message'
 

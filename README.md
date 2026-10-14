@@ -80,7 +80,7 @@ python3 -m venv .venv
 cp .env.example .env
 ```
 
-编辑 `server/.env`，将 `WECHAT_PUBLIC_BASE_URL` 改为与上面一致的实际 HTTPS 地址。初始化生成的 `.private/provisioned/` 包含私有密钥，不提交到 Git；管理员原始密钥位于 `.private/provisioned/admin/admin.json`。已有部署升级时保留原数据和密钥，**不要重新运行初始化命令**。
+编辑 `server/.env`，将 `WECHAT_PUBLIC_BASE_URL` 改为与上面一致的实际 HTTPS 地址。初始化生成的 `.private/provisioned/` 包含私有密钥，不提交到Git；admin/admin.json只记录管理入口与账号初始化方式，不生成管理Key或默认密码。已有部署升级时保留原数据和密钥，**不要重新运行初始化命令**。
 
 ### 2. 启动并配置 HTTPS
 
@@ -100,7 +100,7 @@ curl http://127.0.0.1:18092/health
 
 ### 3. 添加 Bot 并创建接入密钥
 
-1. 打开 `https://你的域名/bridge/admin/`，使用初始化文件中的 `admin_key` 登录。管理员密钥只用于管理页面，不填到 AI 插件。
+1. 本升级候选版本的管理端仅使用账号密码登录。首次需由获授权的服务器维护者按 [账号初始化与恢复说明](docs/product-v3/OPERATIONS.md) 使用终端工具建立账号；原管理员 Key 已停用。打开 `https://你的域名/bridge/admin/` 登录，应用 API Key 独立，不用于管理登录。
 2. 在“Bot 管理”点击“新增 Bot”：微信按向导扫码绑定；飞书填写应用配置，并按回调配置步骤在飞书后台保存、发布。
 3. 使用微信时，在 ClawBot 聊天框发送一句“测试”，让服务获取微信回复上下文。纯飞书部署不需要这一步。
 4. 在“接入密钥”中为每个程序或 AI 创建独立密钥，选择允许调用的 Bot 和默认 Bot。微信 `/getkey codex` 仍可用于微信侧创建身份。
@@ -248,4 +248,4 @@ python scripts/build_release.py
 
 完整开发步骤见 [贡献指南](CONTRIBUTING.md)，模块边界见 [架构说明](docs/architecture.md)，私有数据与密钥管理见 [安全说明](SECURITY.md)。管理页与手机页源码位于 `frontend/`，修改后执行 `python scripts/build_frontend.py`。
 
-安装服务依赖后可执行 `python -m wechat_bridge` 启动本机实例；首次运行在用户目录 `.notify-bridge` 生成独立数据和凭据，仅监听 `127.0.0.1:8092`。管理员密钥保存在该目录的 `admin-key.txt`。本地入口不自动配置公网 HTTPS，飞书服务端回调仍需可达的 HTTPS 地址。
+安装服务依赖后可执行 `python -m wechat_bridge` 启动本机实例；首次运行在用户目录 `.notify-bridge` 生成独立数据和加密密钥，仅监听 `127.0.0.1:8092`。管理端使用账号密码；数据库建立后由获授权的维护者按[终端初始化说明](docs/product-v3/OPERATIONS.md)建立账号。本地入口不自动配置公网HTTPS，飞书服务端回调仍需可达的HTTPS地址。

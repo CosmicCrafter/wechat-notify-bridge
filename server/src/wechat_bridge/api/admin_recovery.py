@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from typing import Literal
 from wechat_bridge.api.admin_auth import same_origin, cookie_path, verify_admin_password
 from wechat_bridge.storage.admin_accounts import ADMIN_COOKIE, password_hash
-from wechat_bridge.storage.client_registry import ClientError
 
 
 class Binding(BaseModel):
@@ -39,7 +38,7 @@ class CodeRequest(BaseModel):
     platform: Literal["wechat", "feishu"]
 
 
-class LegacyAdmin(BaseModel):
+class RemoveBinding(BaseModel):
     model_config = ConfigDict(extra="forbid")
     old_password: SecretStr = Field(min_length=1, max_length=128)
     enabled: bool
@@ -85,7 +84,7 @@ def mount_admin_recovery(app, authorize_admin):
         dependencies=[Depends(authorize_admin)],
         include_in_schema=False,
     )
-    async def remove(bot_id: str, body: LegacyAdmin):
+    async def remove(bot_id: str, body: RemoveBinding):
         async with service().lock:
             await old_password(service().accounts, body.old_password.get_secret_value())
             return service().remove(bot_id)
@@ -112,27 +111,3 @@ def mount_admin_recovery(app, authorize_admin):
             )
         response.delete_cookie(ADMIN_COOKIE, path=cookie_path())
         return {"reauthentication_required": True}
-
-    @app.post(
-        "/admin/api/account/legacy-key",
-        dependencies=[Depends(authorize_admin)],
-        include_in_schema=False,
-    )
-    async def legacy_key(body: LegacyAdmin, request: Request):
-        # This migration action requires a password-authenticated Cookie, not just legacy Key.
-        async with service().lock:
-            if not service().accounts.session(request.cookies.get(ADMIN_COOKIE, "")):
-                raise ClientError("admin_login_required", 401)
-            version = await old_password(service().accounts, body.old_password.get_secret_value())
-            if not body.enabled and not any(b["valid"] for b in service().bindings()):
-                raise ClientError("verified_recovery_required", 409)
-            changed = service().db.execute(
-                "UPDATE admin_account SET legacy_enabled=? WHERE id=1 AND version=?",
-                (int(body.enabled), version),
-            )
-            if changed.rowcount != 1:
-                raise ClientError("admin_state_changed", 409)
-            service().accounts.audit(
-                "legacy_admin_enable" if body.enabled else "legacy_admin_disable"
-            )
-            return service().accounts.metadata()

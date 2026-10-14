@@ -19,7 +19,8 @@ from mcp.client.streamable_http import streamable_http_client
 
 BASE='https://testserver/wechat'
 ORIGIN={'Origin':'https://testserver','X-Chat-Request':'1'}
-ADMIN={'Authorization':'Bearer admin-fixture'}
+from admin_support import configure_admin
+ADMIN={}
 
 @pytest.fixture
 def service(tmp_path,monkeypatch):
@@ -30,6 +31,7 @@ def service(tmp_path,monkeypatch):
     bridge=Bridge(store,httpx.MockTransport(lambda r:httpx.Response(200,json={'ret':0})))
     app=create_app(bridge,{},False,admin_hash=hashlib.sha256(b'admin-fixture').hexdigest())
     with TestClient(app,base_url='https://testserver') as client:
+        configure_admin(app, ADMIN)
         code=client.post('/admin/api/chat/login-code',headers=ADMIN).json()['code']
         client.post('/chat/api/login',headers=ORIGIN,json={'code':code})
         # Test transport strips the /wechat proxy prefix, so map cookie to internal route too.

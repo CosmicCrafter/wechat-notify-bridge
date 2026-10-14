@@ -1,7 +1,5 @@
 """Refactor contracts: startup cleanup and local credential preservation."""
 import asyncio
-import hashlib
-import json
 from types import SimpleNamespace
 
 import pytest
@@ -14,12 +12,18 @@ from wechat_bridge.wechat.protocol import BridgeError as LegacyBridgeError
 
 def test_local_initialize_preserves_existing_keys(tmp_path):
     initialize(tmp_path)
-    files = [tmp_path/'admin-key.txt', *sorted((tmp_path/'secrets').iterdir())]
+    files = sorted((tmp_path/'secrets').iterdir())
     before = {p.name:p.read_bytes() for p in files}
     initialize(tmp_path)
     assert before == {p.name:p.read_bytes() for p in files}
-    admin = json.loads((tmp_path/'secrets/admin.json').read_text())
-    assert admin['key_sha256'] == hashlib.sha256(before['admin-key.txt']).hexdigest()
+    assert not (tmp_path/'admin-key.txt').exists()
+    assert not (tmp_path/'secrets/admin.json').exists()
+    # Existing private historical files are preserved, without being required or read for login.
+    (tmp_path/'admin-key.txt').write_bytes(b'historical-preserve')
+    (tmp_path/'secrets/admin.json').write_bytes(b'historical-preserve')
+    initialize(tmp_path)
+    assert (tmp_path/'admin-key.txt').read_bytes() == b'historical-preserve'
+    assert (tmp_path/'secrets/admin.json').read_bytes() == b'historical-preserve'
 
 
 def test_local_initialize_refuses_orphan_database(tmp_path):

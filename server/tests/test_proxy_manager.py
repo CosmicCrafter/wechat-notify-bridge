@@ -220,7 +220,8 @@ def test_admin_routes_reject_client_keys_and_redact_validation_input(store, cont
     app = create_app(Bridge(store), {'codex': hashlib.sha256(b'client-key').hexdigest()},
                      run_workers=False, admin_hash=hashlib.sha256(b'admin-key').hexdigest())
     with TestClient(app) as client:
-        admin = {'Authorization': 'Bearer admin-key'}
+        from admin_support import configure_admin
+        admin = configure_admin(app, {})
         for route in ('/admin/api/proxy', '/admin/api/proxy/config', '/admin/api/proxy/update',
                       '/admin/api/proxy/check', '/admin/api/proxy/select'):
             method = client.get if route.endswith('/proxy') else client.post

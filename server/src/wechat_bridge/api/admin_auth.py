@@ -82,17 +82,6 @@ def mount_admin_auth(app, authorize_admin):
             result.update(a.metadata(), csrf=s["csrf"])
         return result
 
-    @app.post(
-        "/admin/api/auth/setup", dependencies=[Depends(authorize_admin)], include_in_schema=False
-    )
-    async def setup(body: Login):
-        async with lock:
-            if accounts().account():
-                raise ClientError("admin_already_initialized", 409)
-            name = username(body.username)
-            encoded = await asyncio.to_thread(password_hash, body.password.get_secret_value())
-            return accounts().initialize(name, encoded)
-
     @app.post("/admin/api/auth/login", include_in_schema=False)
     async def login(body: Login, request: Request, response: Response):
         same_origin(request)

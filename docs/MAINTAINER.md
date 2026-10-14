@@ -52,7 +52,7 @@ python -m pip check
 python -m wechat_bridge --directory .private/local
 ```
 
-运行命令输出本地访问地址；管理员密钥在该目录的 `admin-key.txt`。此目录包含私有数据，不交付朋友、不提交 Git。朋友应自行初始化自己的部署和凭据。
+运行命令输出本地访问地址；管理端使用账号密码，数据库建立后按[授权终端初始化说明](product-v3/OPERATIONS.md)建立账号，不生成管理Key或默认密码。此目录包含私有数据，不交付朋友、不提交Git。朋友应自行初始化自己的部署和凭据。
 
 ## 变更与验证
 

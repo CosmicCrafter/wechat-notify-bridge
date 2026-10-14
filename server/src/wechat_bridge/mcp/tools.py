@@ -219,11 +219,15 @@ def register_tools(mcp, request):
     async def claimMessage(
         inbox_id: Annotated[int, Field(ge=1, le=9223372036854775807)],
         request_id: Annotated[str, Field(pattern=r"^[a-zA-Z0-9_-]{16,80}$")],
+        lease_seconds: Annotated[int, Field(ge=30, le=900)] = 120,
     ) -> dict:
         """Explicitly claim an inbox item addressed to this application and conversation, only for authorized work.
         Use the item's ID returned by getMessages and retain request_id as claim_id. Reading alone does not claim.
         This records receipt, not execution; the bridge never starts an Agent or business process."""
-        return await request("/api/inbox/" + str(inbox_id) + "/claim", dict(request_id=request_id))
+        return await request(
+            "/api/inbox/" + str(inbox_id) + "/claim",
+            dict(request_id=request_id, lease_seconds=lease_seconds),
+        )
 
     @mcp.tool(title="报告本应用消息处理结果", annotations=MANAGE)
     async def reportMessage(
@@ -232,13 +236,65 @@ def register_tools(mcp, request):
         request_id: Annotated[str, Field(pattern=r"^[a-zA-Z0-9_-]{16,80}$")],
         status: Literal["processing", "completed", "failed"],
         result: Annotated[str, Field(max_length=4000)] = "",
+        generation: Annotated[int | None, Field(ge=0)] = None,
     ) -> dict:
         """Report actual processing for your explicitly claimed inbox item. Retain the report request ID on retries.
         Do not report completed merely because data was read or claimed. Terminal completed/failed reports cannot be downgraded.
         This is an application's assertion; task cards use updateTaskCard separately. Never include credentials."""
         return await request(
             "/api/inbox/" + str(inbox_id) + "/report",
-            dict(claim_id=claim_id, request_id=request_id, status=status, result=result),
+            dict(
+                claim_id=claim_id,
+                request_id=request_id,
+                status=status,
+                result=result,
+                **({"generation": generation} if generation is not None else {}),
+            ),
+        )
+
+    @mcp.tool(title="续期当前消息领取租约", annotations=MANAGE)
+    async def renewMessageClaim(
+        inbox_id: Annotated[int, Field(ge=1)],
+        claim_id: Annotated[str, Field(pattern=r"^[a-zA-Z0-9_-]{16,80}$")],
+        generation: Annotated[int, Field(ge=1)],
+        lease_seconds: Annotated[int, Field(ge=30, le=900)] = 120,
+    ) -> dict:
+        """Renew a live protected claim with its current generation. Expired/fenced claims cannot be revived.
+        Use stable inbox IDs for external business idempotency; the bridge does not guarantee exactly-once side effects."""
+        return await request(
+            "/api/inbox/" + str(inbox_id) + "/renew",
+            dict(claim_id=claim_id, generation=generation, lease_seconds=lease_seconds),
+        )
+
+    @mcp.tool(title="查询会话生命周期", annotations=READ)
+    async def getConversationLifecycle(conversation_id: ConversationId) -> dict:
+        """Read archive-independent monitor/mute state. Not evidence of physical execution."""
+        return await request("/api/conversations/" + conversation_id + "/lifecycle")
+
+    @mcp.tool(title="报告外部监控状态", annotations=MANAGE)
+    async def reportMonitorState(
+        conversation_id: ConversationId,
+        request_id: Annotated[str, Field(pattern=r"^[a-zA-Z0-9_-]{16,80}$")],
+        status: Literal["running", "stopped"],
+        stop_id: Annotated[str | None, Field(max_length=80)] = None,
+        claim_id: Annotated[str | None, Field(max_length=80)] = None,
+        generation: Annotated[int | None, Field(ge=1)] = None,
+    ) -> dict:
+        """The external executor reports its real state. A stop requires the exact stop command and current claim generation.
+        Reading/receiving does not stop anything. The bridge never runs or kills business processes."""
+        return await request(
+            "/api/conversations/" + conversation_id + "/monitor",
+            {
+                k: v
+                for k, v in dict(
+                    request_id=request_id,
+                    status=status,
+                    stop_id=stop_id,
+                    claim_id=claim_id,
+                    generation=generation,
+                ).items()
+                if v is not None
+            },
         )
 
     @mcp.tool(title="发送通知消息", annotations=SEND)

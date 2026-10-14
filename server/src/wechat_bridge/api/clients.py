@@ -17,6 +17,7 @@ from wechat_bridge.api.schemas import (
     TaskUpdate,
     InboxClaim,
     InboxReport,
+    InboxRenew,
 )
 
 
@@ -193,13 +194,28 @@ def mount_client_api(app, authorize):
     @app.post("/api/inbox/{inbox_id}/claim")
     async def claim(inbox_id: int, body: InboxClaim, caller=Depends(authorize)):
         async with app.state.bridge.lock:
-            return app.state.bridge.store.claims.claim(caller, inbox_id, body.request_id)
+            return app.state.bridge.store.claims.claim(
+                caller, inbox_id, body.request_id, body.lease_seconds
+            )
 
     @app.post("/api/inbox/{inbox_id}/report")
     async def report(inbox_id: int, body: InboxReport, caller=Depends(authorize)):
         async with app.state.bridge.lock:
             return app.state.bridge.store.claims.report(
-                caller, inbox_id, body.claim_id, body.request_id, body.status, body.result
+                caller,
+                inbox_id,
+                body.claim_id,
+                body.request_id,
+                body.status,
+                body.result,
+                body.generation,
+            )
+
+    @app.post("/api/inbox/{inbox_id}/renew")
+    async def renew(inbox_id: int, body: InboxRenew, caller=Depends(authorize)):
+        async with app.state.bridge.lock:
+            return app.state.bridge.store.claims.renew(
+                caller, inbox_id, body.claim_id, body.generation, body.lease_seconds
             )
 
     async def send(

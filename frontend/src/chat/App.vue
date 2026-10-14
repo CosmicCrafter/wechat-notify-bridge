@@ -245,7 +245,7 @@ async function action(kind) {
         }}</el-button
         ><el-button @click="action('rename')">修改名称</el-button
         ><el-button @click="action('archive')">{{
-          actionChat?.archived ? "恢复会话" : "归档会话"
+          actionChat?.archived ? "取消归档" : "归档会话"
         }}</el-button
         ><el-button type="danger" plain @click="action('delete')"
           >删除会话</el-button

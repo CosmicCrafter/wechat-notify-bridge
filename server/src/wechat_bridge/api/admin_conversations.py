@@ -84,6 +84,8 @@ def mount_admin_conversations(app, authorize_admin):
     )
     async def archive(cid: str, body: ArchiveChat):
         async with writes(events=True):
+            if body.visibility_only:
+                return portal().store.lifecycle.archive(cid, body.archived)
             portal().owner_chat(cid)
             row = (
                 portal()

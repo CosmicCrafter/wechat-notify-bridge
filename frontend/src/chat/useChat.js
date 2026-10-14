@@ -424,7 +424,8 @@ export function useChat() {
           },
         );
       }
-      if (action === "archive") body = { archived: !chat.archived };
+      if (action === "archive")
+        body = { archived: !chat.archived, visibility_only: true };
       if (action === "pin") body = { pinned: !chat.pinned };
       await act(async () => {
         await api(`conversations/${chat.id}/${action}`, body);
@@ -450,8 +451,8 @@ export function useChat() {
         ElMessage.success(
           action === "archive"
             ? chat.archived
-              ? "已恢复；如需唤醒，请在 AI 端重新启用。"
-              : "已归档，记录保留且不能继续回复。"
+              ? "已取消归档，外部监控状态未改变。"
+              : "已归档，通信与外部监控继续。"
             : "已保存",
         );
       });

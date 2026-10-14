@@ -97,18 +97,27 @@ class Portal:
             raise ClientError("conversation_not_found", 404)
         if writable and (not row["active"] or not row["enabled"]):
             raise ClientError("conversation_closed", 409)
-        can_reply = bool(row['active'] and row['enabled'] and self.store.clients.credentials.can_receive(row['client_id']))
+        can_reply = bool(
+            row["active"]
+            and row["enabled"]
+            and self.store.clients.credentials.can_receive(row["client_id"])
+        )
         if writable and not can_reply:
-            raise ClientError('client_receive_unavailable',409)
+            raise ClientError("client_receive_unavailable", 409)
         return dict(
             id=row["id"],
             name=row["name"],
             caller=row["caller"],
             active=bool(row["active"] and row["enabled"]),
-            archived=not bool(row["active"]),
+            archived=bool(row["archived"]),
             can_reply=can_reply,
+            lifecycle=self.store.lifecycle.public(cid)
+            if hasattr(self.store, "lifecycle")
+            else None,
             receiver_mode=row["receiver_mode"],
-            receiver=self.store.receivers.summary(cid) if hasattr(self.store,"receivers") else None,
+            receiver=self.store.receivers.summary(cid)
+            if hasattr(self.store, "receivers")
+            else None,
         )
 
     def chats(self):
@@ -200,6 +209,8 @@ class Portal:
         )
 
     def delete_chat(self, cid):
+        if hasattr(self.store, "lifecycle"):
+            self.store.lifecycle.assert_can_close(cid)
         row = self.db.execute("SELECT deleted FROM conversations WHERE id=?", (cid,)).fetchone()
         if not row:
             raise ClientError("conversation_not_found", 404)
@@ -259,7 +270,9 @@ class Portal:
             direction=row["direction"],
             source=row["source"],
             created_at=row["created_at"],
-            status=row["status"],
+            status="claim_expired"
+            if (content.get("processing") or {}).get("lease_expired")
+            else row["status"],
             bot_id=row["bot_id"],
             **content,
         )

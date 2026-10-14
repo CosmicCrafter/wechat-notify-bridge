@@ -20,8 +20,8 @@ class AdminQueries:
             where.append("s.client_id=?")
             args.append(client_id)
         if archived is not None:
-            where.append("s.active=?")
-            args.append(0 if archived else 1)
+            where.append("s.archived=?")
+            args.append(int(archived))
         clause = " AND ".join(where)
         total = self.db.execute(
             "SELECT count(*) FROM conversations s LEFT JOIN api_clients c ON c.id=s.client_id WHERE "

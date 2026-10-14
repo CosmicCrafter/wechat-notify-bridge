@@ -11,6 +11,7 @@ class Conversations:
     def __init__(self, db):
         self.db = db
         self.receivers = None
+        self.lifecycle = None
         db.executescript("""
             CREATE TABLE IF NOT EXISTS conversations (
               id TEXT PRIMARY KEY, client_id TEXT NOT NULL, conversation_key TEXT NOT NULL,
@@ -49,6 +50,10 @@ class Conversations:
             db.execute(
                 "ALTER TABLE conversations ADD COLUMN receiver_mode TEXT NOT NULL DEFAULT 'legacy'"
             )
+
+        if "archived" not in {r["name"] for r in db.execute("PRAGMA table_info(conversations)")}:
+            db.execute("ALTER TABLE conversations ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
+            db.execute("UPDATE conversations SET archived=1 WHERE active=0")
 
     def rows(self, client_id=None, active_only=True):
         where, args = ["c.enabled=1", "s.deleted=0"], []
@@ -90,6 +95,8 @@ class Conversations:
             else "[" + row["caller"] + "-" + row["name"] + "]",
             receiver_mode=row["receiver_mode"],
             receiver=self.receivers.summary(row["id"]) if self.receivers else None,
+            archived=bool(row["archived"]),
+            lifecycle=self.lifecycle.public(row["id"]) if self.lifecycle else None,
         )
 
     def list(self, client_id=None, include_closed=False):
@@ -134,6 +141,8 @@ class Conversations:
 
     def set_active(self, client_id, id, active):
         row = self.get(client_id, id)
+        if not active and self.lifecycle:
+            self.lifecycle.assert_can_close(id)
         if (
             active
             and self.db.execute(
@@ -143,8 +152,8 @@ class Conversations:
         ):
             raise ClientError("conversation_name_conflict", 409)
         self.db.execute(
-            "UPDATE conversations SET active=? WHERE client_id=? AND id=?",
-            (int(active), client_id, id),
+            "UPDATE conversations SET active=?,archived=? WHERE client_id=? AND id=?",
+            (int(active), int(not active), client_id, id),
         )
         return self.public(self.get(client_id, id))
 

@@ -29,8 +29,8 @@ class ConversationRegistration(BaseModel):
     model_config = ConfigDict(extra="forbid")
     conversation_key: str = Field(min_length=1, max_length=128)
     name: str | None = Field(default=None, min_length=1, max_length=20)
-    receiver_mode: Literal["legacy","protected"] = "legacy"
-    host_type: Literal["unknown","http","codex","claude","chatgpt_work","chatgpt"] = "unknown"
+    receiver_mode: Literal["legacy", "protected"] = "legacy"
+    host_type: Literal["unknown", "http", "codex", "claude", "chatgpt_work", "chatgpt"] = "unknown"
 
 
 class ConversationState(BaseModel):
@@ -41,12 +41,21 @@ class ConversationState(BaseModel):
 class InboxClaim(BaseModel):
     model_config = ConfigDict(extra="forbid")
     request_id: str = Field(pattern=r"^[a-zA-Z0-9_-]{16,80}$")
+    lease_seconds: int = Field(default=120, ge=30, le=900)
 
 
 class InboxReport(InboxClaim):
+    generation: int | None = Field(default=None, ge=0)
     claim_id: str = Field(pattern=r"^[a-zA-Z0-9_-]{16,80}$")
     status: Literal["processing", "completed", "failed"]
     result: str = Field(default="", max_length=4000)
+
+
+class InboxRenew(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    claim_id: str = Field(pattern=r"^[a-zA-Z0-9_-]{16,80}$")
+    generation: int = Field(ge=1)
+    lease_seconds: int = Field(default=120, ge=30, le=900)
 
 
 class Message(BaseModel):

@@ -54,6 +54,8 @@ async def receiver_identity(app, request, identity):
     metadata = (
         path.endswith("/receiver") or path == "/api/conversations" and request.method == "GET"
     )
+    if request.method == "GET" and path.endswith("/lifecycle") and not token:
+        return identity
     if cid and not (metadata and not token):
         if not isinstance(cid, str):
             raise ClientError("invalid_receiver_conversation", 422)

@@ -42,6 +42,7 @@ class ReadPosition(BaseModel):
 class ArchiveChat(BaseModel):
     model_config = ConfigDict(extra="forbid")
     archived: bool
+    visibility_only: bool = False
 
 
 class RenameChat(BaseModel):
@@ -312,6 +313,8 @@ def mount_portal(app, authorize_admin):
     async def archive_chat(cid: str, body: ArchiveChat):
         async def change():
             async with app.state.bridge.lock:
+                if body.visibility_only:
+                    return portal().store.lifecycle.archive(cid, body.archived)
                 portal().owner_chat(cid)
                 row = (
                     portal()

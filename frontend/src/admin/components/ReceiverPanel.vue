@@ -5,6 +5,7 @@ import { date } from "../../shared/format.js";
 import { receiverLabel } from "../../shared/receiver-state.js";
 const props = defineProps({ cid: String });
 const emit = defineEmits(["updated"]);
+const subscriptions = ref([]);
 const visible = ref(false),
   data = ref(null),
   host = ref("http"),
@@ -14,6 +15,15 @@ const visible = ref(false),
   role = ref("primary");
 async function load() {
   data.value = await api("conversations/" + props.cid + "/receivers");
+  subscriptions.value = (
+    await api("conversations/" + props.cid + "/subscriptions")
+  ).subscriptions;
+}
+async function cancelSubscription(id) {
+  await run(() =>
+    api("conversations/" + props.cid + "/subscriptions/" + id + "/cancel", {}),
+  );
+  await load();
 }
 async function open() {
   visible.value = true;
@@ -160,5 +170,37 @@ defineExpose({ open });
         验证后才可领取。共享接收文件也会共享权限，不能用于不同 AI 聊天。
       </p> </template
     ><el-empty v-else description="正在加载接收状态" />
+    <h3>事件订阅</h3>
+    <p class="help">
+      回调接收不等于业务执行。订阅过期或取消后，使用持久收件箱补查；不会启动离线聊天。
+    </p>
+    <el-empty
+      v-if="!subscriptions.length"
+      description="尚无事件订阅"
+      :image-size="50"
+    />
+    <div v-for="s in subscriptions" :key="s.id" class="summary-row">
+      <div>
+        <strong>{{
+          {
+            active: "订阅有效",
+            expired: "已过期",
+            cancelled: "已取消",
+            revoked: "已撤销",
+            failed: "回调失败",
+          }[s.state] || "状态未知"
+        }}</strong>
+        <p class="help">
+          最后验证 {{ date(s.verified_at) }} · 到期 {{ date(s.expires) }} ·
+          失败尝试 {{ s.attempts }}
+        </p>
+      </div>
+      <el-button
+        v-if="s.state === 'active'"
+        :disabled="session.busy"
+        @click="cancelSubscription(s.id)"
+        >取消订阅</el-button
+      >
+    </div>
   </el-drawer>
 </template>

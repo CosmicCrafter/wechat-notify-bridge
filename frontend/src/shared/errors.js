@@ -1,4 +1,11 @@
 export const errors = {
+  external_stop_confirmation_required:
+    "外部监控尚未确认停止，请先发送停止请求并等待执行方回执。",
+  inbox_claim_expired:
+    "领取租约已过期。用新的领取请求接管同一消息，不要重发业务消息。",
+  inbox_fence_mismatch: "领取代际或处理者已变更，迟到报告被拒绝。",
+  monitor_stop_claim_required:
+    "须先领取这条停止命令，并携带当前 claim_id 与 generation 确认。",
   receiver_primary_exists: "已有主接收绑定。确需换绑时，请明确撤销或勾选换绑。",
   receiver_protected_conversation_required:
     "这是旧应用级会话。请新建受保护会话；不会自动关闭旧客户端。",

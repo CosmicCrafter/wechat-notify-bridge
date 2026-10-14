@@ -60,11 +60,15 @@ const title = computed(() =>
       : "选择一个会话",
 );
 const subtitle = computed(() =>
-  props.conversation?.archived
-    ? "已归档 · 仅查看历史"
-    : props.conversation && !props.canReply
-      ? "当前不可回复 · 历史记录仍可查看"
-      : "消息、回复与任务 · 两端共享已记录历史",
+  props.conversation?.lifecycle?.monitor_status === "stopped"
+    ? "执行端已确认停止 · 历史保留"
+    : props.conversation?.archived
+      ? props.canReply
+        ? "已归档 · 通信继续"
+        : "旧版已停用 · 历史保留"
+      : props.conversation && !props.canReply
+        ? "当前不可回复 · 历史记录仍可查看"
+        : "消息、回复与任务 · 两端共享已记录历史",
 );
 function label(message) {
   if (message.direction !== "user")
@@ -114,10 +118,24 @@ watch(
             ? "会话接收权限已验证"
             : conversation.receiver.status === "expired"
               ? "接收绑定已过期"
-              : "待接收绑定 · 消息可靠入箱"
+              : conversation.receiver.status === "revoked"
+                ? "接收绑定已撤销"
+                : "待接收绑定 · 消息可靠入箱"
         }}</strong
         ><span>具体 AI 聊天身份未验证</span></template
       >
+    </div>
+    <div v-if="conversation?.lifecycle" class="receiver-summary">
+      <span>{{
+        {
+          not_declared: "外部监控未报告",
+          running: "执行端报告运行中",
+          stop_requested: "停止请求待确认",
+          stop_unconfirmed: "停止请求超时 · 状态未知",
+          stopped: "执行端已确认停止",
+        }[conversation.lifecycle.monitor_status] || "外部状态未知"
+      }}</span
+      ><strong v-if="conversation.lifecycle.muted">普通通知静音</strong>
     </div>
     <el-alert
       v-if="error"

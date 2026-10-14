@@ -35,6 +35,7 @@ export const taskLabels = {
   expired: "已过期",
 };
 export const deliveryLabels = {
+  claim_expired: "领取租约已过期 · 可由正确接收端重新接管",
   legacy: "历史消息",
   pending: "已提交 · 等待客户端读取",
   client_read: "客户端已读取数据，未确认领取",

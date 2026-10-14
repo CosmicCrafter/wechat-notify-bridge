@@ -336,6 +336,33 @@ async function answered(result) {
   if (history.value) await newer();
 }
 async function manage(kind) {
+  if (kind === "mute") {
+    await run(() =>
+      api("conversations/" + cid.value + "/mute", {
+        muted: !history.value.conversation.lifecycle?.muted,
+      }),
+    );
+    await fresh();
+    return;
+  }
+  if (kind === "stop") {
+    try {
+      await ElMessageBox.confirm(
+        "只向外部执行端发送停止请求，收到确认前不会显示已停止。",
+        "请求结束监控",
+        { confirmButtonText: "发送停止请求", cancelButtonText: "取消" },
+      );
+    } catch {
+      return;
+    }
+    await run(() =>
+      api("conversations/" + cid.value + "/stop", {
+        request_id: crypto.randomUUID(),
+      }),
+    );
+    await fresh();
+    return;
+  }
   if (kind === "receiver") {
     receiverPanel.value.open();
     return;
@@ -361,14 +388,14 @@ async function manage(kind) {
       };
     } else if (kind === "archive") {
       await ElMessageBox.confirm(
-        "归档状态会同步到手机端；归档后停止新沟通，保留历史。",
+        "归档只整理列表，通信与外部监控继续。停止监控需要单独请求并等待执行方确认。",
         "确认会话状态",
         {
           confirmButtonText: chat.archived ? "恢复会话" : "归档",
           cancelButtonText: "取消",
         },
       );
-      body = { archived: !chat.archived };
+      body = { archived: !chat.archived, visibility_only: true };
     } else {
       await ElMessageBox.confirm(
         "将从管理端和手机端删除会话正文、图片与任务，不能撤销。",
@@ -581,9 +608,18 @@ onBeforeUnmount(() => {
                     >接收绑定与权限</el-dropdown-item
                   >
                   <el-dropdown-item command="archive">{{
-                    history.conversation.archived ? "恢复会话" : "归档会话"
+                    history.conversation.archived ? "取消归档" : "归档会话"
                   }}</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided
+                  <el-dropdown-item command="mute">{{
+                    history.conversation.lifecycle?.muted
+                      ? "取消普通通知静音"
+                      : "静音普通通知"
+                  }}</el-dropdown-item
+                  ><el-dropdown-item
+                    command="stop"
+                    :disabled="!history.conversation.can_reply"
+                    >请求结束外部监控</el-dropdown-item
+                  ><el-dropdown-item command="delete" divided
                     >永久删除</el-dropdown-item
                   >
                 </el-dropdown-menu></template

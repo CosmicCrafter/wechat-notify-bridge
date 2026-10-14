@@ -211,6 +211,19 @@ class Events:
             encrypted BLOB NOT NULL, cursor INTEGER NOT NULL, expires REAL NOT NULL,
             status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_attempt REAL NOT NULL DEFAULT 0)""")
 
+        columns = {
+            r["name"] for r in self.store.db.execute("PRAGMA table_info(mcp_event_subscriptions)")
+        }
+        for name, kind in (
+            ("verified_at", "REAL"),
+            ("last_delivery_at", "REAL"),
+            ("last_http_status", "INTEGER"),
+        ):
+            if name not in columns:
+                self.store.db.execute(
+                    "ALTER TABLE mcp_event_subscriptions ADD COLUMN " + name + " " + kind
+                )
+
     async def auth(self, token):
         access = await self.provider.verify_token(token)
         if not access or "wechat:bridge" not in access.scopes:
@@ -286,12 +299,13 @@ class Events:
         )
         async with self.lock:
             self.store.db.execute(
-                "DELETE FROM mcp_event_subscriptions WHERE expires<=?", (time.time(),)
+                "UPDATE mcp_event_subscriptions SET status='expired' WHERE expires<=? AND status='active'",
+                (time.time(),),
             )
             if method == "events/unsubscribe":
                 self.verifications.pop(sid, None)
                 self.store.db.execute(
-                    "DELETE FROM mcp_event_subscriptions WHERE id=? AND principal=?",
+                    "UPDATE mcp_event_subscriptions SET status='cancelled' WHERE id=? AND principal=?",
                     (sid, principal),
                 )
                 return {}
@@ -411,7 +425,7 @@ class Events:
                     )
             expiry = time.time() + ttl
             self.store.db.execute(
-                "INSERT OR REPLACE INTO mcp_event_subscriptions VALUES (?,?,?,?,?,?,?,0,0)",
+                "INSERT OR REPLACE INTO mcp_event_subscriptions(id,principal,conversation,encrypted,cursor,expires,status,attempts,next_attempt) VALUES (?,?,?,?,?,?,?,0,0)",
                 (
                     sid,
                     principal,
@@ -421,6 +435,9 @@ class Events:
                     expiry,
                     "active",
                 ),
+            )
+            self.store.db.execute(
+                "UPDATE mcp_event_subscriptions SET verified_at=? WHERE id=?", (time.time(), sid)
             )
             return {"id": sid, "refreshBefore": iso(expiry), "cursor": None, "truncated": False}
 
@@ -521,8 +538,8 @@ class Events:
                 return
             if 200 <= status < 300:
                 self.store.db.execute(
-                    "UPDATE mcp_event_subscriptions SET cursor=?,attempts=0,next_attempt=0 WHERE id=?",
-                    (row["id"], sub["id"]),
+                    "UPDATE mcp_event_subscriptions SET cursor=?,attempts=0,next_attempt=0,last_delivery_at=?,last_http_status=? WHERE id=?",
+                    (row["id"], time.time(), status, sub["id"]),
                 )
             else:
                 attempts = sub["attempts"] + 1

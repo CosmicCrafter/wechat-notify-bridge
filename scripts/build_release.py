@@ -24,6 +24,7 @@ DIRECTORIES = (
     "mcp-plugin/.codex-plugin",
 )
 SUFFIXES = {
+    ".sha256",
     ".py",
     ".md",
     ".json",

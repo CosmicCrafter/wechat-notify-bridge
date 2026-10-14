@@ -1,6 +1,7 @@
 """Bot selection with explicit key grants; reuse mature transport implementations."""
 
 from wechat_bridge.core.errors import BridgeError
+from wechat_bridge.storage.client_registry import ClientError
 from wechat_bridge.channels.drivers import BUILTIN_DRIVERS
 from wechat_bridge.channels.registry import DEFAULT, FEISHU_DEFAULT
 from wechat_bridge.wechat.pairing import Pairing
@@ -114,6 +115,25 @@ class Channels:
                         await driver.start()
 
                 self.starts[bot["id"]] = asyncio.create_task(start())
+
+    async def project_task_answer(self, cid, task_id):
+        row = self.store.portal.tasks.row(cid, task_id)
+        parent = self.store.db.execute(
+            "SELECT channel FROM channel_outgoing WHERE key=?", (row["outgoing_key"],)
+        ).fetchone()
+        if parent and parent[0].startswith("feishu:"):
+            bot_id = parent[0][len("feishu:") :]
+            try:
+                return await self.adapter(bot_id).project_task(cid, task_id)
+            except (BridgeError, ClientError) as exc:
+                result = {
+                    "status": "failed",
+                    "error": getattr(exc, "reason", None)
+                    or getattr(exc, "code", "projection_unavailable"),
+                }
+                self.store.set("task_projection:" + task_id, result)
+                return result
+        return {"status": "not_applicable"}
 
     async def delete(self, bot_id):
         bot = self.registry.get(bot_id)

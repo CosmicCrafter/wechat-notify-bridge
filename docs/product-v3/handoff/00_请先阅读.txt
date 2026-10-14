@@ -1,0 +1,5 @@
+Notify Bridge v0.3 设计交接
+此 ZIP 只包含统一设计说明、D0 离线演示与产品审查材料，不是生产源代码，也不含真实密钥。
+请在本地项目 notify-bridge-upgrade 的分支 codex/upgrade-after-stable-20261014 中执行后续工程改造。
+D0 HTML 是视觉和模拟交互参考，不应直接替换现有 Vue 管理端；应复用已有生产实现。
+当前生产稳定基线 1.16.0 / 0bddeff，未授权生产部署。

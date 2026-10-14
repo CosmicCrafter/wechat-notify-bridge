@@ -114,6 +114,7 @@ class TaskCards:
             answer=self.decrypt(row["answer"]),
             result=self.decrypt(row["result"]) or "",
             can_answer=chat["active"] and status == "pending",
+            projection=self.store.get("task_projection:" + row["id"]),
         )
 
     def get(self, cid, id):

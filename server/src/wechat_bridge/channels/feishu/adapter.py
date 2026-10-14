@@ -266,6 +266,7 @@ class Feishu(FeishuInbound):
                 db.rollback()
                 raise
             diagnostics, status, error, provider_hash = {}, "unconfirmed_do_not_retry", None, None
+            diagnostics.update(phase="preparation", platform_request_started=False)
             started = time.monotonic()
             try:
                 projected = card(
@@ -283,6 +284,7 @@ class Feishu(FeishuInbound):
                 )
                 if len(payload["content"].encode()) > 28000:
                     raise Rejected("card_content_too_large")
+                diagnostics.update(phase="platform_send", platform_request_started=True)
                 response = await self.client().post(
                     BASE + "/im/v1/messages",
                     params={"receive_id_type": "open_id"},
@@ -306,6 +308,8 @@ class Feishu(FeishuInbound):
                 status, error = "api_rejected", exc.code
             except Exception as exc:
                 error = type(exc).__name__
+            if not diagnostics["platform_request_started"] and status != "api_accepted":
+                status = "not_sent"
             diagnostics["duration_ms"] = round((time.monotonic() - started) * 1000)
             db.execute("BEGIN IMMEDIATE")
             try:
@@ -335,6 +339,54 @@ class Feishu(FeishuInbound):
                 db.rollback()
                 raise
             return self.public_receipt(self.state.receipt(digest))
+
+    async def project_task(self, cid, task_id):
+        """Project a committed answer; never roll back the canonical decision."""
+        state_key = "task_projection:" + task_id
+        async with self.lock:
+            row = self.store.portal.tasks.row(cid, task_id)
+            parent = self.state.receipt(row["outgoing_key"])
+            data = self.state.decrypt(parent["encrypted"]) if parent else {}
+            provider = data.get("provider_message_id") if data else None
+            if not provider:
+                result = {"status": "unavailable", "error": "projection_missing_delivery"}
+                self.store.set(state_key, result)
+                return result
+            version = row["updated_at"]
+            chat = self.store.portal.owner_chat(cid)
+            projected = card(
+                "",
+                "[" + chat["caller"] + "-" + chat["name"] + "]",
+                chat_url(cid),
+                self.store.portal.tasks.get(cid, task_id),
+            )
+            self.store.set(state_key, {"status": "pending", "at": time.time()})
+            try:
+                from urllib.parse import quote
+
+                config = self.ready()
+                token = await self.access_token(config)
+                response = await self.client().patch(
+                    BASE + "/im/v1/messages/" + quote(provider, safe=""),
+                    headers={"Authorization": "Bearer " + token},
+                    json={"content": json.dumps(projected, ensure_ascii=False)},
+                )
+                response.raise_for_status()
+                value = response.json()
+                if type(value.get("code")) is not int or value["code"] != 0:
+                    raise ValueError("projection_rejected")
+                current = self.store.db.execute(
+                    "SELECT updated_at FROM task_cards WHERE id=?", (task_id,)
+                ).fetchone()
+                result = {
+                    "status": "synced" if current and current[0] == version else "pending",
+                    "at": time.time(),
+                }
+            except Exception as exc:
+                # Only fixed diagnostics, never upstream text, tokens, or message content.
+                result = {"status": "failed", "error": type(exc).__name__, "at": time.time()}
+            self.store.set(state_key, result)
+            return result
 
     def command_text(self, command):
         if command == "/web":

@@ -1,0 +1,2172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Notify Bridge D0 管理端可交互离线产品原型——仅模拟数据，不连接真实服务">
+  <title>Notify Bridge · D0 统一管理端原型</title>
+  <style>
+/* Notify Bridge D0 | plain CSS editable source, no external network assets */
+:root {
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  font-synthesis:none;
+  color:#1d2939;
+  background:#f5f7fa;
+  --brand:#4669df;
+  --brand-light:#edf2ff;
+  --ink:#17233b;
+  --muted:#69778b;
+  --line:#e4e9f0;
+  --surface:#fff;
+  --canvas:#f5f7fa;
+  --green:#188263;
+  --greenbg:#eaf8f2;
+  --orange:#b96915;
+  --orangebg:#fff5e6;
+  --red:#c74753;
+  --redbg:#fdf0f0;
+  --blue:#3463b7;
+  --bluebg:#eaf2ff;
+  --shadow:0 8px 26px rgba(20,42,73,.055)
+}
+* {
+  box-sizing:border-box
+}
+html,body,#app {
+  margin:0;
+  min-height:100%;
+  width:100%
+}
+button,input,textarea,select {
+  font:inherit
+}
+button {
+  cursor:pointer
+}
+button:disabled {
+  opacity:.48;
+  cursor:not-allowed
+}
+a {
+  color:inherit;
+  text-decoration:none
+}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible {
+  outline:3px solid #b9c9ff;
+  outline-offset:2px
+}
+svg {
+  display:inline-block;
+  vertical-align:middle;
+  flex:none
+}
+h1,h2,h3,h4,p {
+  margin:0
+}
+h1 {
+  font-size:27px;
+  line-height:1.32;
+  letter-spacing:-.65px;
+  font-weight:740
+}
+h2 {
+  font-size:19px;
+  letter-spacing:-.3px
+}
+h3 {
+  font-size:15px
+}
+p {
+  line-height:1.65
+}
+.muted {
+  color:var(--muted)
+}
+.small {
+  font-size:12px
+}
+.tiny {
+  font-size:11px
+}
+.semi {
+  font-weight:650
+}
+.bold {
+  font-weight:730
+}
+.mono {
+  font-family:"SFMono-Regular",Consolas,Menlo,monospace
+}
+.mt4 {
+  margin-top:4px
+}
+.mt8 {
+  margin-top:8px
+}
+.mt12 {
+  margin-top:12px
+}
+.mt16 {
+  margin-top:16px
+}
+.mb12 {
+  margin-bottom:12px
+}
+.row {
+  display:flex;
+  align-items:center;
+  gap:10px
+}
+.between {
+  justify-content:space-between
+}
+.wrap {
+  flex-wrap:wrap
+}
+.flex1 {
+  flex:1;
+  min-width:0
+}
+.gap6 {
+  gap:6px
+}
+.gap14 {
+  gap:14px
+}
+.center {
+  text-align:center
+}
+.nowrap {
+  white-space:nowrap
+}
+.text-right {
+  text-align:right
+}
+.truncate {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+.divider {
+  border-top:1px solid var(--line);
+  margin:16px 0
+}
+.sr-only {
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0
+}
+.btn {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border:1px solid transparent;
+  border-radius:9px;
+  padding:9px 13px;
+  min-height:38px;
+  font-size:13px;
+  font-weight:650;
+  line-height:1.4;
+  background:transparent;
+  color:var(--ink);
+  white-space:nowrap;
+  transition:background .13s,border-color .13s,transform .13s
+}
+.btn:active {
+  transform:translateY(1px)
+}
+.btn-primary {
+  color:#fff;
+  background:var(--brand);
+  box-shadow:0 2px 5px rgba(70,105,223,.17)
+}
+.btn-primary:hover {
+  background:#3758c7
+}
+.btn-secondary {
+  background:#fff;
+  border-color:#dce3ed;
+  color:#34465f
+}
+.btn-secondary:hover {
+  background:#f8faff
+}
+.btn-ghost {
+  color:#586b85
+}
+.btn-ghost:hover {
+  background:#eef2f8
+}
+.btn-danger {
+  color:var(--red);
+  background:var(--redbg)
+}
+.btn-danger:hover {
+  background:#fbe5e5
+}
+.btn-sm {
+  font-size:12px;
+  padding:6px 10px;
+  min-height:32px
+}
+.btn-xs {
+  font-size:11px;
+  padding:5px 8px;
+  min-height:28px
+}
+.icon-btn {
+  width:36px;
+  height:36px;
+  min-height:36px;
+  padding:0;
+  border-radius:9px
+}
+.icon-btn:hover {
+  background:#eff3f9
+}
+.btn-block {
+  width:100%
+}
+.link {
+  background:none;
+  border:none;
+  padding:0;
+  color:var(--blue);
+  font-weight:650;
+  font-size:inherit;
+  cursor:pointer
+}
+.link:hover {
+  text-decoration:underline
+}
+.field {
+  display:grid;
+  gap:7px
+}
+.field label {
+  font-size:12px;
+  color:#44566f;
+  font-weight:650
+}
+.field .hint {
+  font-size:11px;
+  color:var(--muted);
+  line-height:1.5
+}
+.control {
+  width:100%;
+  border:1px solid #dce3ed;
+  border-radius:9px;
+  background:#fff;
+  outline:none;
+  padding:10px 11px;
+  font-size:13px;
+  color:var(--ink);
+  min-height:40px;
+  transition:border-color .14s,box-shadow .14s
+}
+.control:focus {
+  border-color:#7891ed;
+  box-shadow:0 0 0 3px #e6ecff
+}
+.control::placeholder {
+  color:#9aa5b4
+}
+.textarea {
+  min-height:92px;
+  resize:vertical;
+  line-height:1.55
+}
+.input-icon {
+  position:relative
+}
+.input-icon .inside {
+  position:absolute;
+  left:11px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#8b98aa;
+  pointer-events:none
+}
+.input-icon input {
+  padding-left:36px
+}
+.field-row {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:13px
+}
+.pill {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  font-size:11px;
+  font-weight:650;
+  padding:4px 8px;
+  border-radius:99px;
+  background:#f0f3f7;
+  color:#677588;
+  white-space:nowrap
+}
+.pill.success {
+  background:var(--greenbg);
+  color:var(--green)
+}
+.pill.warning {
+  background:var(--orangebg);
+  color:var(--orange)
+}
+.pill.danger {
+  background:var(--redbg);
+  color:var(--red)
+}
+.pill.info {
+  background:var(--bluebg);
+  color:var(--blue)
+}
+.pill.neutral {
+  background:#f1f3f6;
+  color:#677588
+}
+.dot {
+  height:7px;
+  width:7px;
+  border-radius:50%;
+  display:inline-block;
+  background:currentColor
+}
+.dot.pulse {
+  box-shadow:0 0 0 3px #d8f3e9
+}
+.eyebrow {
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:1.1px;
+  text-transform:uppercase;
+  color:#8794a6
+}
+.surface {
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:var(--shadow)
+}
+.card {
+  padding:20px
+}
+.caption {
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.6
+}
+.notice {
+  border:1px solid #e1e9fa;
+  background:#f4f7ff;
+  color:#4d658a;
+  border-radius:10px;
+  padding:11px 13px;
+  font-size:12px;
+  line-height:1.65
+}
+.notice.warning {
+  border-color:#f4e3c4;
+  background:#fffbf2;
+  color:#946027
+}
+.notice.danger {
+  border-color:#f4d9db;
+  background:#fff7f7;
+  color:#a13d4b
+}
+.notice.good {
+  border-color:#d9eee4;
+  background:#f5fcf8;
+  color:#307456
+}
+.kbd {
+  border:1px solid #d9e1ec;
+  background:#f8fafc;
+  border-radius:5px;
+  padding:1px 5px;
+  font-size:11px
+}
+/* shell */
+.shell {
+  display:flex;
+  min-height:100vh
+}
+.sidebar {
+  width:239px;
+  flex:none;
+  position:fixed;
+  top:0;
+  bottom:0;
+  left:0;
+  z-index:25;
+  background:#151f31;
+  color:#aab8c9;
+  display:flex;
+  flex-direction:column;
+  padding:26px 13px 17px
+}
+.brand {
+  display:flex;
+  gap:10px;
+  align-items:center;
+  padding:1px 11px 25px;
+  color:#fff
+}
+.brand-mark {
+  display:grid;
+  place-items:center;
+  background:#5771ef;
+  border-radius:12px;
+  width:38px;
+  height:38px;
+  color:#fff;
+  box-shadow:0 4px 16px rgba(78,104,245,.25)
+}
+.brand-name {
+  font-size:15px;
+  font-weight:760;
+  letter-spacing:.1px
+}
+.brand-desc {
+  font-size:11px;
+  color:#8fa0b8;
+  margin-top:2px
+}
+.sidebar-rule {
+  border-top:1px solid #2c3649;
+  margin:5px 10px 14px
+}
+.nav-group-title {
+  padding:10px 14px;
+  font-size:10px;
+  font-weight:700;
+  color:#687b94;
+  letter-spacing:1.1px
+}
+.nav-item {
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:11px 12px;
+  text-align:left;
+  border:none;
+  border-radius:9px;
+  background:transparent;
+  color:#aebbcc;
+  font-size:13px;
+  font-weight:570;
+  line-height:20px;
+  margin:2px 0;
+  position:relative
+}
+.nav-item:hover {
+  background:#243147;
+  color:#fff
+}
+.nav-item.active {
+  color:#fff;
+  background:#2c3a54;
+  font-weight:680
+}
+.nav-item.active::before {
+  content:"";
+  width:3px;
+  height:20px;
+  position:absolute;
+  left:0;
+  top:calc(50% - 10px);
+  background:#8e9fff;
+  border-radius:99px
+}
+.nav-item .nav-num {
+  margin-left:auto;
+  background:#34435a;
+  color:#dbe4f5;
+  border-radius:6px;
+  font-size:10px;
+  padding:2px 6px
+}
+.sidebar-spacer {
+  flex:1
+}
+.sidebar-footer {
+  border-top:1px solid #30394c;
+  padding:15px 10px 2px
+}
+.service-mini {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  color:#d8e3f0;
+  font-size:12px
+}
+.sidebar-version {
+  font-size:10px;
+  color:#74849b;
+  margin-top:12px
+}
+.main {
+  margin-left:239px;
+  min-width:0;
+  flex:1
+}
+.topbar {
+  height:70px;
+  background:#fff;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 36px;
+  position:sticky;
+  top:0;
+  z-index:19
+}
+.top-left {
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:12px
+}
+.breadcrumb {
+  color:#94a0ae;
+  font-size:12px;
+  white-space:nowrap
+}
+.breadcrumb b {
+  color:#354865;
+  font-weight:650
+}
+.top-actions {
+  display:flex;
+  align-items:center;
+  gap:9px
+}
+.top-search {
+  width:236px;
+  height:35px;
+  border:1px solid var(--line);
+  background:#f8fafc;
+  color:#8e9cae;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:0 11px;
+  border-radius:8px;
+  font-size:12px;
+  text-align:left
+}
+.top-search span {
+  flex:1
+}
+.avatar {
+  display:grid;
+  place-items:center;
+  width:31px;
+  height:31px;
+  border-radius:50%;
+  background:#e9edff;
+  color:#5566a6;
+  font-size:12px;
+  font-weight:770
+}
+.account-trigger {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid transparent;
+  background:#fff;
+  padding:4px;
+  border-radius:11px
+}
+.account-trigger:hover {
+  background:#f3f6fb
+}
+.dropdown {
+  position:absolute;
+  right:28px;
+  top:62px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:12px;
+  box-shadow:0 18px 42px rgba(21,34,55,.14);
+  padding:7px;
+  width:204px;
+  z-index:50
+}
+.dropdown button {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:100%;
+  font-size:13px;
+  background:transparent;
+  border:none;
+  padding:11px;
+  border-radius:7px;
+  text-align:left;
+  color:var(--ink)
+}
+.dropdown button:hover {
+  background:#f4f7fc
+}
+.dropdown .separator {
+  height:1px;
+  background:var(--line);
+  margin:5px 3px
+}
+.mobile-menu {
+  display:none
+}
+.page-container {
+  max-width:1510px;
+  margin:0 auto;
+  padding:29px 36px 55px
+}
+.page-heading {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:20px;
+  margin:0 0 24px
+}
+.page-heading p {
+  margin-top:7px;
+  color:var(--muted);
+  font-size:13px
+}
+.page-actions {
+  display:flex;
+  gap:9px;
+  align-items:center;
+  flex-wrap:wrap
+}
+.demo-banner {
+  background:#fff9ee;
+  border:1px solid #f3e4c4;
+  color:#9a681f;
+  font-size:11px;
+  border-radius:8px;
+  padding:5px 8px;
+  display:flex;
+  gap:6px;
+  align-items:center
+}
+.grid {
+  display:grid;
+  gap:18px
+}
+.grid-2 {
+  grid-template-columns:repeat(2,minmax(0,1fr))
+}
+.grid-3 {
+  grid-template-columns:repeat(3,minmax(0,1fr))
+}
+.grid-main {
+  grid-template-columns:minmax(0,1.68fr) minmax(285px,1fr)
+}
+.section-title {
+  font-size:15px;
+  font-weight:730;
+  display:flex;
+  align-items:center;
+  gap:9px
+}
+.section-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  margin-bottom:15px
+}
+.section-heading {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin:22px 0 13px
+}
+.mini-stat {
+  display:grid;
+  gap:5px;
+  padding:17px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:12px
+}
+.mini-stat .number {
+  font-size:24px;
+  font-weight:740;
+  letter-spacing:-.3px
+}
+.mini-stat .label {
+  font-size:12px;
+  color:var(--muted)
+}
+.stat-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  flex-wrap:wrap
+}
+.stat-divider {
+  height:32px;
+  border-left:1px solid var(--line)
+}
+.primary-status {
+  padding:23px 24px;
+  display:flex;
+  gap:18px;
+  align-items:flex-start;
+  border:1px solid #dbeadd;
+  border-radius:14px;
+  background:linear-gradient(120deg,#f6fbf8,#fff 65%)
+}
+.primary-status.warn {
+  background:linear-gradient(120deg,#fffaf3,#fff 75%);
+  border-color:#efe2cb
+}
+.status-icon {
+  height:43px;
+  width:43px;
+  display:grid;
+  place-items:center;
+  background:#e1f3e9;
+  color:#258364;
+  border-radius:12px;
+  flex:none
+}
+.primary-status.warn .status-icon {
+  color:#b56f13;
+  background:#fff0d4
+}
+.issue-list {
+  display:grid;
+  gap:0
+}
+.issue-row {
+  display:flex;
+  align-items:flex-start;
+  gap:13px;
+  padding:13px 0;
+  border-bottom:1px solid var(--line)
+}
+.issue-row:last-child {
+  border-bottom:0
+}
+.issue-main {
+  flex:1;
+  min-width:0
+}
+.issue-title {
+  font-size:13px;
+  font-weight:680
+}
+.issue-desc {
+  font-size:12px;
+  color:var(--muted);
+  margin-top:4px;
+  line-height:1.55
+}
+.icon-box {
+  display:grid;
+  place-items:center;
+  height:34px;
+  width:34px;
+  border-radius:9px;
+  flex:none;
+  background:#edf1f8;
+  color:#71809a
+}
+.icon-box.orange {
+  color:#b4782e;
+  background:#fff4e6
+}
+.icon-box.red {
+  color:#b94454;
+  background:#fdf0f1
+}
+.icon-box.blue {
+  color:#4a70c5;
+  background:#edf2ff
+}
+.icon-box.green {
+  color:#2e946e;
+  background:#e9f8ef
+}
+.table-wrap {
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff
+}
+.data-table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+  min-width:670px
+}
+.data-table th {
+  text-align:left;
+  padding:12px 14px;
+  font-size:11px;
+  letter-spacing:.25px;
+  color:#8a98a9;
+  background:#fafbfc;
+  font-weight:700;
+  white-space:nowrap;
+  border-bottom:1px solid var(--line)
+}
+.data-table td {
+  padding:15px 14px;
+  border-bottom:1px solid #edf0f4;
+  vertical-align:middle
+}
+.data-table tr:last-child td {
+  border-bottom:none
+}
+.data-table tbody tr:hover {
+  background:#fbfcff
+}
+.data-table .table-title {
+  font-weight:660
+}
+.subtext {
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  margin-top:5px
+}
+.table-actions {
+  display:flex;
+  justify-content:flex-end
+}
+.filter-bar {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-bottom:17px
+}
+.filter-bar .search-filter {
+  width:260px;
+  max-width:100%
+}
+.filter-bar select {
+  min-width:120px
+}
+.blank {
+  padding:45px 18px;
+  text-align:center;
+  color:var(--muted)
+}
+.blank-icon {
+  height:56px;
+  width:56px;
+  display:grid;
+  place-items:center;
+  margin:0 auto 12px;
+  border-radius:16px;
+  background:#edf2fa;
+  color:#8ca2c5
+}
+.blank h3 {
+  color:var(--ink);
+  margin-bottom:5px
+}
+.blank p {
+  font-size:12px;
+  max-width:410px;
+  margin:0 auto 16px
+}
+/* conversation layout */
+.conv-frame {
+  height:calc(100vh - 178px);
+  min-height:520px;
+  display:grid;
+  grid-template-rows:minmax(0,1fr);
+  grid-template-columns:292px minmax(340px,1fr);
+  border:1px solid var(--line);
+  background:#fff;
+  box-shadow:var(--shadow);
+  border-radius:14px;
+  overflow:hidden
+}
+.conv-rail {
+  min-width:0;
+  border-right:1px solid var(--line);
+  display:flex;
+  flex-direction:column;
+  background:#fcfdff
+}
+.conv-rail-head {
+  padding:17px 15px;
+  border-bottom:1px solid var(--line)
+}
+.segment {
+  display:inline-flex;
+  padding:3px;
+  border-radius:9px;
+  background:#f0f3f8;
+  gap:1px
+}
+.segment button {
+  font-size:12px;
+  border:0;
+  background:transparent;
+  padding:7px 11px;
+  color:#8290a2;
+  border-radius:7px;
+  white-space:nowrap;
+  font-weight:620
+}
+.segment button.active {
+  background:white;
+  box-shadow:0 1px 4px #dce2ea;
+  color:#233650
+}
+.conv-list {
+  overflow-y:auto;
+  flex:1;
+  padding:8px
+}
+.conv-item {
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  padding:12px 10px;
+  border-radius:9px;
+  background:transparent;
+  border:1px solid transparent;
+  width:100%;
+  text-align:left;
+  cursor:pointer
+}
+.conv-item:hover {
+  background:#f2f6fe
+}
+.conv-item.active {
+  background:#ecf2ff;
+  border-color:#dce6ff
+}
+.identicon {
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  color:#fff;
+  border-radius:11px;
+  font-weight:750;
+  font-size:12px;
+  flex:none
+}
+.conv-preview {
+  font-size:11px;
+  color:#8897a9;
+  margin-top:5px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
+}
+.conv-timestamp {
+  font-size:10px;
+  color:#9eabba
+}
+.conv-work {
+  min-width:0;
+  min-height:0;
+  display:flex;
+  flex-direction:column
+}
+.conv-work-head {
+  min-height:69px;
+  border-bottom:1px solid var(--line);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 19px;
+  gap:9px
+}
+.conv-info {
+  font-size:11px;
+  color:var(--muted);
+  margin-top:4px
+}
+.conv-work-body {
+  flex:1;
+  overflow-y:auto;
+  min-height:0;
+  padding:21px 24px 16px;
+  background:#fff;
+  display:flex;
+  flex-direction:column;
+  gap:16px
+}
+.day-divider {
+  text-align:center;
+  font-size:11px;
+  color:#9aa7b7;
+  position:relative;
+  margin:4px 0 8px
+}
+.day-divider span {
+  background:#fff;
+  padding:0 10px;
+  position:relative;
+  z-index:1
+}
+.day-divider:before {
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:50%;
+  border-top:1px solid #edf1f5
+}
+.bubble-row {
+  display:flex;
+  gap:9px;
+  align-items:flex-start;
+  max-width:90%
+}
+.bubble-row.mine {
+  margin-left:auto;
+  flex-direction:row-reverse
+}
+.bubble-icon {
+  width:27px;
+  height:27px;
+  border-radius:9px;
+  background:#eef1f7;
+  display:grid;
+  place-items:center;
+  color:#6880ae;
+  flex:none;
+  margin-top:2px;
+  font-size:11px;
+  font-weight:700
+}
+.bubble-row.mine .bubble-icon {
+  background:#e9efff;
+  color:#4d6bd3
+}
+.bubble {
+  padding:12px 13px;
+  border:1px solid #e5eaf1;
+  background:#f8fafc;
+  border-radius:11px 11px 11px 3px;
+  min-width:0;
+  max-width:100%;
+  font-size:13px;
+  line-height:1.7;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap
+}
+.bubble-row.mine .bubble {
+  background:#edf3ff;
+  border-color:#dfebff;
+  border-radius:11px 11px 3px 11px
+}
+.bubble-meta {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  justify-content:flex-start;
+  color:#98a5b5;
+  margin-top:5px;
+  font-size:10px
+}
+.bubble-row.mine .bubble-meta {
+  justify-content:flex-end
+}
+.task-card {
+  border:1px solid #dfe7f5;
+  background:#fff;
+  border-radius:11px;
+  padding:14px;
+  margin-top:12px;
+  min-width:248px;
+  max-width:420px;
+  white-space:normal
+}
+.task-card strong {
+  font-size:12px
+}
+.task-options {
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:11px
+}
+.task-done {
+  background:#f0f9f4;
+  color:#287950;
+  padding:7px 9px;
+  border-radius:7px;
+  margin-top:9px;
+  font-size:11px
+}
+.conv-compose {
+  padding:13px 19px 16px;
+  border-top:1px solid var(--line);
+  background:#fff
+}
+.compose-box {
+  border:1px solid #dbe3ee;
+  border-radius:11px;
+  padding:9px 11px;
+  transition:border-color .12s
+}
+.compose-box:focus-within {
+  border-color:#95adf1
+}
+.compose-box textarea {
+  font-size:13px;
+  width:100%;
+  height:62px;
+  border:0;
+  outline:none;
+  resize:none;
+  color:#253651;
+  line-height:1.5;
+  background:transparent
+}
+.compose-box textarea::placeholder {
+  color:#a0aebb
+}
+.compose-bottom {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:9px
+}
+.compose-hint {
+  font-size:11px;
+  color:#9ba8b7
+}
+.conv-mobile-back {
+  display:none
+}
+.conversation-empty {
+  display:grid;
+  place-items:center;
+  flex:1;
+  padding:35px;
+  text-align:center
+}
+/* others */
+.app-logo {
+  height:40px;
+  width:40px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  color:#fff;
+  font-size:13px;
+  font-weight:760;
+  flex:none
+}
+.app-card {
+  padding:19px;
+  display:flex;
+  flex-direction:column;
+  gap:14px
+}
+.app-card-foot {
+  border-top:1px solid var(--line);
+  padding-top:14px;
+  margin-top:auto
+}
+.info-pair {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:11px 0;
+  border-bottom:1px solid #f0f2f6;
+  font-size:12px
+}
+.info-pair:last-child {
+  border-bottom:0
+}
+.info-pair .term {
+  color:#8190a2
+}
+.info-pair .value {
+  font-weight:650;
+  color:#374a65;
+  text-align:right;
+  max-width:70%;
+  overflow-wrap:anywhere
+}
+.platform-mark {
+  height:44px;
+  width:44px;
+  border-radius:13px;
+  display:grid;
+  place-items:center;
+  background:#e6f0ff;
+  color:#3e75c7;
+  font-weight:760
+}
+.platform-mark.wechat {
+  background:#e4f6e9;
+  color:#1c9d60
+}
+.connection-card {
+  padding:19px
+}
+.connection-facts {
+  display:grid;
+  gap:9px;
+  margin:17px 0
+}
+.fact-line {
+  display:flex;
+  justify-content:space-between;
+  gap:9px;
+  font-size:12px;
+  color:var(--muted)
+}
+.fact-line b {
+  color:var(--ink);
+  font-size:12px;
+  font-weight:630
+}
+.steps {
+  display:flex;
+  gap:5px;
+  align-items:center;
+  flex-wrap:wrap
+}
+.step-pill {
+  font-size:11px;
+  color:#8794a4;
+  padding:5px 9px;
+  border-radius:8px;
+  background:#f1f4f8
+}
+.step-pill.active {
+  background:#e8f0ff;
+  color:#3b69c6;
+  font-weight:700
+}
+.step-pill.done {
+  background:#e9f7ee;
+  color:#188263
+}
+.template-list {
+  display:grid;
+  gap:10px
+}
+.template-row {
+  display:flex;
+  align-items:center;
+  gap:13px;
+  border:1px solid var(--line);
+  padding:14px;
+  border-radius:11px
+}
+.template-row .text {
+  flex:1;
+  min-width:0
+}
+.settings-nav {
+  display:flex;
+  gap:8px;
+  margin-bottom:18px;
+  flex-wrap:wrap
+}
+.node-row {
+  display:grid;
+  grid-template-columns:24px minmax(140px,1fr) 110px 88px;
+  align-items:center;
+  gap:10px;
+  border-bottom:1px solid #edf0f4;
+  padding:14px 2px;
+  font-size:12px
+}
+.node-row:last-child {
+  border-bottom:0
+}
+.radio-faux {
+  width:17px;
+  height:17px;
+  border:2px solid #bcc8d7;
+  border-radius:50%;
+  display:grid;
+  place-items:center
+}
+.radio-faux.checked {
+  border-color:var(--brand)
+}
+.radio-faux.checked:after {
+  content:"";
+  height:7px;
+  width:7px;
+  border-radius:50%;
+  background:var(--brand)
+}
+.proxy-head {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  flex-wrap:wrap
+}
+.hero-num {
+  font-size:25px;
+  font-weight:760
+}
+.help-card {
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:15px
+}
+.help-step {
+  display:flex;
+  align-items:flex-start;
+  gap:13px;
+  padding:12px 0;
+  border-bottom:1px solid var(--line)
+}
+.help-step:last-child {
+  border-bottom:0
+}
+.help-step-num {
+  height:25px;
+  width:25px;
+  background:#edf2ff;
+  color:var(--brand);
+  display:grid;
+  place-items:center;
+  border-radius:8px;
+  font-size:11px;
+  font-weight:750
+}
+.callout-vertical {
+  border-left:3px solid #83a3f3;
+  padding:8px 0 8px 12px;
+  background:#f8faff;
+  margin:12px 0;
+  font-size:12px;
+  color:#5f7088
+}
+.code-sample {
+  border-radius:10px;
+  background:#152238;
+  color:#d6e6ff;
+  padding:15px;
+  font-size:12px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  overflow:auto
+}
+/* modal and notifications */
+.overlay {
+  position:fixed;
+  inset:0;
+  z-index:60;
+  background:rgba(18,30,51,.43);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px
+}
+.modal {
+  width:min(545px,100%);
+  max-height:min(90vh,900px);
+  overflow:auto;
+  background:#fff;
+  border-radius:16px;
+  box-shadow:0 25px 90px rgba(16,32,61,.26);
+  border:1px solid #edf0f5
+}
+.modal.wide {
+  width:min(700px,100%)
+}
+.modal-head {
+  padding:20px 23px 17px;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+  border-bottom:1px solid var(--line)
+}
+.modal-head h2 {
+  font-size:18px
+}
+.modal-body {
+  padding:20px 23px 23px;
+  display:grid;
+  gap:15px
+}
+.modal-foot {
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  padding:15px 23px;
+  border-top:1px solid var(--line);
+  background:#fcfdff;
+  border-radius:0 0 16px 16px
+}
+.drawer-backdrop {
+  position:fixed;
+  inset:0;
+  z-index:50;
+  background:rgba(22,34,56,.22)
+}
+.drawer {
+  position:absolute;
+  right:0;
+  top:0;
+  height:100%;
+  width:min(475px,100%);
+  background:#fff;
+  box-shadow:-17px 0 50px rgba(17,34,60,.14);
+  overflow:auto
+}
+.drawer-head {
+  position:sticky;
+  top:0;
+  background:#fff;
+  border-bottom:1px solid var(--line);
+  padding:24px;
+  z-index:1
+}
+.drawer-body {
+  padding:22px 24px 30px
+}
+.toast-stack {
+  position:fixed;
+  right:25px;
+  bottom:22px;
+  z-index:99;
+  display:grid;
+  gap:10px
+}
+.toast {
+  padding:12px 15px;
+  background:#223652;
+  color:#fff;
+  border-radius:10px;
+  box-shadow:0 12px 28px #2d39554d;
+  font-size:12px;
+  max-width:360px;
+  display:flex;
+  align-items:center;
+  gap:10px
+}
+.toast.good {
+  background:#1f644b
+}
+.toast.warn {
+  background:#8b651f
+}
+.login-shell {
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:45% 55%;
+  background:#fff
+}
+.login-aside {
+  background:#18243a;
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  padding:60px 65px
+}
+.login-aside h1 {
+  font-size:35px;
+  line-height:1.35;
+  margin:18px 0 17px
+}
+.login-copy {
+  color:#bbc7d9;
+  line-height:1.9;
+  font-size:15px
+}
+.login-form-wrap {
+  display:grid;
+  place-items:center;
+  padding:40px
+}
+.login-form {
+  width:min(390px,100%);
+  display:grid;
+  gap:18px
+}
+.login-form h2 {
+  font-size:25px
+}
+.login-logo {
+  width:48px;
+  height:48px;
+  border-radius:13px;
+  background:#e9efff;
+  color:var(--brand);
+  display:grid;
+  place-items:center
+}
+.login-aside-illustration {
+  border:1px solid #3c4a61;
+  border-radius:12px;
+  padding:20px;
+  background:#202d42;
+  display:grid;
+  gap:10px
+}
+.login-line {
+  display:flex;
+  justify-content:space-between;
+  color:#b3c2d5;
+  font-size:12px;
+  gap:10px
+}
+/* responsive */
+@media(max-width:1200px) {
+  .grid-3 {
+    grid-template-columns:repeat(2,minmax(0,1fr))
+  }
+  .grid-main {
+    grid-template-columns:1fr
+  }
+  .page-container {
+    padding:25px
+  }
+  .topbar {
+    padding:0 25px
+  }
+  .conv-frame {
+    grid-template-columns:260px minmax(280px,1fr)
+  }
+}
+@media(max-width:800px) {
+  .sidebar {
+    transform:translateX(-100%);
+    transition:transform .2s;
+    width:263px;
+    z-index:41
+  }
+  .sidebar.open {
+    transform:none
+  }
+  .mobile-menu {
+    display:inline-flex
+  }
+  .main {
+    margin-left:0
+  }
+  .topbar {
+    height:61px;
+    padding:0 15px
+  }
+  .top-search {
+    display:none
+  }
+  .top-actions {
+    gap:5px
+  }
+  .page-container {
+    padding:22px 16px 38px
+  }
+  .page-heading {
+    flex-wrap:wrap;
+    gap:12px;
+    margin-bottom:18px
+  }
+  h1 {
+    font-size:23px
+  }
+  .grid-2,.grid-3,.grid-main {
+    grid-template-columns:1fr
+  }
+  .card {
+    padding:17px
+  }
+  .conv-frame {
+    height:calc(100dvh - 175px);
+    min-height:460px;
+    grid-template-columns:1fr
+  }
+  .conv-rail {
+    border-right:none
+  }
+  .conv-work {
+    display:none
+  }
+  .conv-frame.open-chat .conv-rail {
+    display:none
+  }
+  .conv-frame.open-chat .conv-work {
+    display:flex
+  }
+  .conv-mobile-back {
+    display:inline-flex
+  }
+  .conv-work-body {
+    padding:16px 13px
+  }
+  .conv-work-head {
+    padding:11px 13px
+  }
+  .conv-compose {
+    padding:10px 11px 12px
+  }
+  .bubble-row {
+    max-width:95%
+  }
+  .modal-head,.modal-body,.modal-foot {
+    padding-left:17px;
+    padding-right:17px
+  }
+  .field-row {
+    grid-template-columns:1fr
+  }
+  .sidebar-mask {
+    position:fixed;
+    inset:0;
+    z-index:40;
+    background:#101b2c7c
+  }
+  .login-shell {
+    grid-template-columns:1fr
+  }
+  .login-aside {
+    display:none
+  }
+  .login-form-wrap {
+    min-height:100vh;
+    padding:28px
+  }
+  .dropdown {
+    top:57px;
+    right:10px
+  }
+  .stat-row {
+    align-items:flex-start
+  }
+  .stat-divider {
+    display:none
+  }
+}
+@media(max-width:480px) {
+  .page-heading .page-actions {
+    width:100%
+  }
+  .page-heading .page-actions>.btn {
+    flex:1
+  }
+  .filter-bar .search-filter {
+    width:100%
+  }
+  .filter-bar .control {
+    flex:1;
+    min-width:0
+  }
+  .mini-stat .number {
+    font-size:21px
+  }
+  .topbar .demo-banner {
+    display:none
+  }
+  .node-row {
+    grid-template-columns:22px minmax(100px,1fr) 70px 62px;
+    gap:4px;
+    font-size:11px
+  }
+  .node-row .btn {
+    font-size:11px;
+    padding:4px 6px
+  }
+  .modal {
+    max-height:94dvh
+  }
+  .overlay {
+    padding:9px
+  }
+  .page-container {
+    padding:18px 12px 32px
+  }
+  .conv-frame {
+    height:calc(100dvh - 235px);
+    min-height:420px
+  }
+  .crumb-home {
+    display:none
+  }
+  .account-trigger>.small {
+    display:none
+  }
+  .toast-stack {
+    right:12px;
+    bottom:12px;
+    left:12px
+  }
+  .toast {
+    max-width:none
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  *,*:before,*:after {
+    transition:none!important;
+    animation:none!important
+  }
+}
+
+</style>
+  <script>
+/* Notify Bridge D0 | readable, dependency-free, fully simulated interaction prototype.
+   IMPORTANT: this file provides NO authentication, persistence, encryption or network integration. */
+'use strict';
+
+const iconPaths={
+  activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+  bot:'<rect x="4" y="7" width="16" height="13" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M8 16h8"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  check:'<path d="m20 6-11 11-5-5"/>',checkCircle:'<circle cx="12" cy="12" r="10"/><path d="m8 12 2.5 2.5L16 9"/>',
+  chevronDown:'<path d="m6 9 6 6 6-6"/>',chevronLeft:'<path d="m15 18-6-6 6-6"/>',chevronRight:'<path d="m9 18 6-6-6-6"/>',
+  circleHelp:'<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  close:'<path d="M18 6 6 18M6 6l12 12"/>',copy:'<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0"/>',
+  download:'<path d="M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4"/>',
+  edit:'<path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
+  external:'<path d="M13 5h6v6M19 5l-9 9"/><path d="M19 13v6H5V5h6"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',
+  filter:'<path d="M4 7h16M7 12h10M10 17h4"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9 9a3 3 0 1 1 4 2.8c-1 .5-1 1.2-1 2.2M12 17h.01"/>',
+  inbox:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 14h5l2 3h4l2-3h5"/>',
+  key:'<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9 2 2-2 2-2-2-2 2 2 2-3 3"/>',
+  layers:'<path d="m12 3-9 5 9 5 9-5-9-5ZM3 12l9 5 9-5M3 16l9 5 9-5"/>',
+  layout:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+  message:'<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8A8.5 8.5 0 0 1 12.5 20a8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5Z"/>',
+  more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  network:'<circle cx="12" cy="12" r="3"/><path d="M2 9a15 15 0 0 1 20 0M5 13a11 11 0 0 1 14 0M8.5 16.5a6 6 0 0 1 7 0"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',refresh:'<path d="M20 11a8 8 0 0 0-14-5L4 8M4 4v4h4M4 13a8 8 0 0 0 14 5l2-2M16 16h4v4"/>',
+  search:'<circle cx="10.5" cy="10.5" r="7.5"/><path d="M16 16l5 5"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  server:'<rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="13" width="18" height="8" rx="2"/><path d="M7 7h.01M7 17h.01"/>',
+  settings:'<path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3l-.2.1v2.5h-2.6v-2.5l-.2-.1a1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9l-.1-.2H7v-2.6h2.5l.1-.2a1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3l.2-.1V6h2.6v2.5l.2.1a1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9l.1.2H22v2.6h-2.5z" transform="translate(-2 -1) scale(.95)"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
+  slash:'<circle cx="12" cy="12" r="10"/><path d="M4.9 4.9 19.1 19.1"/>',
+  spark:'<path d="m12 3 1.7 6.3L20 11l-6.3 1.7L12 19l-1.7-6.3L4 11l6.3-1.7z"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  warning:'<path d="m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3l-8-14a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
+  wifi:'<path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8 16a6 6 0 0 1 8 0M12 20h.01"/>'
+};
+function ico(name,size=18){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name]||iconPaths.file}</svg>`}
+function esc(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function el(x){return esc(x)}
+function pill(label,variant='neutral'){return `<span class="pill ${variant}">${esc(label)}</span>`}
+function statusPill(status){const table={accepted:['平台已接受','success'],failed:['明确失败','danger'],uncertain:['结果未知','warning'],queued:['待投递','info'],pending:['待领取','warning'],success:['已验证','success'],inactive:['已停用','neutral'],configured:['已配置','info']};let [label,tone]=table[status]||[status,'neutral'];return pill(label,tone)}
+const names={overview:'总览',conversations:'会话中心',deliveries:'投递记录',apps:'接入应用',connections:'通信连接',settings:'系统设置',help:'使用帮助',account:'账号与安全'};
+const nav=[['overview','layout'],['conversations','message'],['deliveries','inbox'],['apps','layers'],['connections','network'],['settings','settings']];
+const initialApps=[
+  {id:'app-codex',name:'Codex · 维护助手',short:'CX',color:'#5265c9',active:true,receive:true,allowed:['conn-feishu','conn-wechat'],defaultConn:'conn-feishu',lastUsed:'10:24',keyId:'nb_live_K7P3',keyTail:'••••F8q2',keyState:'有效',oldKey:null},
+  {id:'app-backup',name:'服务器告警',short:'SV',color:'#269c86',active:true,receive:false,allowed:['conn-feishu'],defaultConn:'conn-feishu',lastUsed:'09:42',keyId:'nb_live_M2L9',keyTail:'••••Z7b3',keyState:'有效',oldKey:null},
+  {id:'app-invoice',name:'开票自动化',short:'IV',color:'#d28b53',active:true,receive:true,allowed:['conn-feishu','conn-wechat'],defaultConn:'conn-wechat',lastUsed:'昨天 22:18',keyId:'nb_live_P4D1',keyTail:'••••Q9f0',keyState:'有效',oldKey:null},
+  {id:'app-claude',name:'Claude Code · 实验接入',short:'CL',color:'#a77257',active:true,receive:true,allowed:['conn-feishu'],defaultConn:'conn-feishu',lastUsed:'尚未验证',keyId:'nb_live_H6A4',keyTail:'••••T4n8',keyState:'有效',oldKey:null}
+];
+const initialConnections=[
+  {id:'conn-feishu',name:'飞书 · 系统通知',platform:'feishu',active:true,configured:true,sendTest:true,replyTest:true,recovery:true,sendAt:'10:24',receiveAt:'10:21',owner:'本人管理员'},
+  {id:'conn-wechat',name:'微信 · 汤圆',platform:'wechat',active:true,configured:true,sendTest:true,replyTest:true,recovery:false,sendAt:'昨天 23:16',receiveAt:'昨天 23:10',owner:'个人微信'},
+  {id:'conn-test',name:'飞书 · 测试连接',platform:'feishu',active:false,configured:true,sendTest:false,replyTest:false,recovery:false,sendAt:'尚未测试',receiveAt:'尚未验证',owner:'测试用途'}
+];
+const initialConversations=[
+  {id:'conv-codex',title:'版本保护与升级',appId:'app-codex',pinned:true,archived:false,mobileUnread:2,messages:[
+    {id:'m-c-1',side:'in',origin:'Codex',time:'10:16',text:'生产稳定版本已冻结，两个远端标签一致。需要继续核验恢复路径。'},
+    {id:'m-c-2',side:'out',origin:'手机端',time:'10:18',text:'继续完成隔离恢复，禁止操作正式服务。',state:'已保存'},
+    {id:'m-c-3',side:'in',origin:'Codex',time:'10:24',text:'恢复检查通过。下一步是否允许整理升级分支上的管理界面？',task:{id:'task-1',label:'确认是否开始界面整理',options:['允许设计原型','暂不处理'],answer:null,by:null}}
+  ]},
+  {id:'conv-invoice',title:'开票程序异常通知',appId:'app-invoice',pinned:false,archived:false,mobileUnread:0,messages:[
+    {id:'m-i-1',side:'in',origin:'开票自动化',time:'昨天 22:18',text:'税务平台会话已失效，自动填表暂停。本轮未提交任何发票。'},
+    {id:'m-i-2',side:'out',origin:'微信回复',time:'昨天 22:20',text:'保持暂停，待我重新登录。',state:'已领取'}
+  ]},
+  {id:'conv-backup',title:'数据库备份通知',appId:'app-backup',pinned:false,archived:false,mobileUnread:0,messages:[
+    {id:'m-b-1',side:'in',origin:'服务器告警',time:'09:42',text:'备份任务完成。数据库一致性检查通过，归档大小 2.3 GB。'},
+  ]},
+  {id:'conv-claude',title:'Claude Code · 接入测试',appId:'app-claude',pinned:false,archived:true,mobileUnread:0,messages:[
+    {id:'m-cl-1',side:'out',origin:'手机端',time:'周一 19:22',text:'请确认是否可以读取中转站收件箱。',state:'待领取'}
+  ]}
+];
+const initialDeliveries=[
+  {id:'del-1048',appId:'app-codex',connId:'conn-feishu',title:'版本保护验收结果',status:'accepted',time:'10:24',messageId:'m-c-3',convId:'conv-codex',detail:'平台返回消息标识；尚无人工收件确认。'},
+  {id:'del-1047',appId:'app-backup',connId:'conn-feishu',title:'数据库备份完成',status:'accepted',time:'09:42',messageId:'m-b-1',convId:'conv-backup',detail:'平台已接受请求，表示消息已交给平台处理。'},
+  {id:'del-1046',appId:'app-invoice',connId:'conn-wechat',title:'税务平台会话失效',status:'uncertain',time:'昨天 22:18',messageId:'m-i-1',convId:'conv-invoice',detail:'模拟：投递 HTTP 超时，真实到达情况未知。禁止盲目重新发送。'},
+  {id:'del-1045',appId:'app-codex',connId:'conn-test',title:'验证接入能力',status:'failed',time:'昨天 20:32',messageId:null,convId:null,detail:'模拟：平台明确拒绝，连接尚未完成验证。'}
+];
+let apps=structuredClone(initialApps),connections=structuredClone(initialConnections),conversations=structuredClone(initialConversations),deliveries=structuredClone(initialDeliveries);
+const state={page:'overview',modal:null,drawer:null,navOpen:false,accountMenu:false,selectedConversation:'conv-codex',mobileChat:false,convFilter:'all',convQuery:'',appQuery:'',deliveryQuery:'',deliveryStatus:'all',deliveryApp:'all',deliveryConnection:'all',selectedAppId:null,selectedConnectionId:null,settingsTab:'proxy',accountTab:'profile',demoScenario:'daily',drafts:{},proxyMode:'auto',proxyActive:'日本 · 自动优先组',proxyCandidate:'node-tokyo',proxyApplied:'node-tokyo',nodeCheck:{},recoverMethod:'feishu',simulateError:false,notice:null,highlightMessage:null,adminName:'admin',adminPassword:'DemoOnly123!',loggedIn:true,loginError:'',recoveryBound:['conn-feishu'],otpCount:0,otpSent:false,otpValue:'246810'};
+const nodes=[{id:'node-tokyo',name:'日本 Tokyo 01',latency:'82 ms',priority:'优先组'},{id:'node-singapore',name:'新加坡 Singapore 02',latency:'121 ms',priority:'优先组'},{id:'node-hk',name:'香港 Hong Kong 03',latency:'178 ms',priority:'备用组'}];
+function appBy(id){return apps.find(x=>x.id===id)}
+function connBy(id){return connections.find(x=>x.id===id)}
+function convBy(id){return conversations.find(x=>x.id===id)}
+function toast(msg,tone='good'){state.notice={msg,tone}; render()}
+function changePage(page){state.page=page;state.navOpen=false;state.accountMenu=false;state.drawer=null;state.modal=null;state.mobileChat=false;render()}
+function modal(type,data={}){state.modal={type,...data};state.accountMenu=false;render()}
+function drawer(type,id){state.drawer={type,id};render()}
+function closeModal(){state.modal=null;render()}
+function note(content,tone=''){return `<div class="notice ${tone}">${content}</div>`}
+function valueRow(label,value){return `<div class="info-pair"><span class="term">${esc(label)}</span><span class="value">${value}</span></div>`}
+function navButton(id,label,ic){return `<button class="nav-item ${state.page===id?'active':''}" data-action="route" data-page="${id}">${ico(ic,17)}<span>${label}</span>${id==='conversations'?'<span class="nav-num">1</span>':''}</button>`}
+function header(title,desc,actions=''){return `<div class="page-heading"><div><h1>${esc(title)}</h1><p>${esc(desc)}</p></div><div class="page-actions">${actions}</div></div>`}
+function shell(content){return `<div class="shell">
+  ${state.navOpen?'<div class="sidebar-mask" data-action="toggle-nav"></div>':''}
+  <aside class="sidebar ${state.navOpen?'open':''}">
+    <div class="brand"><div class="brand-mark">${ico('layers',21)}</div><div><div class="brand-name">Notify Bridge</div><div class="brand-desc">统一消息中转站</div></div></div>
+    <div class="nav-group-title">工作台</div>${nav.slice(0,5).map(([id,ic])=>navButton(id,names[id],ic)).join('')}
+    <div class="sidebar-spacer"></div><div class="sidebar-rule"></div>
+    ${navButton('settings','系统设置','settings')}${navButton('help','使用帮助','circleHelp')}
+    <div class="sidebar-footer"><div class="service-mini"><span class="dot pulse" style="color:#67d7ab"></span><span>服务示例 · 模拟运行</span></div><div class="sidebar-version">产品原型 D0 · v0.3　/　零真实连接</div></div>
+  </aside>
+  <main class="main"><header class="topbar"><div class="top-left"><button class="btn btn-ghost icon-btn mobile-menu" aria-label="打开导航" data-action="toggle-nav">${ico('menu',20)}</button><span class="breadcrumb"><span class="crumb-home">Notify Bridge　/　</span><b>${esc(names[state.page]||'总览')}</b></span></div>
+  <div class="top-actions"><div class="demo-banner">${ico('shield',13)} 仅原型 / 模拟数据</div><button class="btn btn-ghost icon-btn" title="使用帮助" aria-label="帮助" data-action="route" data-page="help">${ico('circleHelp',19)}</button>
+  <button class="btn btn-ghost icon-btn" title="演示通知" aria-label="演示通知" data-action="notice">${ico('bell',18)}</button>
+  <button class="account-trigger" aria-label="管理员菜单" aria-expanded="${state.accountMenu?'true':'false'}" data-action="account-menu"><span class="avatar">${esc(state.adminName.slice(0,2).toUpperCase())}</span><span class="small semi">${esc(state.adminName)}</span>${ico('chevronDown',14)}</button></div>
+  ${state.accountMenu?`<div class="dropdown"><button data-action="account-page">${ico('user',16)} 个人资料</button><button data-action="account-page" data-tab="password">${ico('lock',16)} 修改密码</button><button data-action="account-page" data-tab="recovery">${ico('shield',16)} 账号恢复与安全</button><div class="separator"></div><button data-action="logout">${ico('logout',16)} 退出登录</button></div>`:''}</header>
+  <div class="page-container">${content}</div></main>
+  ${state.drawer?renderDrawer():''}${state.modal?renderModal():''}
+  ${state.notice?`<div class="toast-stack"><div class="toast ${state.notice.tone==='good'?'good':state.notice.tone==='warn'?'warn':''}">${ico(state.notice.tone==='good'?'checkCircle':'warning',16)}<span class="flex1">${esc(state.notice.msg)}</span><button class="btn btn-ghost icon-btn" aria-label="关闭提示" style="color:inherit" data-action="dismiss-toast">${ico('close',15)}</button></div></div>`:''}
+  </div>`}
+function renderOverview(){
+  const onboarding=state.demoScenario==='first';
+  const pendingTasks=conversations.flatMap(c=>c.messages.filter(m=>m.task&&!m.task.answer).map(m=>({conversation:c,message:m})));
+  const unknownCount=deliveries.filter(d=>d.status==='uncertain').length;
+  const title=onboarding?'欢迎使用 Notify Bridge':'工作台总览';
+  const actions=`<button class="btn btn-secondary btn-sm" data-action="toggle-scenario">${ico('refresh',14)} ${onboarding?'切换到日常场景':'预览首次使用'}</button><button class="btn btn-primary" data-action="new-conversation">${ico('plus',16)} 新建会话</button>`;
+  const top=onboarding?`<div class="surface card" style="border-color:#d9e5ff;background:#f9fbff"><div class="row between wrap"><div><div class="eyebrow">首次接入向导 · 仅新实例重点显示</div><h2 class="mt8">三步连接好你的第一条通知</h2><p class="muted small mt8">创建通信连接、登记接入应用、发送一条验证消息。完成后向导会自动退到帮助中心。</p></div><button class="btn btn-primary" data-action="route" data-page="connections">${ico('plus',16)} 创建第一个连接</button></div><div class="steps mt16"><span class="step-pill active">1 连接通信平台</span><span class="step-pill">2 登记接入应用</span><span class="step-pill">3 验证消息收发</span></div></div>`:`<div class="primary-status warn"><div class="status-icon">${ico('warning',21)}</div><div class="flex1"><div class="row wrap gap6">${pill('需要关注','warning')}<span class="small muted">示例数据 · 最近 24 小时</span></div><h2 class="mt8">有 2 项通信问题需要确认</h2><p class="muted small mt8">一条投递结果未知、一项测试连接发送失败。已保存的任务答复仍独立有效。</p><div class="row mt12 wrap"><button class="btn btn-secondary btn-sm" data-action="delivery-filter" data-status="uncertain">查看未知结果 ${ico('chevronRight',14)}</button><button class="btn btn-ghost btn-sm" data-action="route" data-page="deliveries">全部投递记录</button></div></div></div>`;
+  return header(title,'接入、沟通、投递与运行状态，在一个地方看清楚。',actions)+`<div class="grid" style="gap:19px">${top}
+    <div class="surface card"><div class="stat-row"><div><div class="eyebrow">待你处理</div><div class="row gap6 mt8"><span style="font-size:27px;font-weight:760">${pendingTasks.length}</span>${pill('人工决定','warning')}</div></div><div class="stat-divider"></div><div><div class="eyebrow">投递结果未知</div><div style="font-size:24px;font-weight:740;margin-top:7px">${unknownCount}</div></div><div class="stat-divider"></div><div><div class="eyebrow">已登记应用</div><div style="font-size:24px;font-weight:740;margin-top:7px">${apps.length}</div></div><div class="stat-divider"></div><div><div class="eyebrow">通信连接</div><div style="font-size:24px;font-weight:740;margin-top:7px">${connections.length}</div></div></div></div>
+    <div class="grid grid-main"><section class="surface card"><div class="section-header"><div class="section-title">${ico('activity',17)} 需要关注</div><button class="link small" data-action="route" data-page="deliveries">查看投递详情 →</button></div><div class="issue-list">
+    <div class="issue-row"><div class="icon-box orange">${ico('clock',18)}</div><div class="issue-main"><div class="issue-title">税务平台会话失效通知 · 投递结果未知</div><div class="issue-desc">开票自动化 · 微信 · 昨天 22:18。平台请求已发出但回执未确认，不能盲目重发。</div></div><button class="btn btn-secondary btn-sm" data-action="delivery-detail" data-id="del-1046">检查</button></div>
+    ${pendingTasks.length?`<div class="issue-row"><div class="icon-box blue">${ico('message',18)}</div><div class="issue-main"><div class="issue-title">${esc(appBy(pendingTasks[0].conversation.appId)?.name||'接入应用')} 等待你的决定</div><div class="issue-desc">${esc(pendingTasks[0].message.task.label)} · 答复保存后等待客户端主动领取。</div></div><button class="btn btn-secondary btn-sm" data-action="open-conversation" data-id="${pendingTasks[0].conversation.id}">处理</button></div>`:''}
+    <div class="issue-row"><div class="icon-box red">${ico('slash',18)}</div><div class="issue-main"><div class="issue-title">测试连接未通过发送验证</div><div class="issue-desc">飞书 · 测试连接 · 昨天 20:32。需要检查连接凭据或平台权限。</div></div><button class="btn btn-secondary btn-sm" data-action="connection-detail" data-id="conn-test">检查</button></div></div></section>
+    <section class="surface card"><div class="section-header"><div class="section-title">${ico('wifi',17)} 连接状态</div><button class="link small" data-action="route" data-page="connections">管理连接 →</button></div>
+    ${connections.map(c=>`<div class="info-pair"><span class="term"><span class="dot" style="color:${c.sendTest?'#2b9a75':'#c89047'};margin-right:7px"></span>${esc(c.name)}</span><span class="value">${c.sendTest?pill('最近发送已验证','success'):pill('待验证','warning')}</span></div>`).join('')}
+    <div class="notice mt16">状态来自每条连接的独立证据；配置成功不等于本人实际收到消息。</div></section></div>
+    <section><div class="section-heading"><div class="section-title">${ico('clock',17)} 最近活动</div><button class="link small" data-action="route" data-page="conversations">打开会话中心 →</button></div><div class="surface" style="padding:0 18px">${deliveries.slice(0,3).map(d=>{let app=appBy(d.appId);return `<div class="issue-row"><div class="icon-box blue">${ico('file',17)}</div><div class="issue-main"><div class="issue-title">${esc(d.title)}</div><div class="issue-desc">${esc(app?.name||'—')} · ${esc(d.time)}</div></div>${statusPill(d.status)}<button class="btn btn-ghost btn-sm" data-action="delivery-detail" data-id="${d.id}">${ico('chevronRight',16)}</button></div>`}).join('')}</div></section></div>`}
+function orderedConvos(){return [...conversations].filter(c=>state.convFilter==='archived'?c.archived:!c.archived).filter(c=>state.convFilter!=='pending'||c.messages.some(m=>m.task&&!m.task.answer)).filter(c=>{const q=state.convQuery.trim().toLowerCase();return !q||[c.title,appBy(c.appId)?.name,...c.messages.map(m=>m.text)].join(' ').toLowerCase().includes(q)}).sort((a,b)=>(Number(b.pinned)-Number(a.pinned))||(conversations.indexOf(a)-conversations.indexOf(b)))}
+function lastMessage(c){return c.messages[c.messages.length-1]}
+function renderConversations(){
+  const active=convBy(state.selectedConversation),list=orderedConvos();
+  const head=header('会话中心','在管理端发起沟通、查看历史、直接回复和处理任务。',`<button class="btn btn-primary" data-action="new-conversation">${ico('plus',16)} 新建会话</button>`);
+  const rail=`<aside class="conv-rail"><div class="conv-rail-head"><div class="row between mb12"><h3>全部会话 <span class="muted small">${conversations.length}</span></h3><button class="btn btn-ghost btn-sm" data-action="new-conversation" title="新建会话">${ico('plus',17)}</button></div>
+    <div class="input-icon mb12"><span class="inside">${ico('search',16)}</span><input class="control" data-search="conv" aria-label="搜索会话" value="${esc(state.convQuery)}" placeholder="搜索会话或消息"></div>
+    <div class="segment"><button class="${state.convFilter==='all'?'active':''}" data-action="conv-filter" data-filter="all">当前</button><button class="${state.convFilter==='pending'?'active':''}" data-action="conv-filter" data-filter="pending">待处理</button><button class="${state.convFilter==='archived'?'active':''}" data-action="conv-filter" data-filter="archived">已归档</button></div></div>
+    <div class="conv-list">${list.length?list.map(c=>{const a=appBy(c.appId),m=lastMessage(c),need=c.messages.some(x=>x.task&&!x.task.answer);return `<button class="conv-item ${c.id===state.selectedConversation?'active':''}" data-action="open-conversation" data-id="${c.id}">
+      <span class="identicon" style="background:${a?.color||'#8490a9'}">${esc(a?.short||'?')}</span><span class="flex1"><span class="row between gap6"><span class="semi truncate" style="font-size:12px">${c.pinned?'◆ ':''}${esc(c.title)}</span><span class="conv-timestamp">${esc(m?.time||'')}</span></span><span class="conv-preview">${esc(m?.text||'尚无消息')}</span><span class="row mt8 gap6">${need?pill('待答复','warning'):''}<span class="tiny muted truncate">${esc(a?.name||'')}</span></span></span></button>`}).join(''):`<div class="blank"><div class="blank-icon">${ico('message',24)}</div><h3>没有找到会话</h3><p>调整搜索或筛选条件；也可以主动发起新会话。</p><button class="btn btn-secondary btn-sm" data-action="new-conversation">新建会话</button></div>`}</div></aside>`;
+  const selected=active && list.some(x=>x.id===active.id) ? active : list[0];
+  if(selected && !active)state.selectedConversation=selected.id;
+  const work=selected?renderConvWork(selected):`<div class="conversation-empty"><div class="blank"><div class="blank-icon">${ico('message',24)}</div><h3>选择一条会话</h3><p>查看通知与回复，或者从这里主动发出第一条消息。</p><button class="btn btn-primary btn-sm" data-action="new-conversation">新建会话</button></div></div>`;
+  return head+`<div class="conv-frame ${state.mobileChat?'open-chat':''}">${rail}<div class="conv-work">${work}</div></div><p class="caption mt12">原型展示的是已进入并关联到通知桥的示例消息；不能获取外部 Codex、微信或飞书中未通过中转站的历史。</p>`;
+}
+function renderConvWork(c){const a=appBy(c.appId);const isWritable=!!a?.active&&!c.archived&&!!a?.receive;
+ const head=`<div class="conv-work-head"><div class="row flex1" style="min-width:0"><button class="btn btn-ghost icon-btn conv-mobile-back" data-action="chat-back" aria-label="返回会话列表">${ico('chevronLeft',18)}</button><span class="identicon" style="width:35px;height:35px;background:${a?.color||'#888'}">${esc(a?.short||'?')}</span><div class="flex1" style="min-width:0"><div class="row gap6"><span class="semi truncate">${esc(c.title)}</span>${c.archived?pill('已归档'):''}</div><div class="conv-info truncate">${esc(a?.name||'未知应用')} · ${a?.receive?'中转站可存入该应用收件箱':'该应用未启用收件'}</div></div></div><button class="btn btn-ghost icon-btn" title="会话信息" data-action="conversation-info" data-id="${c.id}" aria-label="查看会话信息">${ico('more',20)}</button></div>`;
+ const messageRows=c.messages.map((m,index)=>`<div class="bubble-row ${m.side==='out'?'mine':''}" id="msg-${m.id}"><span class="bubble-icon">${m.side==='out'?'我':(a?.short||'AI').slice(0,2)}</span><div style="min-width:0"><div class="bubble">${esc(m.text)}${m.task?`<div class="task-card"><div class="row between">${ico('shield',16)}<strong>${esc(m.task.label)}</strong></div><p class="tiny muted mt8">这是需要你明确提交决定的交互卡片，不与普通回复混用。</p>${m.task.answer?`<div class="task-done">${ico('checkCircle',14)} 已选择「${esc(m.task.answer)}」 · ${esc(m.task.by||'已处理')}</div>`:`<div class="task-options">${m.task.options.map((option,i)=>`<button class="btn ${i===0?'btn-primary':'btn-secondary'} btn-sm" data-action="task-answer" data-conv="${c.id}" data-msg="${m.id}" data-choice="${i}">${esc(option)}</button>`).join('')}</div><button class="link tiny mt12" data-action="simulate-other-answer" data-conv="${c.id}" data-msg="${m.id}">模拟手机端先完成决定</button>`}</div>`:''}</div><div class="bubble-meta"><span>${esc(m.origin)} · ${esc(m.time)}</span>${m.state?`<span>· ${esc(m.state)}</span>`:''}<button class="link" style="font-size:10px" data-action="message-detail" data-conv="${c.id}" data-msg="${m.id}">详情</button></div></div></div>`).join('');
+ const editor=c.archived?note('此会话已归档，当前为只读。恢复会话后才可继续发送。','warning'):!a?.active?note('接入应用已停用，历史消息仍可查阅；无法继续发送。','warning'):!a?.receive?note('目标接入应用尚无可用收件方式，不能假装已发送。请先完成接入配置。','warning'):`<div class="compose-box"><textarea data-draft="${c.id}" placeholder="向 ${esc(a?.name||'该应用')} 发送消息…" aria-label="回复消息">${esc(state.drafts[c.id]||'')}</textarea><div class="compose-bottom"><div class="compose-hint">${ico('lock',12)} 原型仅保存到模拟收件箱 · 不会唤醒 AI</div><button class="btn btn-primary btn-sm" data-action="send-chat" data-id="${c.id}">${ico('send',14)} 发送</button></div></div>`;
+ return `${head}<div class="conv-work-body" data-scroll-target="conv-body"><div class="day-divider"><span>模拟沟通记录 · 仅通知桥已记录部分</span></div>${messageRows}${c.messages.length===0?'<div class="blank">目前没有消息</div>':''}</div><div class="conv-compose">${editor}</div>`}
+function renderDeliveries(){const list=deliveries.filter(d=>(state.deliveryStatus==='all'||d.status===state.deliveryStatus)&&(state.deliveryApp==='all'||d.appId===state.deliveryApp)&&(state.deliveryConnection==='all'||d.connId===state.deliveryConnection)).filter(d=>{const q=state.deliveryQuery.trim().toLowerCase();return !q||[d.id,d.title,appBy(d.appId)?.name,connBy(d.connId)?.name,d.detail].join(' ').toLowerCase().includes(q)});
+ return header('投递记录','逐条查看通信事实、错误阶段和去重记录。这里不是另一个聊天窗口。',`<button class="btn btn-secondary" data-action="route" data-page="conversations">${ico('message',16)} 查看会话</button>`)+`
+ <div class="filter-bar"><div class="input-icon search-filter"><span class="inside">${ico('search',16)}</span><input data-search="delivery" value="${esc(state.deliveryQuery)}" class="control" placeholder="搜索消息、ID 或错误原因" aria-label="搜索投递记录"></div>
+ <select class="control" style="width:auto" aria-label="投递状态" data-change="delivery-status"><option value="all">全部状态</option>${[['accepted','平台已接受'],['failed','明确失败'],['uncertain','结果未知'],['queued','待投递']].map(([v,n])=>`<option value="${v}" ${state.deliveryStatus===v?'selected':''}>${n}</option>`).join('')}</select>
+ <select class="control" style="width:auto" aria-label="按应用筛选" data-change="delivery-app"><option value="all">全部应用</option>${apps.map(a=>`<option value="${a.id}" ${state.deliveryApp===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select>
+ <select class="control" style="width:auto" aria-label="按连接筛选" data-change="delivery-connection"><option value="all">全部连接</option>${connections.map(c=>`<option value="${c.id}" ${state.deliveryConnection===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
+ <button class="btn btn-ghost btn-sm" data-action="reset-delivery">重置筛选</button></div>
+ <div class="table-wrap"><table class="data-table"><thead><tr><th>消息</th><th>接入应用</th><th>通信连接</th><th>结果</th><th>时间</th><th style="text-align:right">操作</th></tr></thead><tbody>${list.map(d=>`<tr><td><div class="table-title">${esc(d.title)}</div><span class="subtext mono">${esc(d.id)}</span></td><td>${esc(appBy(d.appId)?.name||'未知')}</td><td>${esc(connBy(d.connId)?.name||'未知')}</td><td>${statusPill(d.status)}</td><td class="muted">${esc(d.time)}</td><td><div class="table-actions"><button class="btn btn-secondary btn-sm" data-action="delivery-detail" data-id="${d.id}">诊断详情 ${ico('chevronRight',13)}</button></div></td></tr>`).join('')||`<tr><td colspan="6"><div class="blank"><h3>没有匹配记录</h3><p>更换筛选条件，或查看其他应用的投递记录。</p><button class="btn btn-secondary btn-sm" data-action="reset-delivery">清除筛选</button></div></td></tr>`}</tbody></table></div>
+ <div class="notice mt16">“平台已接受”不代表本人看到，“收件箱已保存”不代表客户端已领取。历史证据不足时明确显示未知。</div>`}
+function renderApps(){const list=apps.filter(a=>(a.name+a.id).toLowerCase().includes(state.appQuery.toLowerCase()));
+ if(state.selectedAppId){const a=appBy(state.selectedAppId);if(a)return renderAppDetail(a)}
+ return header('接入应用','Codex、服务器和业务系统都作为应用接入；凭据只是应用的认证方式。',`<button class="btn btn-primary" data-action="new-app">${ico('plus',16)} 新增应用</button>`)+`
+ <div class="filter-bar"><div class="input-icon search-filter"><span class="inside">${ico('search',16)}</span><input class="control" data-search="app" value="${esc(state.appQuery)}" placeholder="按应用名称搜索"></div><span class="small muted">已登记 ${apps.length} 个应用</span></div>
+ <div class="grid grid-3">${list.map(a=>`<div class="surface app-card"><div class="row between"><span class="app-logo" style="background:${a.color}">${esc(a.short)}</span>${a.active?pill('运行中','success'):pill('已停用')}</div><div><h3 style="font-size:15px">${esc(a.name)}</h3><div class="small muted mt4 mono">${esc(a.id)}</div></div><div style="display:grid;gap:8px"><div class="fact-line"><span>默认连接</span><b>${esc(connBy(a.defaultConn)?.name||'未设置')}</b></div><div class="fact-line"><span>最近调用</span><b>${esc(a.lastUsed)}</b></div><div class="fact-line"><span>Key 标识</span><b class="mono">${esc(a.keyId||'未签发')}</b></div></div><div class="app-card-foot row between"><span class="muted small">已授权 ${a.allowed.length} 条连接</span><button class="btn btn-secondary btn-sm" data-action="open-app" data-id="${a.id}">查看详情 ${ico('chevronRight',14)}</button></div></div>`).join('')||`<div class="surface blank"><h3>没有匹配应用</h3><p>试试其他名称，或新增一个。</p></div>`}</div>`}
+function renderAppDetail(a){const c=connBy(a.defaultConn);return `<div class="row gap6 mb12"><button class="btn btn-ghost btn-sm" data-action="close-app">${ico('chevronLeft',15)} 接入应用</button><span class="muted small">/</span><span class="small">${esc(a.name)}</span></div>
+ ${header(a.name,'应用身份与凭据分离；更换 Key 不会改变已有会话归属。',`<button class="btn btn-secondary" data-action="integrate-app" data-id="${a.id}">${ico('download',16)} 获取接入配置</button><button class="btn btn-primary" data-action="rotate-key" data-id="${a.id}">${ico('refresh',15)} 更换 Key</button>`)}
+ <div class="grid grid-main"><div class="grid">
+  <section class="surface card"><div class="section-header"><div class="section-title">${ico('layers',16)} 应用信息</div>${a.active?pill('运行中','success'):pill('已停用')}</div>
+  ${valueRow('稳定应用 ID',`<code class="mono">${esc(a.id)}</code>`)}${valueRow('默认投递连接',esc(c?.name||'无'))}${valueRow('允许的连接',a.allowed.map(id=>`<span class="pill neutral">${esc(connBy(id)?.name||id)}</span>`).join(' '))}${valueRow('收件能力',a.receive?pill('已登记收件方式','success'):pill('未启用收件','warning'))}
+  <div class="row mt16 wrap"><button class="btn btn-secondary btn-sm" data-action="edit-app" data-id="${a.id}">${ico('edit',14)} 修改授权与路由</button><button class="btn btn-ghost btn-sm" data-action="show-app-deliveries" data-id="${a.id}">查询该应用投递</button></div></section>
+  <section class="surface card"><div class="section-header"><div class="section-title">${ico('key',16)} 访问凭据</div>${pill(a.keyState,a.keyState==='有效'?'success':'warning')}</div>
+   ${valueRow('公开 Key ID',`<code class="mono">${esc(a.keyId||'无')}</code> <button class="btn btn-ghost btn-xs" data-action="copy" data-copy="${esc(a.keyId||'')}">${ico('copy',12)} 复制 ID</button>`)}
+   ${valueRow('凭据展示',`<code class="mono">${esc(a.keyTail||'••••••')}</code>`)}${valueRow('最近调用',esc(a.lastUsed))}
+   ${a.oldKey?note('模拟的过渡轮换中：旧 Key 与新 Key 临时共存，旧凭据需要由使用方迁移后主动撤销。','warning'):note('旧 Key 不支持反查完整明文。遗失后应签发新 Key，而不是重新显示旧 Key。')}
+   <div class="row mt16 wrap"><button class="btn btn-secondary btn-sm" data-action="rotate-key" data-id="${a.id}">${ico('refresh',14)} 正常轮换</button><button class="btn btn-danger btn-sm" data-action="revoke-key" data-id="${a.id}">${ico('slash',14)} 泄露应急撤销</button>${a.oldKey?`<button class="btn btn-ghost btn-sm" data-action="revoke-old" data-id="${a.id}">结束旧 Key 过渡</button>`:''}</div>
+  </section></div>
+  <section class="surface card"><div class="section-header"><div class="section-title">${ico('file',16)} 接入与维护</div></div>
+   <p class="small muted">先选择本次要交付给谁使用，再生成相应说明。身份不因导出类型改变。</p>
+   <div class="template-list mt16"><div class="template-row"><span class="icon-box blue">${ico('bot',18)}</span><div class="text"><div class="semi small">Codex / Claude Code</div><p class="muted tiny mt4">配置 MCP、Skill，验证收发</p></div><button class="btn btn-secondary btn-sm" data-action="integrate-app" data-id="${a.id}">接入</button></div>
+   <div class="template-row"><span class="icon-box green">${ico('server',18)}</span><div class="text"><div class="semi small">业务系统 HTTP API</div><p class="muted tiny mt4">统一通知接口、鉴权与回执</p></div><button class="btn btn-secondary btn-sm" data-action="integrate-app" data-id="${a.id}" data-choice="http">接入</button></div></div>
+   <div class="notice mt16">原型没有可用真实 Key，也不生成可直接连接生产服务的安装包。</div></section></div>`}
+function renderConnections(){return header('通信连接','每个微信、飞书 Bot 是一条独立连接；验证配置、发送、收件和回复，不能只显示“已连接”。',`<button class="btn btn-primary" data-action="new-connection">${ico('plus',16)} 新增连接</button>`)+`
+ <div class="grid grid-3">${connections.map(c=>{const count=apps.filter(a=>a.allowed.includes(c.id)).length;return `<section class="surface connection-card"><div class="row between"><div class="platform-mark ${c.platform==='wechat'?'wechat':''}">${c.platform==='wechat'?'微':'飞'}</div>${c.active?pill('已启用','success'):pill('已停用','neutral')}</div>
+ <h3 class="mt16" style="font-size:15px">${esc(c.name)}</h3><div class="row gap6 mt8">${c.recovery?pill('管理员恢复通道','info'):''}${pill(c.platform==='wechat'?'微信':'飞书','neutral')}</div>
+ <div class="connection-facts"><div class="fact-line"><span>平台配置</span><b>${c.configured?'已保存':'待配置'}</b></div><div class="fact-line"><span>最近测试发送</span><b>${c.sendTest?`成功 · ${esc(c.sendAt)}`:'尚未验证'}</b></div><div class="fact-line"><span>回复接收</span><b>${c.replyTest?'已验证':'尚未验证'}</b></div><div class="fact-line"><span>授权应用</span><b>${count} 个</b></div></div>
+ <div class="row between"><button class="btn btn-secondary btn-sm" data-action="connection-detail" data-id="${c.id}">查看与检测 ${ico('chevronRight',13)}</button><button class="btn btn-ghost btn-sm" data-action="connection-impact" data-id="${c.id}">影响范围</button></div></section>`}).join('')}</div><div class="notice mt16">请不要依据“Bot 已创建”就判断能够接收交互消息：发送测试、真实收件、入站与回复能力是独立验证步骤。</div>`}
+function renderSettings(){const isProxy=state.settingsTab==='proxy';return header('系统设置','站点级运行配置；管理员个人资料和密码在右上角账户菜单中。',`<button class="btn btn-secondary" data-action="account-page">${ico('user',16)} 管理员账户</button>`)+`
+ <div class="settings-nav"><div class="segment"><button class="${isProxy?'active':''}" data-action="settings-tab" data-tab="proxy">代理与节点</button><button class="${!isProxy?'active':''}" data-action="settings-tab" data-tab="operations">运行与备份</button></div></div>${isProxy?renderProxy():renderOperations()}`}
+function renderProxy(){const activeNode=nodes.find(n=>n.id===state.proxyApplied),candidate=nodes.find(n=>n.id===state.proxyCandidate),pending=state.proxyCandidate!==state.proxyApplied;
+ return `<div class="grid" style="gap:18px"><section class="surface card"><div class="proxy-head"><div class="flex1"><div class="eyebrow">当前生效出口（模拟）</div><div class="row wrap gap14 mt8"><h2 style="font-size:21px">${esc(activeNode?.name||'未确定')}</h2>${pill('最近检测通过','success')}</div><p class="small muted mt8">${state.proxyMode==='auto'?'自动优先组选择；当前启用可用的优先节点。':'手动固定模式；故障时不会擅自更换节点。'}</p></div><div class="field"><label for="proxy-mode">工作模式</label><select class="control" id="proxy-mode" data-change="proxy-mode"><option value="auto" ${state.proxyMode==='auto'?'selected':''}>自动优先组</option><option value="manual" ${state.proxyMode==='manual'?'selected':''}>手动固定</option></select></div></div>
+ <div class="notice mt16">${pending?`当前选择的是待应用候选：<b>${esc(candidate?.name||'')}</b>，尚未改变实际出口。`:'当前没有未应用的节点变更。'} 模拟验证失败会保留原生效配置。</div></section>
+ <div class="grid grid-main"><section class="surface card"><div class="section-header"><div class="section-title">${ico('network',17)} 可用节点</div><button class="btn btn-secondary btn-sm" data-action="simulate-node-refresh">${ico('refresh',14)} 更新订阅（模拟）</button></div><p class="caption mb12">选择节点只修改待应用草稿；点击“应用选择”后才真正切换模拟状态。</p>
+ ${nodes.map(n=>`<div class="node-row"><button class="btn btn-ghost icon-btn" style="width:24px;height:24px;min-height:24px" data-action="node-select" data-id="${n.id}" aria-label="选择 ${esc(n.name)}"><span class="radio-faux ${state.proxyCandidate===n.id?'checked':''}"></span></button><div class="truncate"><div class="semi small truncate">${esc(n.name)}</div><div class="tiny muted mt4">${esc(n.priority)} ${n.id===state.proxyApplied?'· 当前生效':''}</div></div><span class="muted">${esc(state.nodeCheck[n.id]||n.latency)}</span><button class="btn btn-secondary btn-xs" data-action="node-test" data-id="${n.id}">检测</button></div>`).join('')}
+ <div class="row between wrap mt16"><span class="small muted">候选节点：${esc(candidate?.name||'未选择')}</span><div class="row"><button class="btn btn-ghost btn-sm" data-action="proxy-cancel">撤销草稿</button><button class="btn btn-primary btn-sm" data-action="proxy-apply" ${pending?'':'disabled'}>应用选择</button></div></div></section>
+ <section class="surface card"><div class="section-title">${ico('file',17)} 订阅与检查</div><div class="mt16">${valueRow('订阅最近更新','今天 07:30（示例）')}${valueRow('节点总数',String(nodes.length)+' 个')}${valueRow('更新策略','失败保留旧配置')}${valueRow('网络故障行为',state.proxyMode==='auto'?'优先组内回退':'固定节点，不自动切换')}</div>
+ <button class="btn btn-secondary btn-sm mt16" data-action="subscription-edit">${ico('edit',14)} 编辑订阅设置</button><div class="notice mt16">订阅密钥或 URL 不在列表和日志回显。配置为空表示保留既有值，不等于删除。</div></section></div></div>`}
+function renderOperations(){return `<div class="grid grid-main"><section class="surface card"><div class="section-header"><div class="section-title">${ico('server',17)} 运行信息</div>${pill('演示数据','info')}</div>${valueRow('当前源码保护标签','stable/2026-10-14-production-1.16.0')}${valueRow('最近一致备份','2026-10-14 备份验收记录')}${valueRow('正式通信验证','未包含在本原型')}${valueRow('当前账号方式','原正式服务仍使用管理员 Key')}
+ <div class="notice mt16 warning">本页是产品交互设计，不会查询或修改当前服务器状态。版本保护通过不代表真实收发已验收。</div></section><section class="surface card"><div class="section-title">${ico('database',17)} 恢复原则</div><div class="help-step"><span class="help-step-num">1</span><div><b class="small">保护最新数据</b><p class="caption">上线或回滚前保留当前消息、数据库和配置。</p></div></div><div class="help-step"><span class="help-step-num">2</span><div><b class="small">隔离验证</b><p class="caption">数据库、原加密密钥、镜像必须配套恢复。</p></div></div><div class="help-step"><span class="help-step-num">3</span><div><b class="small">明确授权切换</b><p class="caption">不可在管理端直接触发服务器级恢复。</p></div></div></section></div>`}
+function renderHelp(){return header('使用帮助','根据你的目的选择入口；导出资料包按角色整理，不把所有文档一起塞给接入方。',`<button class="btn btn-secondary" data-action="toggle-scenario">${ico('spark',16)} ${state.demoScenario==='first'?'预览日常界面':'查看首次使用引导'}</button>`)+`
+ <div class="grid grid-3">
+ <section class="surface help-card"><div class="icon-box blue" style="width:42px;height:42px">${ico('server',21)}</div><div><h3 style="font-size:16px">部署或维护中转站</h3><p class="caption mt8">给负责维护本项目的 Codex：版本、部署、恢复、代码边界与验收资料。</p></div><div class="row between mt12"><span class="pill neutral">维护者路径</span><button class="btn btn-secondary btn-sm" data-action="help-detail" data-role="maintainer">查看步骤</button></div></section>
+ <section class="surface help-card"><div class="icon-box blue" style="width:42px;height:42px">${ico('bot',21)}</div><div><h3 style="font-size:16px">让 AI 与手机通信</h3><p class="caption mt8">Codex / Claude Code 通过适配的 MCP 与使用指引接入，先验证收发再声明成功。</p></div><div class="row between mt12"><span class="pill neutral">AI 客户端路径</span><button class="btn btn-secondary btn-sm" data-action="help-detail" data-role="ai">查看步骤</button></div></section>
+ <section class="surface help-card"><div class="icon-box green" style="width:42px;height:42px">${ico('network',21)}</div><div><h3 style="font-size:16px">给业务系统发送通知</h3><p class="caption mt8">以统一 HTTP API 接入，按应用身份管理授权、投递回执与错误处理。</p></div><div class="row between mt12"><span class="pill neutral">系统集成路径</span><button class="btn btn-secondary btn-sm" data-action="help-detail" data-role="http">查看步骤</button></div></section></div>
+ <div class="grid grid-main mt16"><section class="surface card"><div class="section-title">${ico('shield',16)} 交付资料与密钥边界</div><div class="help-step"><span class="help-step-num">01</span><div><b class="small">公开说明包</b><p class="caption">可以交给 AI 阅读，不包含真实管理员凭据或生产 Key。</p></div></div><div class="help-step"><span class="help-step-num">02</span><div><b class="small">私密安装配置</b><p class="caption">由已授权的本机工具读取和安装；不直接粘贴到对话中。</p></div></div><div class="help-step"><span class="help-step-num">03</span><div><b class="small">版本与能力声明</b><p class="caption">区分已配置、测试消息被平台接受、双向验证和宿主唤醒。</p></div></div></section>
+ <section class="surface card"><div class="section-title">${ico('circleHelp',17)} 快速使用</div><p class="caption mt12">已有应用可直接在详情页选择“获取接入配置”。本原型可以预览流程、生成不含密钥的示例说明文件。</p><button class="btn btn-primary mt16" data-action="route" data-page="apps">前往接入应用 ${ico('chevronRight',15)}</button><div class="notice mt16">Codex 是站外使用/维护助手；服务运行不依赖 AI 常驻。安装 MCP 不能保证离线宿主自动唤醒。</div></section></div>`}
+function renderAccount(){return header('账号与安全','个人资料与管理员凭据。这里的操作只模拟交互，尚未接入正式后端。',`<button class="btn btn-secondary" data-action="route" data-page="overview">${ico('chevronLeft',16)} 返回总览</button>`)+`
+ <div class="settings-nav"><div class="segment"><button class="${state.accountTab==='profile'?'active':''}" data-action="account-tab" data-tab="profile">个人资料</button><button class="${state.accountTab==='password'?'active':''}" data-action="account-tab" data-tab="password">密码与登录</button><button class="${state.accountTab==='recovery'?'active':''}" data-action="account-tab" data-tab="recovery">账号恢复</button></div></div>
+ <div class="grid grid-main"><section class="surface card">${state.accountTab==='profile'?`<div class="section-title">${ico('user',17)} 管理员信息</div><form data-form="change-username" class="grid mt16" style="gap:15px"><div class="field"><label>管理员用户名</label><input class="control" name="username" required value="${esc(state.adminName)}"></div><div class="field"><label>当前密码确认</label><input class="control" name="currentPassword" type="password" required placeholder="请输入当前管理员密码"></div><button class="btn btn-primary" style="justify-self:start" type="submit">保存用户名</button></form>`:
+ state.accountTab==='password'?`<div class="section-title">${ico('lock',17)} 修改密码</div><p class="caption mt8">更改管理密码后应使旧的管理会话失效；不更改应用 Key 或加密主密钥。</p><form data-form="change-password" class="grid mt16" style="gap:15px"><div class="field"><label>旧密码</label><input name="oldPassword" class="control" type="password" autocomplete="current-password" required></div><div class="field"><label>新密码</label><input name="newPassword" class="control" type="password" minlength="10" required></div><div class="field"><label>再次输入新密码</label><input name="confirmPassword" class="control" type="password" minlength="10" required></div><button class="btn btn-primary" style="justify-self:start" type="submit">验证旧密码并更新</button></form>`:
+ `<div class="section-title">${ico('shield',17)} 已验证的本人恢复通道</div><p class="caption mt8">忘记密码验证码仅发送到事先绑定、验证过的本人连接。</p>${connections.filter(c=>state.recoveryBound.includes(c.id)).map(c=>`<div class="template-row mt16"><span class="platform-mark ${c.platform==='wechat'?'wechat':''}" style="width:36px;height:36px">${c.platform==='wechat'?'微':'飞'}</span><div class="text"><div class="semi small">${esc(c.name)}</div><p class="tiny muted mt4">管理员恢复身份 · 已验证（示例）</p></div>${pill('受保护','info')}${state.recoveryBound.length>1?`<button class="btn btn-ghost btn-xs" data-action="remove-recovery" data-id="${c.id}">解除</button>`:''}</div>`).join('')}
+ <div class="row mt16 wrap"><button class="btn btn-secondary btn-sm" data-action="bind-recovery">${ico('plus',14)} 绑定另一条连接</button><button class="btn btn-ghost btn-sm" data-action="recovery-guide">服务器兜底说明</button></div>`}
+ </section><section class="surface card"><div class="section-title">${ico('shield',17)} 安全说明</div><div class="help-step"><span class="help-step-num">1</span><div><b class="small">管理员独立认证</b><p class="caption">不能使用普通接入应用 Key 登录管理全站。</p></div></div><div class="help-step"><span class="help-step-num">2</span><div><b class="small">恢复通道保护</b><p class="caption">最后一个已验证的本人恢复连接不能在站内直接删除或停用。</p></div></div><div class="help-step"><span class="help-step-num">3</span><div><b class="small">服务器最终兜底</b><p class="caption">只有经授权的服务器本地工具可重置管理凭据，必须保留消息和加密资料。</p></div></div>${note('正式服务目前仍采用原管理员 Key。此处密码界面是未来迁移目标，不是真实身份验证。','warning')}</section></div>`}
+function renderLogin(){return `<div class="login-shell"><section class="login-aside"><div><div class="row"><div class="brand-mark">${ico('layers',20)}</div><b style="font-size:17px">Notify Bridge</b></div><h1>所有消息，<br>在一个地方清楚连接。</h1><div class="login-copy">接入应用、通信连接、消息投递与双向会话。<br>安全、可追溯，也可以直接从手机互动。</div></div><div class="login-aside-illustration"><div class="login-line"><span>Codex / 服务器 / 业务程序</span>${ico('checkCircle',16)}</div><div class="login-line"><span>统一中转与投递记录</span>${ico('checkCircle',16)}</div><div class="login-line"><span>微信 / 飞书 / 手机端</span>${ico('checkCircle',16)}</div></div><div class="small" style="color:#7e90a9">D0 UI 产品原型 · 不连接正式服务</div></section><section class="login-form-wrap"><form class="login-form" data-form="login"><div class="login-logo">${ico('lock',23)}</div><div><h2>登录管理端</h2><p class="muted small mt8">使用示例账号体验新认证流程，真实后端尚未实施。</p></div><div class="notice warning">${state.adminPassword==='DemoOnly123!'?`演示账号：<b>${esc(state.adminName)}</b>，初始密码 <code>DemoOnly123!</code>。`:'你在本次原型会话中已修改演示密码，请使用新密码。'} 不是生产凭据。</div><div class="field"><label>管理员用户名</label><input class="control" name="username" autocomplete="username" value="${esc(state.adminName)}" required></div><div class="field"><label>密码</label><input class="control" name="password" type="password" autocomplete="current-password" required placeholder="请输入密码"></div>${state.loginError?`<div class="notice danger">${esc(state.loginError)}</div>`:''}<button class="btn btn-primary btn-block" type="submit">登录管理端</button><button type="button" class="link center small" data-action="forgot-password">忘记管理密码？</button></form></section></div>${state.modal?renderModal():''}${state.notice?`<div class="toast-stack"><div class="toast">${esc(state.notice.msg)}<button class="btn btn-ghost btn-sm" data-action="dismiss-toast">关闭</button></div></div>`:''}`}
+function modalFrame(title,body,footer='',subtitle='',wide=false){return `<div class="overlay" data-action="overlay-close" role="presentation"><div class="modal ${wide?'wide':''}" role="dialog" aria-modal="true" aria-label="${esc(title)}" data-modal-content="true"><div class="modal-head"><div><h2>${esc(title)}</h2>${subtitle?`<p class="caption mt8">${esc(subtitle)}</p>`:''}</div><button class="btn btn-ghost icon-btn" data-action="close-modal" aria-label="关闭弹窗">${ico('close',18)}</button></div>${body}${footer?`<div class="modal-foot">${footer}</div>`:''}</div></div>`}
+function formBody(fields){return `<div class="modal-body">${fields}</div>`}
+function footerSubmit(label='完成',danger=false){return `<button class="btn btn-secondary" data-action="close-modal">取消</button><button form="active-form" type="submit" class="btn ${danger?'btn-danger':'btn-primary'}">${label}</button>`}
+function renderModal(){const m=state.modal; if(!m)return '';
+  if(m.type==='newConversation')return modalFrame('新建会话',`<form class="modal-body" id="active-form" data-form="create-conversation">
+   ${note('先选择有收件能力的接入应用。发送首条消息后才创建会话，取消不会留下空会话。')}
+   <div class="field"><label>接收应用</label><select class="control" name="appId" required><option value="">请选择接收对象</option>${apps.map(a=>`<option value="${a.id}" ${(!a.active||!a.receive)?'disabled':''}>${esc(a.name)} ${a.active&&a.receive?'· 可保存到收件箱':'· 不具备收件条件'}</option>`).join('')}</select><div class="hint">已登记的 Codex 不等于当前在线；成功创建后通常显示“待领取”。</div></div>
+   <div class="field"><label>会话名称 <span class="muted tiny">选填</span></label><input class="control" name="title" placeholder="例如：升级计划讨论"></div>
+   <div class="field"><label>首条消息</label><textarea class="control textarea" name="content" required placeholder="你想让该接入应用知道什么？"></textarea></div>
+   </form>`,footerSubmit('创建并发送'), '使用统一收件箱建立可追溯会话。');
+  if(m.type==='newApp')return modalFrame('新增接入应用',`<form id="active-form" class="modal-body" data-form="create-app"><div class="field"><label>应用名称</label><input class="control" required name="name" placeholder="例如：监控服务器"></div><div class="field"><label>允许使用的通信连接</label><div class="grid" style="gap:9px">${connections.filter(c=>c.active).map(c=>`<label class="row" style="font-size:13px"><input type="checkbox" name="allowed" value="${c.id}" ${c.id==='conn-feishu'?'checked':''}> ${esc(c.name)}</label>`).join('')}</div></div><div class="field"><label>默认连接</label><select class="control" name="defaultConnection">${connections.filter(c=>c.active).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><div class="hint">默认连接必须属于允许范围；创建后也可调整。</div></div><label class="row" style="font-size:13px"><input type="checkbox" name="receive" checked> 为应用启用会话收件能力</label>${note('将生成标识为 nb_demo_ 的本地演示 Key（不能用于真实中转站）。签发时提供一次完整复制。')}</form>`,footerSubmit('创建应用并签发模拟 Key'));
+  if(m.type==='keyIssued')return modalFrame('模拟 Key 已签发',`<div class="modal-body"><div class="row gap6">${ico('checkCircle',18)} ${pill('仅本地示例','info')}</div><p class="small muted">已为 <b>${esc(appBy(m.appId)?.name||'新应用')}</b> 生成演示凭据。这里只展示一次；关闭后仅保留公开 Key ID 和掩码。</p><div class="field"><label>演示凭据（不具备任何认证能力）</label><div class="row"><input class="control mono" readonly id="issued-token" value="${esc(m.token)}"><button class="btn btn-secondary" data-action="copy-issued">${ico('copy',15)} 复制</button></div></div>${note('真正的 Key 应由服务端用安全随机源生成，并仅保存安全校验材料。本原型没有真实 Key。','warning')}</div>`,`<button class="btn btn-primary" data-action="close-modal">已保存，关闭</button>`);
+  if(m.type==='rotateKey')return modalFrame('更换应用 Key',`<form class="modal-body" id="active-form" data-form="rotate-key"><div><b class="small">${esc(appBy(m.appId)?.name||'')}</b><p class="caption mt8">普通更换时建议给使用方短暂迁移窗口；应用 ID、历史会话保持不变。</p></div>${note('正式后端 1.16.0 仍是单 Key 哈希并即时轮换；新旧并存是待实施的能力，当前仅模拟交互。','warning')}<div class="field"><label>切换方式</label><label class="row small"><input type="radio" name="mode" value="normal" checked> 正常轮换（先签新 Key，旧 Key 进入过渡）</label><label class="row small"><input type="radio" name="mode" value="emergency"> 泄露应急（立刻撤销现有 Key）</label></div></form>`,footerSubmit('确认更换'));
+  if(m.type==='revokeKey')return modalFrame('立即撤销凭据',`<form id="active-form" data-form="revoke-key" class="modal-body">${note('这是安全应急操作。该应用使用当前 Key 的外部程序会立即失去认证能力。既有消息和会话仍应保留。','danger')}<p class="small">影响应用：<b>${esc(appBy(m.appId)?.name||'')}</b></p><div class="field"><label>输入“撤销”以确认</label><input class="control" required name="confirm" placeholder="撤销"></div></form>`,footerSubmit('立即撤销',true));
+  if(m.type==='newConnection')return modalFrame('新增通信连接',`<form id="active-form" data-form="create-connection" class="modal-body"><div class="steps"><span class="step-pill active">1 创建连接</span><span class="step-pill">2 配置凭据</span><span class="step-pill">3 验证收发</span></div><div class="field"><label>通信平台</label><select class="control" name="platform"><option value="feishu">飞书</option><option value="wechat">微信</option></select></div><div class="field"><label>连接名称</label><input class="control" required name="name" placeholder="例如：飞书 · 紧急告警"></div>${note('此处只创建一个待配置连接；不能把保存配置误称为测试成功。')}
+ </form>`,footerSubmit('创建待配置连接'));
+  if(m.type==='editApp') {const a=appBy(m.appId);return modalFrame('应用授权与默认路由',`<form id="active-form" data-form="edit-app" class="modal-body"><p class="small semi">${esc(a?.name||'')}</p><div class="field"><label>允许的通信连接</label>${connections.filter(c=>c.active).map(c=>`<label class="row small"><input type="checkbox" name="allowed" value="${c.id}" ${a.allowed.includes(c.id)?'checked':''}> ${esc(c.name)}</label>`).join('')}</div><div class="field"><label>默认连接</label><select class="control" name="defaultConn">${connections.filter(c=>c.active).map(c=>`<option value="${c.id}" ${a.defaultConn===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div><label class="row small"><input type="checkbox" name="receive" ${a.receive?'checked':''}> 启用应用收件箱与会话能力</label>${note('修改授权影响后续请求，但不改写历史消息的原连接或已有会话。','warning')}</form>`,footerSubmit('保存授权'));}
+  if(m.type==='integrate') {const a=appBy(m.appId),kind=m.choice||'codex';return modalFrame('获取接入资料',`<div class="modal-body"><p class="caption">接入应用：<b>${esc(a?.name||'')}</b>。选择本次面向的接入方，应用身份不随导出类型变化。</p><div class="segment"><button class="${kind==='codex'?'active':''}" data-action="integration-kind" data-kind="codex">Codex</button><button class="${kind==='claude'?'active':''}" data-action="integration-kind" data-kind="claude">Claude Code</button><button class="${kind==='http'?'active':''}" data-action="integration-kind" data-kind="http">HTTP 系统</button></div>
+ <div class="surface" style="padding:16px"><div class="section-title">${kind==='http'?'业务系统 API 接入':kind==='claude'?'Claude Code 客户端':'Codex 客户端'}</div><div class="help-step"><span class="help-step-num">1</span><div><b class="small">核验应用身份</b><p class="caption">${esc(a?.name)} · ${esc(a?.id)}</p></div></div><div class="help-step"><span class="help-step-num">2</span><div><b class="small">按客户端安装接入</b><p class="caption">${kind==='http'?'获取 HTTP API 合同、幂等和回执查询示例。':'按宿主要求配置 MCP，并加载所需使用说明。'}</p></div></div><div class="help-step"><span class="help-step-num">3</span><div><b class="small">完成验证</b><p class="caption">先验证发送，再按接入能力验证收件与回复；不能以安装成功代替已唤醒。</p></div></div></div>
+ ${note('此处只能下载不含密钥的演示说明；私密配置需要由真实受控管理服务单独签发。','warning')}</div>`,`<button class="btn btn-secondary" data-action="close-modal">关闭</button><button class="btn btn-primary" data-action="download-doc" data-id="${esc(m.appId)}" data-kind="${kind}">${ico('download',15)} 下载模拟说明</button>`, '',true)}
+  if(m.type==='applyProxy')return modalFrame('确认切换出口',`<div class="modal-body"><div class="info-pair"><span class="term">当前生效</span><b>${esc(nodes.find(n=>n.id===state.proxyApplied)?.name||'')}</b></div><div class="info-pair"><span class="term">拟应用</span><b>${esc(nodes.find(n=>n.id===state.proxyCandidate)?.name||'')}</b></div>${note('可选择模拟成功或失败。模拟失败将保留原有效配置，不会悄悄改为直连。','warning')}</div>`,`<button class="btn btn-secondary" data-action="close-modal">取消</button><button class="btn btn-danger" data-action="proxy-apply-failure">模拟失败</button><button class="btn btn-primary" data-action="proxy-apply-success">模拟应用成功</button>`);
+  if(m.type==='subscription')return modalFrame('订阅设置',`<form id="active-form" data-form="subscription" class="modal-body"><div class="field"><label>订阅 URL 或凭据</label><input class="control" name="subscription" type="password" placeholder="留空表示保留既有值"></div><div class="field"><label>更新后行为</label><select class="control" name="applyMode"><option value="preserve">失败保留旧配置</option></select></div>${note('此原型不保存、调用或展示真实代理订阅凭据。')}</form>`,footerSubmit('保存演示设置'));
+  if(m.type==='forgot')return modalFrame('找回管理员密码',`<form id="active-form" data-form="forgot" class="modal-body"><p class="caption">验证码只会发送到已验证的本人恢复连接；不能在此临时输入任何其他收件人。</p><div class="field"><label>已绑定恢复通道</label><select name="connId" class="control">${connections.filter(c=>state.recoveryBound.includes(c.id)).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>${state.otpSent?`<div class="notice warning">离线演示验证码：<b>246810</b>（正式系统不回显）。演示有效期 2 分钟，限 3 次。</div><div class="field"><label>验证码</label><input class="control" name="otp" autocomplete="one-time-code" placeholder="输入收到的验证码"></div><div class="field"><label>新管理密码</label><input class="control" name="newPassword" type="password" minlength="10" placeholder="至少 10 个字符"></div>`:note('如果无法使用任何已绑定通道，请走授权服务器终端重置流程，而非站内绕过验证。','warning')}</form>`,footerSubmit(state.otpSent?'验证并重置':'发送模拟验证码'));
+  if(m.type==='bindRecovery')return modalFrame('绑定新的本人恢复通道',`<form id="active-form" data-form="bind-recovery" class="modal-body">${note('新增绑定必须先证明对新目标有控制权；旧绑定在验证成功前不能解除。')}<div class="field"><label>选择连接</label><select class="control" name="connId">${connections.filter(c=>c.active&&!state.recoveryBound.includes(c.id)).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')||'<option value="">无可绑定连接</option>'}</select></div><div class="field"><label>当前管理员密码</label><input name="currentPassword" class="control" type="password" required></div></form>`,footerSubmit('模拟验证并绑定'));
+  if(m.type==='removeRecovery')return modalFrame('解除恢复绑定',`<form id="active-form" data-form="remove-recovery" class="modal-body">${state.recoveryBound.length<=1?note('无法移除最后一条已验证的管理员恢复连接。请先绑定并验证其他连接。','danger'):note('解除后，该通道不能再用于找回管理密码。','warning')}<div class="field"><label>输入当前管理员密码</label><input class="control" name="currentPassword" required type="password"></div></form>`,footerSubmit('确认解除',true));
+  if(m.type==='renameConversation')return modalFrame('重命名会话',`<form class="modal-body" id="active-form" data-form="rename-conversation"><div class="field"><label>会话名称</label><input class="control" name="title" value="${esc(convBy(m.convId)?.title||'')}" required></div></form>`,footerSubmit('保存名称'));
+  if(m.type==='confirmDelete')return modalFrame('确认归档 / 删除',`<div class="modal-body">${note('优先使用归档。永久删除可能影响手机端历史和任务关联，正式服务还需要精确校验已有数据与权限。','danger')}<p class="small semi">${esc(convBy(m.convId)?.title||'')}</p></div>`,`<button class="btn btn-secondary" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="archive-conversation" data-id="${m.convId}">仅归档</button><button class="btn btn-danger" data-action="delete-conversation" data-id="${m.convId}">模拟删除</button>`);
+  return modalFrame('操作提示',`<div class="modal-body">${esc(m.type)}</div>`,`<button class="btn btn-primary" data-action="close-modal">关闭</button>`)
+}
+function renderDrawer(){const d=state.drawer;if(!d)return '';
+ const wrap=(title,subtitle,body)=>`<div class="drawer-backdrop" data-action="close-drawer"><aside class="drawer" role="dialog" aria-label="${esc(title)}" aria-modal="true"><div class="drawer-head"><div class="row between"><div><h2>${esc(title)}</h2><p class="caption mt8">${esc(subtitle)}</p></div><button class="btn btn-ghost icon-btn" data-action="close-drawer" aria-label="关闭详情">${ico('close',20)}</button></div></div><div class="drawer-body">${body}</div></aside></div>`;
+ if(d.type==='delivery'){const x=deliveries.find(a=>a.id===d.id);if(!x)return '';const related=x.convId&&x.messageId;return wrap('投递诊断 · '+x.id,'所有信息均为模拟记录，不会发真实平台请求。',`<div class="row between mb12"><h3>${esc(x.title)}</h3>${statusPill(x.status)}</div>${valueRow('来源应用',esc(appBy(x.appId)?.name||'未知'))}${valueRow('目标连接',esc(connBy(x.connId)?.name||'未知'))}${valueRow('记录时间',esc(x.time))}${valueRow('消息标识',x.messageId?`<code>${esc(x.messageId)}</code>`:'<span class="muted">无关联消息</span>')}${valueRow('投递标识',`<code>${esc(x.id)}</code>`)}
+ <div class="section-heading"><div class="section-title">${ico('activity',17)} 事实时间线</div></div><div class="help-step"><span class="help-step-num">1</span><div><b class="small">中转站记录请求</b><p class="caption">使用独立逻辑标识关联投递尝试。</p></div></div><div class="help-step"><span class="help-step-num">2</span><div><b class="small">通信适配器尝试发送</b><p class="caption">${esc(x.detail)}</p></div></div><div class="help-step"><span class="help-step-num">3</span><div><b class="small">本人收件或客户端执行</b><p class="caption">${x.status==='accepted'?'没有可靠人工收件确认，不能宣称已阅读。':'暂无可以确认的后续事实。'}</p></div></div>
+ ${x.status==='uncertain'?note('本次投递结果未知：应先检查平台事实，不应更换幂等键盲目重发。','warning'):''}
+ <div class="row wrap mt16"><button class="btn btn-secondary btn-sm" data-action="copy-diagnostic" data-id="${x.id}">${ico('copy',14)} 复制脱敏摘要</button>${related?`<button class="btn btn-primary btn-sm" data-action="jump-message" data-conv="${x.convId}" data-msg="${x.messageId}">${ico('message',14)} 查看关联消息</button>`:''}</div>`)}
+ if(d.type==='conversation'){const c=convBy(d.id);if(!c)return '';const a=appBy(c.appId);return wrap('会话信息',esc(c.title),`${valueRow('接入应用',esc(a?.name||'未知'))}${valueRow('会话 ID',`<code class="mono">${esc(c.id)}</code>`)}${valueRow('手机端未读（样例）',`${c.mobileUnread} 条；仅作展示，不随管理端阅读改变`)}${valueRow('消息数',c.messages.length+' 条')}${valueRow('当前状态',c.archived?'已归档':'可查看')}
+ <div class="notice mt16">管理端查看不会改变手机端未读指针，也不会将客户端拉取行为认定为执行完成。</div><div class="row wrap mt16"><button class="btn btn-secondary btn-sm" data-action="rename-conversation" data-id="${c.id}">${ico('edit',14)} 重命名</button><button class="btn btn-secondary btn-sm" data-action="pin-conversation" data-id="${c.id}">${c.pinned?'取消置顶':'置顶'}</button><button class="btn btn-danger btn-sm" data-action="confirm-delete" data-id="${c.id}">${ico('trash',14)} 归档或删除</button></div>${c.archived?`<button class="btn btn-primary mt16" data-action="unarchive-conversation" data-id="${c.id}">恢复归档会话</button>`:''}`)}
+ if(d.type==='message'){const c=convBy(d.convId),m=c?.messages.find(x=>x.id===d.msgId);if(!m)return '';const related=deliveries.filter(x=>x.messageId===m.id);return wrap('消息详情',`消息 ${m.id}`,`${valueRow('发起来源',esc(m.origin))}${valueRow('消息时间',esc(m.time))}${valueRow('消息 ID',`<code class="mono">${esc(m.id)}</code>`)}${valueRow('保存与领取',esc(m.state||'仅有历史记录'))}
+ ${m.side==='out'&&m.state==='待领取'?`<button class="btn btn-secondary btn-sm mt16" data-action="claim-message" data-conv="${esc(c.id)}" data-msg="${esc(m.id)}">模拟客户端确认领取</button>`:''}
+ <div class="surface" style="padding:14px;margin-top:15px;white-space:pre-wrap;font-size:13px">${esc(m.text)}</div><div class="section-heading"><div class="section-title">关联投递</div></div>${related.length?related.map(x=>`<div class="template-row"><div class="flex1"><b class="small">${esc(connBy(x.connId)?.name||'')}</b><p class="tiny muted mt4">${esc(x.id)}</p></div>${statusPill(x.status)}<button class="btn btn-secondary btn-xs" data-action="delivery-detail" data-id="${x.id}">查看</button></div>`).join(''):note('该消息可能只写入客户端收件箱，未建立外部平台投递；没有关联记录时不猜测。')}`)}
+ if(d.type==='connection'||d.type==='impact'){const c=connBy(d.id);if(!c)return '';const affected=apps.filter(a=>a.allowed.includes(c.id));return wrap(d.type==='impact'?'连接影响范围':'连接配置与验证',esc(c.name),`
+ <div class="row between mb12"><span class="platform-mark ${c.platform==='wechat'?'wechat':''}">${c.platform==='wechat'?'微':'飞'}</span>${c.recovery?pill('恢复通道受保护','info'):c.active?pill('已启用','success'):pill('已停用')}</div>
+ ${valueRow('配置已保存',c.configured?'是':'否')}${valueRow('最近发送验证',c.sendTest?`成功 · ${esc(c.sendAt)}`:'尚未验证')}${valueRow('回复接收',c.replyTest?'已验证':'尚未验证')}${valueRow('恢复绑定',c.recovery?'管理员本人通道':'否')}
+ <div class="section-heading"><div class="section-title">${ico('activity',16)} 收发测试</div></div><p class="caption">这里只模拟测试状态。点击验证不会联系飞书或微信。</p><div class="row wrap mt12"><button class="btn btn-secondary btn-sm" data-action="test-connection-send" data-id="${c.id}">模拟发送成功</button><button class="btn btn-secondary btn-sm" data-action="test-connection-reply" data-id="${c.id}">模拟入站成功</button><button class="btn btn-ghost btn-sm" data-action="test-connection-failure" data-id="${c.id}">模拟失败</button></div>
+ <div class="section-heading"><div class="section-title">${ico('layers',16)} 受影响应用 · ${affected.length}</div></div>${affected.map(a=>`<div class="info-pair"><span class="term">${esc(a.name)}</span><span>${a.defaultConn===c.id?pill('默认投递','warning'):pill('已授权')}</span></div>`).join('')||'<p class="caption">目前没有应用授权使用此连接。</p>'}
+ ${c.recovery?note('这是目前登记的管理员恢复连接之一。最后一个有效恢复连接禁止在站内直接停用或删除。','warning'):''}
+ <div class="row mt16 wrap"><button class="btn btn-secondary btn-sm" data-action="toggle-connection" data-id="${c.id}">${c.active?'停用连接':'启用连接'}</button><button class="btn btn-danger btn-sm" data-action="delete-connection" data-id="${c.id}">${ico('trash',14)} 删除连接</button></div>`)}
+ if(d.type==='help'){const role=d.role;const map={maintainer:['部署与维护', ['检查源码和保护的稳定基线','阅读维护手册与部署说明','隔离环境验证，再经授权操作生产']],ai:['AI 客户端接入',['选择当前宿主：Codex 或 Claude Code','使用与宿主匹配的 MCP 配置与 Skill','验证发送、读取收件箱与回复；不承诺自动唤醒']],http:['业务系统接入',['创建接入应用与最小连接授权','下载 HTTP/OpenAPI 说明、调用和幂等示例','实际验证平台投递与回执，区分结果未知']]}[role]||['使用帮助',[]];return wrap(map[0],'按角色引导，不混装无关资料',map[1].map((x,i)=>`<div class="help-step"><span class="help-step-num">${i+1}</span><div><b class="small">${esc(x)}</b></div></div>`).join('')+`<button class="btn btn-primary mt16" data-action="route" data-page="apps">从接入应用开始</button>`)}
+ if(d.type==='recovery-guide')return wrap('服务器兜底恢复','不会提供网页端的超级绕过按钮',`<div class="notice warning">当管理员密码与恢复连接都不可用时，需要拥有服务器访问权、并经过授权的维护人员在终端使用专用恢复工具。</div><div class="help-step"><span class="help-step-num">1</span><div><b class="small">先保护数据</b><p class="caption">验证备份和部署版本对应关系，禁止直接重置数据库或替换加密密钥。</p></div></div><div class="help-step"><span class="help-step-num">2</span><div><b class="small">受控重置管理凭据</b><p class="caption">撤销旧管理会话；不影响应用 Key、通信连接、消息正文和加密主密钥。</p></div></div><div class="help-step"><span class="help-step-num">3</span><div><b class="small">验收并重新绑定</b><p class="caption">新密码登录后验证本人恢复通道与真实收发。</p></div></div><p class="caption mt16">后端和服务器工具尚未开发；本原型不提供实际执行命令。</p>`);
+ return wrap('详情','','暂无内容')}
+function issuedKey(app,old=false){
+  const k='nb_demo_example_only_'+Math.random().toString(36).slice(2,11)+'_'+Math.random().toString(36).slice(2,11);
+  const id='nb_demo_'+String(Math.floor(Math.random()*9e5)+1e5);
+  if(old)app.oldKey={id:app.keyId,tail:app.keyTail}; else app.oldKey=null;
+  app.keyId=id;app.keyTail='••••'+k.slice(-4);app.keyState='有效';modal('keyIssued',{appId:app.id,token:k});
+}
+function sendChat(id){const c=convBy(id),a=c&&appBy(c.appId),message=(state.drafts[id]||'').trim();
+ if(!c||!a?.active||!a?.receive||c.archived){toast('会话当前不可发送，请先核对应用和会话状态。','warn');return}
+ if(!message){toast('请先输入消息内容。','warn');return}
+ if(message.length>6000){toast('演示消息过长，请缩短至 6000 字以内。','warn');return}
+ const msg={id:'m-'+Date.now().toString(36),side:'out',origin:'管理端',time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),text:message,state:'待领取'};
+ c.messages.push(msg);state.drafts[id]='';state.scrollChatBottom=true;toast('已保存到应用收件箱，等待接收方领取（模拟）。');
+}
+function handleForm(form){const action=form.dataset.form,fd=new FormData(form);const g=(name)=>String(fd.get(name)||'').trim();
+ if(action==='rename-conversation'){const c=convBy(state.modal.convId);if(c&&g('title'))c.title=g('title');state.modal=null;toast('会话名称已在原型中更新。');return}
+ if(action==='create-conversation'){
+   const a=appBy(g('appId')),body=g('content');if(!a||!a.active||!a.receive){toast('该应用没有可用的收件途径，无法创建并发送。','warn');return}
+   if(!body){toast('首条消息不能为空。','warn');return}
+   const id='conv-demo-'+Date.now().toString(36);const c={id,appId:a.id,title:g('title')||`与 ${a.name} 的新会话`,pinned:false,archived:false,mobileUnread:0,messages:[{id:'m-demo-'+Date.now().toString(36),side:'out',origin:'管理端',text:body,time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),state:'待领取'}]};
+   conversations.unshift(c);state.selectedConversation=id;state.mobileChat=true;state.convFilter='all';state.convQuery='';state.modal=null;state.page='conversations';state.scrollChatBottom=true;toast('会话及首条消息已创建（模拟），收件人尚未确认领取。');return;
+ }
+ if(action==='create-app'){
+   const name=g('name'),allow=fd.getAll('allowed').map(String),defaultConn=g('defaultConnection');if(!name||!allow.length){toast('请填写名称并至少选择一条通信连接。','warn');return}
+   if(apps.some(a=>a.name===name)){toast('已经存在同名应用，请检查后再创建。','warn');return}
+   const app={id:'app-demo-'+Date.now().toString(36),name,short:name.slice(0,2).toUpperCase(),color:'#496eba',active:true,receive:fd.has('receive'),allowed:allow,defaultConn:allow.includes(defaultConn)?defaultConn:allow[0],lastUsed:'尚未调用',keyId:'',keyTail:'',keyState:'',oldKey:null};apps.unshift(app);state.selectedAppId=app.id;state.page='apps';issuedKey(app);return;
+ }
+ if(action==='rotate-key'){
+   const a=appBy(state.modal.appId);if(!a)return;const mode=g('mode');if(mode==='emergency'){state.modal={type:'revokeKey',appId:a.id};render();return} issuedKey(a,true);return;
+ }
+ if(action==='revoke-key'){
+   if(g('confirm')!=='撤销'){toast('请输入指定的确认文字“撤销”。','warn');return}
+   const a=appBy(state.modal.appId);if(a){a.keyState='已撤销';a.oldKey=null;a.keyTail='已撤销';state.modal=null;toast('已撤销该应用演示凭据；现有接入程序需重新签发。','warn')}return;
+ }
+ if(action==='create-connection'){
+   const name=g('name'),platform=g('platform');if(!name||connections.some(c=>c.name===name)){toast('连接名称不能为空或与已有连接重复。','warn');return}
+   const c={id:'conn-demo-'+Date.now().toString(36),name,platform,active:true,configured:false,sendTest:false,replyTest:false,recovery:false,sendAt:'未验证',receiveAt:'未验证',owner:'新增演示'};connections.unshift(c);state.modal=null;drawer('connection',c.id);toast('已创建待配置连接；尚未完成平台认证或发送测试。');return;
+ }
+ if(action==='edit-app'){
+   const a=appBy(state.modal.appId);if(!a)return;const allow=fd.getAll('allowed').map(String);if(!allow.length){toast('必须至少授权一个通信连接。','warn');return}
+   a.allowed=allow;a.defaultConn=allow.includes(g('defaultConn'))?g('defaultConn'):allow[0];a.receive=fd.has('receive');state.modal=null;toast('模拟的授权和默认路由已更新。');return;
+ }
+ if(action==='subscription'){state.modal=null;toast('模拟订阅设置已保存，真实运行配置未改变。');return}
+ if(action==='change-username'){
+   if(g('currentPassword')!==state.adminPassword){toast('当前密码验证失败，资料未改变。','warn');return}if(!g('username')){toast('用户名不能为空。','warn');return}
+   state.adminName=g('username');toast('用户名已在演示会话中更新。');return;
+ }
+ if(action==='change-password'){
+   const old=g('oldPassword'),pwd=g('newPassword'),confirm=g('confirmPassword');if(old!==state.adminPassword){toast('旧密码不正确，未修改。','warn');return}if(pwd.length<10||pwd!==confirm){toast('新密码至少 10 个字符，且两次输入需要一致。','warn');return}
+   state.adminPassword=pwd;state.loggedIn=false;state.loginError='密码已修改，旧管理会话已退出（模拟）。请使用新密码重新登录。';state.page='overview';state.modal=null;render();return;
+ }
+ if(action==='login'){if(g('username')===state.adminName&&g('password')===state.adminPassword){state.loggedIn=true;state.loginError='';state.modal=null;state.page='overview';toast('已进入离线演示管理端。')}else{state.loginError='用户名或密码不正确（仅模拟）。';render()}return}
+ if(action==='forgot'){
+   if(!state.otpSent){state.otpSent=true;state.otpCount=0;state.otpExpires=Date.now()+120000;toast('模拟验证码已发送到已绑定通道；正式系统不会在屏幕显示验证码。');return}
+   if(Date.now()>(state.otpExpires||0)){state.otpSent=false;toast('验证码已过期，请重新发起。','warn');return}
+   if(state.otpCount>=3){state.otpSent=false;toast('尝试次数已用尽，需重新发起验证。','warn');return}
+   state.otpCount++;if(g('otp')!=='246810'){toast('验证码不正确。','warn');return}
+   if(g('newPassword').length<10){toast('新密码至少 10 个字符。','warn');return}
+   state.adminPassword=g('newPassword');state.otpSent=false;state.modal=null;state.loggedIn=false;state.loginError='密码已通过模拟恢复更新，请使用新密码登录。';render();return;
+ }
+ if(action==='bind-recovery'){
+   if(g('currentPassword')!==state.adminPassword){toast('密码不正确，未改变绑定。','warn');return}
+   const id=g('connId'),c=connBy(id);if(!c||!c.active||!c.sendTest||!c.replyTest){toast('该连接未完成双向验证，不能作为恢复身份。','warn');return}
+   if(!state.recoveryBound.includes(id)){state.recoveryBound.push(id);c.recovery=true}state.modal=null;toast('新恢复通道已模拟验证并绑定。');return;
+ }
+ if(action==='remove-recovery'){
+   if(state.recoveryBound.length<=1){toast('不能解除最后一条可用恢复通道。','warn');return}
+   if(g('currentPassword')!==state.adminPassword){toast('管理密码不正确，操作取消。','warn');return}
+   const id=state.modal.connId;state.recoveryBound=state.recoveryBound.filter(x=>x!==id);const c=connBy(id);if(c)c.recovery=false;state.modal=null;toast('已解除本条演示恢复绑定。');return;
+ }
+}
+function downloadDemo(id,kind){const a=appBy(id);if(!a){toast('无法找到应用。','warn');return}
+ const title=kind==='http'?'HTTP system':kind==='claude'?'Claude Code':'Codex';
+ const data=`# Notify Bridge · 演示接入说明\n\n> 此文件由离线 UI 原型生成。没有真实服务地址、凭据、安装器或连接权限。\n\n- 接入应用：${a.name}\n- 稳定应用 ID：${a.id}\n- 目标类型：${title}\n- 用途：理解配置路径与验收项，不能用于真实接入。\n\n## 操作路径\n\n1. 向正式中转站管理员申请最小授权和受控凭据。\n2. ${kind==='http'?'按照服务发布版本的 OpenAPI 配置应用调用。':'在对应宿主按官方支持方式配置 MCP 与使用说明。'}\n3. 发出验证消息并查询回执；“平台已接受”不代表本人已阅读。\n4. 验证收件箱读取和必要的回复闭环；宿主是否自动唤醒需单独验证。\n5. 不把管理员 Key、通信平台 Secret 或其他应用凭据提交到 AI 对话。\n`;
+ const blob=new Blob([data],{type:'text/markdown;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`notify-bridge-demo-${kind}-${a.id}.md`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('已导出演示说明；不包含任何真实连接配置。')}
+async function copyText(txt){try{await navigator.clipboard.writeText(txt);toast('已复制。')}catch(e){const field=document.createElement('textarea');field.value=txt;field.style.position='fixed';field.style.left='-10000px';document.body.appendChild(field);field.select();const ok=document.execCommand('copy');field.remove();toast(ok?'已复制。':'无法自动复制，请从文本框手动复制。',ok?'good':'warn')}}
+function processAction(target,event){const type=target.dataset.action,id=target.dataset.id,tab=target.dataset.tab;
+ switch(type){
+ case 'route':changePage(target.dataset.page);return;
+ case 'toggle-nav':state.navOpen=!state.navOpen;render();return;
+ case 'account-menu':state.accountMenu=!state.accountMenu;render();return;
+ case 'account-page':state.page='account';state.accountTab=tab||'profile';state.accountMenu=false;state.drawer=null;render();return;
+ case 'account-tab':state.accountTab=tab;render();return;
+ case 'logout':state.loggedIn=false;state.accountMenu=false;state.loginError='';render();return;
+ case 'dismiss-toast':state.notice=null;render();return;
+ case 'notice':toast('这是一条界面示例通知；没有调用任何真实机器人。');return;
+ case 'toggle-scenario':state.demoScenario=state.demoScenario==='first'?'daily':'first';state.page='overview';render();return;
+ case 'new-conversation':modal('newConversation');return;
+ case 'conv-filter':state.convFilter=target.dataset.filter;state.mobileChat=false;render();return;
+ case 'open-conversation':state.selectedConversation=id;state.page='conversations';state.mobileChat=true;state.modal=null;state.drawer=null;state.convFilter=convBy(id)?.archived?'archived':'all';render();return;
+ case 'chat-back':state.mobileChat=false;render();return;
+ case 'send-chat':sendChat(id);return;
+ case 'task-answer':{
+   const c=convBy(target.dataset.conv),m=c?.messages.find(x=>x.id===target.dataset.msg);if(!m?.task)return;
+   if(m.task.answer){toast('任务已有有效决定，不允许覆盖。','warn');return}const idx=Number(target.dataset.choice);m.task.answer=m.task.options[idx];m.task.by='管理端';toast('任务决定已保存（模拟）。原程序是否领取和执行仍需单独确认。');return;
+ }
+ case 'simulate-other-answer':{
+   const c=convBy(target.dataset.conv),m=c?.messages.find(x=>x.id===target.dataset.msg);if(!m?.task)return;
+   if(!m.task.answer){m.task.answer=m.task.options[0];m.task.by='手机端'}toast('手机端已提交有效决定；管理端不能再重复覆盖。','warn');return;
+ }
+ case 'conversation-info':drawer('conversation',id);return;
+ case 'message-detail':state.drawer={type:'message',convId:target.dataset.conv,msgId:target.dataset.msg};render();return;
+ case 'claim-message':{const msg=convBy(target.dataset.conv)?.messages.find(m=>m.id===target.dataset.msg);if(msg){msg.state='已领取';toast('客户端已确认领取（模拟），仍不代表业务已执行。')}return}
+
+ case 'rename-conversation':modal('renameConversation',{convId:id});return;
+ case 'pin-conversation':{const c=convBy(id);if(c){c.pinned=!c.pinned;toast(c.pinned?'会话已模拟置顶。':'已取消置顶。')}return}
+ case 'confirm-delete':modal('confirmDelete',{convId:id});return;
+ case 'archive-conversation':{const c=convBy(id);if(c)c.archived=true;state.modal=null;state.drawer=null;state.convFilter='archived';toast('会话已模拟归档，历史仍可查看。');return}
+ case 'unarchive-conversation':{const c=convBy(id);if(c)c.archived=false;state.drawer=null;state.convFilter='all';toast('已恢复该模拟会话。');return}
+ case 'delete-conversation':{const i=conversations.findIndex(x=>x.id===id);if(i>=0)conversations.splice(i,1);state.modal=null;state.drawer=null;state.selectedConversation=conversations[0]?.id||null;state.mobileChat=false;toast('已在当前原型会话数据中模拟删除。','warn');return}
+ case 'jump-message':state.highlightMessage=target.dataset.msg;state.selectedConversation=target.dataset.conv;state.page='conversations';state.convFilter=convBy(state.selectedConversation)?.archived?'archived':'all';state.drawer=null;state.mobileChat=true;render();return;
+ case 'delivery-detail':drawer('delivery',id);return;
+ case 'delivery-filter':state.deliveryStatus=target.dataset.status;state.page='deliveries';render();return;
+ case 'reset-delivery':state.deliveryStatus='all';state.deliveryApp='all';state.deliveryConnection='all';state.deliveryQuery='';render();return;
+ case 'copy-diagnostic':{const d=deliveries.find(x=>x.id===id);if(d)copyText(`记录 ${d.id} | ${d.title} | ${d.status} | ${d.time} | ${d.detail}`);return}
+ case 'show-app-deliveries':state.deliveryApp=id;state.deliveryStatus='all';state.deliveryConnection='all';state.page='deliveries';state.selectedAppId=null;render();return;
+ case 'open-app':state.selectedAppId=id;render();return;
+ case 'close-app':state.selectedAppId=null;render();return;
+ case 'new-app':modal('newApp');return;
+ case 'edit-app':modal('editApp',{appId:id});return;
+ case 'integrate-app':modal('integrate',{appId:id,choice:target.dataset.choice||'codex'});return;
+ case 'integration-kind':state.modal.choice=target.dataset.kind;render();return;
+ case 'download-doc':downloadDemo(id,target.dataset.kind);return;
+ case 'rotate-key':modal('rotateKey',{appId:id});return;
+ case 'revoke-key':modal('revokeKey',{appId:id});return;
+ case 'revoke-old':{const a=appBy(id);if(a)a.oldKey=null;toast('已完成旧演示凭据过渡撤销。');return}
+ case 'copy-issued':{const field=document.getElementById('issued-token');if(field)copyText(field.value);return}
+ case 'copy':copyText(target.dataset.copy||'');return;
+ case 'new-connection':modal('newConnection');return;
+ case 'connection-detail':drawer('connection',id);return;
+ case 'connection-impact':drawer('impact',id);return;
+ case 'test-connection-send':{const c=connBy(id);if(c){c.sendTest=true;c.configured=true;c.sendAt='刚刚 · 模拟';toast('模拟发送验证成功；并未向真实平台发送消息。')}return}
+ case 'test-connection-reply':{const c=connBy(id);if(c){c.replyTest=true;c.receiveAt='刚刚 · 模拟';toast('模拟回复接收验证成功。')}return}
+ case 'test-connection-failure':{const c=connBy(id);if(c){c.sendTest=false;c.sendAt='本次模拟失败';toast('模拟检测失败；配置与原有授权已保留。','warn')}return}
+ case 'toggle-connection':{const c=connBy(id);if(!c)return;if(c.active&&state.recoveryBound.includes(id)&&state.recoveryBound.length<=1){toast('最后一个管理员恢复通道受保护，必须先验证新的绑定。','warn');return}c.active=!c.active;toast(c.active?'连接已模拟启用。':'连接已模拟停用；受影响应用请检查。','warn');return}
+ case 'delete-connection':{const c=connBy(id);if(!c)return;if(state.recoveryBound.includes(id)){toast('该连接绑定管理员恢复身份，须先换绑并验证。','warn');return}if(apps.some(a=>a.allowed.includes(id))){toast('仍有应用依赖该连接，请先完成影响迁移。','warn');return}connections=connections.filter(x=>x.id!==id);state.drawer=null;toast('未被引用的连接已在模拟数据中删除。');return}
+ case 'settings-tab':state.settingsTab=tab;render();return;
+ case 'node-select':state.proxyCandidate=id;render();return;
+ case 'node-test':state.nodeCheck[id]='通过（模拟）';toast('节点检测示例已完成；未执行真实网络请求。');return;
+ case 'simulate-node-refresh':toast('模拟订阅已刷新：共 '+nodes.length+' 个节点，旧配置保持有效。');return;
+ case 'proxy-cancel':state.proxyCandidate=state.proxyApplied;toast('候选变更已撤销，原出口未改变。');return;
+ case 'proxy-apply':if(state.proxyCandidate!==state.proxyApplied)modal('applyProxy');return;
+ case 'proxy-apply-success':state.proxyApplied=state.proxyCandidate;state.modal=null;toast('节点切换模拟成功；当前出口展示已更新。');return;
+ case 'proxy-apply-failure':state.proxyCandidate=state.proxyApplied;state.modal=null;toast('模拟切换失败，已保留原生效出口。','warn');return;
+ case 'subscription-edit':modal('subscription');return;
+ case 'help-detail':state.drawer={type:'help',role:target.dataset.role};render();return;
+ case 'forgot-password':state.otpSent=false;modal('forgot');return;
+ case 'bind-recovery':modal('bindRecovery');return;
+ case 'recovery-guide':drawer('recovery-guide','');return;
+ case 'remove-recovery':modal('removeRecovery',{connId:id});return;
+ case 'close-modal':closeModal();return;
+ case 'overlay-close':if(event.target===target){closeModal()}return;
+ case 'close-drawer':if(event.target===target||target.tagName==='BUTTON'){state.drawer=null;render()}return;
+ default:return;
+ }
+}
+function render(){const root=document.getElementById('app');if(!root)return;const pages={overview:renderOverview,conversations:renderConversations,deliveries:renderDeliveries,apps:renderApps,connections:renderConnections,settings:renderSettings,help:renderHelp,account:renderAccount};root.innerHTML=state.loggedIn?shell((pages[state.page]||renderOverview)()):renderLogin();if(state.scrollChatBottom){state.scrollChatBottom=false;requestAnimationFrame(()=>{let b=root.querySelector('[data-scroll-target="conv-body"]');if(b)b.scrollTop=b.scrollHeight})}if(state.highlightMessage){const id=state.highlightMessage;state.highlightMessage=null;requestAnimationFrame(()=>{const x=document.getElementById('msg-'+id);if(x){x.scrollIntoView({block:'center'});x.style.outline='2px solid #7e9bed';x.style.outlineOffset='5px';x.style.borderRadius='10px'}})}}
+function updateSearch(field,value){if(field==='conv')state.convQuery=value;if(field==='delivery')state.deliveryQuery=value;if(field==='app')state.appQuery=value;const active=document.activeElement,position=active.selectionStart;render();const el=document.querySelector(`[data-search="${field}"]`);if(el){el.focus();if(position!=null)el.setSelectionRange(position,position)}}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-action]');const onBackdrop=t&&((t.dataset.action==='overlay-close'&&e.target!==t)||(t.dataset.action==='close-drawer'&&e.target!==t&&t.tagName!=='BUTTON'));if(t&&!onBackdrop){e.preventDefault();processAction(t,e)}else if(state.accountMenu&&!e.target.closest('.dropdown')){state.accountMenu=false;render()}});
+document.addEventListener('submit',e=>{if(e.target.matches('[data-form]')){e.preventDefault();handleForm(e.target)}});
+document.addEventListener('input',e=>{const t=e.target;if(t.matches('[data-draft]'))state.drafts[t.dataset.draft]=t.value;if(t.matches('[data-search]'))updateSearch(t.dataset.search,t.value)});
+document.addEventListener('change',e=>{const t=e.target;if(!t.matches('[data-change]'))return;const field=t.dataset.change;switch(field){case 'delivery-status':state.deliveryStatus=t.value;break;case 'delivery-app':state.deliveryApp=t.value;break;case 'delivery-connection':state.deliveryConnection=t.value;break;case 'proxy-mode':state.proxyMode=t.value;break;}render()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(state.modal){state.modal=null;render();return}if(state.drawer){state.drawer=null;render();return}if(state.accountMenu){state.accountMenu=false;render()}}if((e.ctrlKey||e.metaKey)&&e.key==='Enter'&&e.target.matches('[data-draft]')){e.preventDefault();sendChat(e.target.dataset.draft)}});
+render();
+
+</script>
+</head>
+<body>
+  <div id="app" aria-live="polite"></div>
+  <noscript>请启用 JavaScript 以体验本地交互原型。</noscript>
+</body>
+</html>

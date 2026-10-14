@@ -212,7 +212,9 @@ def mount_portal(app, authorize_admin):
     )
     async def task_answer(cid: str, task_id: str, body: TaskAnswer):
         async with app.state.bridge.lock:
-            return portal().tasks.answer(cid, task_id, body)
+            result = portal().tasks.answer(cid, task_id, body)
+        result["projection"] = await app.state.channels.project_task_answer(cid, task_id)
+        return result
 
     @app.post(
         "/chat/api/conversations/{cid}/images",

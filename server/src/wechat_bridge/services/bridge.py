@@ -31,6 +31,8 @@ class Bridge:
             timeout=40, trust_env=False, follow_redirects=False, transport=transport
         )
         self.lock = asyncio.Lock()
+        # Serialize upstream sends without holding the shared database/state lock.
+        self.send_lock = asyncio.Lock()
         self.tasks = []
 
     async def request(self, endpoint, payload, timeout=20, *, diagnostics=None):
@@ -117,149 +119,152 @@ class Bridge:
             raise BridgeError(422, "Reserved heartbeat key")
         if dedup_key.startswith("server-command-") and caller != "command":
             raise BridgeError(422, "Reserved command key")
-        async with self.lock:
-            now = time.time()
-            if identity:
-                identity = self.store.clients.revalidate(identity)
-                self.store.bots.select(identity, self.store.bot_id)
-                caller = identity.name
-            label = "[" + caller + "]"
-            if conversation_id:
-                if not identity:
-                    raise BridgeError(401, "client_identity_required")
-                label = self.store.conversations.label(identity.id, conversation_id)
-            elif identity and len(self.store.conversations.rows(identity.id)) > 1:
-                raise BridgeError(409, "conversation_required")
-            # Preserve the caller's original dedup scope for old clients without a chat ID.
-            history_cid = conversation_id
-            if identity and not history_cid:
-                chats = self.store.conversations.rows(identity.id)
-                if len(chats) == 1:
-                    history_cid = chats[0]["id"]
-            if command_id is not None:
-                reply = self.store.db.execute(
-                    "SELECT * FROM command_replies WHERE id=?", (command_id,)
-                ).fetchone()
-                if not reply or reply["status"] != "pending":
-                    return {"status": "already_processed"}
-                if reply["issued_hash"]:
-                    current = self.store.clients.get(reply["client_id"])
-                    if not current["enabled"] or current["key_hash"] != reply["issued_hash"]:
-                        return {"status": "superseded"}
-            account = self.store.account()
-            if not account:
-                raise BridgeError(409, "wechat_not_bound")
-            if expected_due is not None and (
-                now < self.store.next_heartbeat() or expected_due != self.store.next_heartbeat()
-            ):
-                return {"status": "skipped_new_activity"}
-            digest = self.store.digest(
-                dedup_key, identity.id if identity else None, conversation_id
-            )
-            fingerprint = (
-                json.dumps({"text": text, "task": task_card}, ensure_ascii=False, sort_keys=True)
-                if task_card
-                else text
-            )
-            text_hash = hashlib.sha256(fingerprint.encode()).hexdigest()
-            previous = (
-                self.store.client_receipt(dedup_key, identity, conversation_id)
-                if identity
-                else self.store.receipt(digest)
-            )
-            if previous:
-                if previous["message_hash"] != text_hash:
-                    raise BridgeError(409, "dedup_key already belongs to different content")
-                return self.public_receipt(previous, duplicate=True)
-            if not account.get("context_token"):
-                raise BridgeError(409, "waiting_for_first_wechat_message")
-            context_diagnostics = self.store.send_diagnostics.context(now)
-            budget_counter = push_budget_counter(
-                context_diagnostics["accepted_sends_since_context"]
-            )
-
-            def render_wire(message_id=None):
-                link = chat_url(history_cid, message_id)
-                prefix = f"{label}\n\n" if identity else ""
-                action = "处理任务卡片" if task_card else "查看对话并回复"
-                # Keep the action outside tables: WeChat can style table links without making them tappable.
-                # Full-width padding shifts a normal link right; WeChat offers no responsive paragraph alignment.
-                counter_width = sum(2 if ord(char) > 127 else 1 for char in budget_counter)
-                padding = "\u3000" * max(0, 17 - len(action) - (counter_width + 2) // 2)
-                footer = "\n\n---\n\n"
-                if link:
-                    footer += padding + budget_counter + " [" + action + " →](" + link + ")"
-                else:
-                    footer += budget_counter
-                body = present(
-                    text, kind, task_card, now + task_card["expires_in"] if task_card else None
+        async with self.send_lock:
+            async with self.lock:
+                now = time.time()
+                if identity:
+                    identity = self.store.clients.revalidate(identity)
+                    self.store.bots.select(identity, self.store.bot_id)
+                    caller = identity.name
+                label = "[" + caller + "]"
+                if conversation_id:
+                    if not identity:
+                        raise BridgeError(401, "client_identity_required")
+                    label = self.store.conversations.label(identity.id, conversation_id)
+                elif identity and len(self.store.conversations.rows(identity.id)) > 1:
+                    raise BridgeError(409, "conversation_required")
+                # Preserve the caller's original dedup scope for old clients without a chat ID.
+                history_cid = conversation_id
+                if identity and not history_cid:
+                    chats = self.store.conversations.rows(identity.id)
+                    if len(chats) == 1:
+                        history_cid = chats[0]["id"]
+                if command_id is not None:
+                    reply = self.store.db.execute(
+                        "SELECT * FROM command_replies WHERE id=?", (command_id,)
+                    ).fetchone()
+                    if not reply or reply["status"] != "pending":
+                        return {"status": "already_processed"}
+                    if reply["issued_hash"]:
+                        current = self.store.clients.get(reply["client_id"])
+                        if not current["enabled"] or current["key_hash"] != reply["issued_hash"]:
+                            return {"status": "superseded"}
+                account = self.store.account()
+                if not account:
+                    raise BridgeError(409, "wechat_not_bound")
+                if expected_due is not None and (
+                    now < self.store.next_heartbeat() or expected_due != self.store.next_heartbeat()
+                ):
+                    return {"status": "skipped_new_activity"}
+                digest = self.store.digest(
+                    dedup_key, identity.id if identity else None, conversation_id
                 )
-                if len(prefix + body + footer) > 2000:
-                    if not history_cid or not link:
-                        raise BridgeError(
-                            422, "Long messages require a conversation and public URL"
+                fingerprint = (
+                    json.dumps(
+                        {"text": text, "task": task_card}, ensure_ascii=False, sort_keys=True
+                    )
+                    if task_card
+                    else text
+                )
+                text_hash = hashlib.sha256(fingerprint.encode()).hexdigest()
+                previous = (
+                    self.store.client_receipt(dedup_key, identity, conversation_id)
+                    if identity
+                    else self.store.receipt(digest)
+                )
+                if previous:
+                    if previous["message_hash"] != text_hash:
+                        raise BridgeError(409, "dedup_key already belongs to different content")
+                    return self.public_receipt(previous, duplicate=True)
+                if not account.get("context_token"):
+                    raise BridgeError(409, "waiting_for_first_wechat_message")
+                context_diagnostics = self.store.send_diagnostics.context(now)
+                budget_counter = push_budget_counter(
+                    context_diagnostics["accepted_sends_since_context"]
+                )
+
+                def render_wire(message_id=None):
+                    link = chat_url(history_cid, message_id)
+                    prefix = f"{label}\n\n" if identity else ""
+                    action = "处理任务卡片" if task_card else "查看对话并回复"
+                    # Keep the action outside tables: WeChat can style table links without making them tappable.
+                    # Full-width padding shifts a normal link right; WeChat offers no responsive paragraph alignment.
+                    counter_width = sum(2 if ord(char) > 127 else 1 for char in budget_counter)
+                    padding = "\u3000" * max(0, 17 - len(action) - (counter_width + 2) // 2)
+                    footer = "\n\n---\n\n"
+                    if link:
+                        footer += padding + budget_counter + " [" + action + " →](" + link + ")"
+                    else:
+                        footer += budget_counter
+                    body = present(
+                        text, kind, task_card, now + task_card["expires_in"] if task_card else None
+                    )
+                    if len(prefix + body + footer) > 2000:
+                        if not history_cid or not link:
+                            raise BridgeError(
+                                422, "Long messages require a conversation and public URL"
+                            )
+                        # A plain, escaped excerpt cannot leave an unclosed code fence or link.
+                        import re
+
+                        excerpt = re.sub(r"[\\`*_{}\[\]()<>#+!|~]", "", text[:700]).strip()
+                        heading = "需要你决定" if task_card else "新消息"
+                        body = (
+                            "## "
+                            + heading
+                            + "\n\n"
+                            + excerpt
+                            + "…\n\n完整内容已保存，点击下方链接查看。"
                         )
-                    # A plain, escaped excerpt cannot leave an unclosed code fence or link.
-                    import re
+                    return prefix + body + footer
 
-                    excerpt = re.sub(r"[\\`*_{}\[\]()<>#+!|~]", "", text[:700]).strip()
-                    heading = "需要你决定" if task_card else "新消息"
-                    body = (
-                        "## "
-                        + heading
-                        + "\n\n"
-                        + excerpt
-                        + "…\n\n完整内容已保存，点击下方链接查看。"
+                wire_text = render_wire()
+                if dry_run:
+                    return {"status": "dry_run_ready", "sent_now": False, "network_checked": False}
+                diagnostics = {
+                    **context_diagnostics,
+                    "request_characters": len(wire_text),
+                    "request_utf8_bytes": len(wire_text.encode()),
+                    "http_status": None,
+                    "error_category": None,
+                }
+                diagnostics.pop("quota_warning", None)
+                self.store.db.execute("BEGIN IMMEDIATE")
+                try:
+                    self.store.db.execute(
+                        "INSERT INTO outgoing VALUES (?,?,?,?,?,?,?,?)",
+                        (digest, text_hash, "attempting", kind, caller, now, None, None),
                     )
-                return prefix + body + footer
-
-            wire_text = render_wire()
-            if dry_run:
-                return {"status": "dry_run_ready", "sent_now": False, "network_checked": False}
-            diagnostics = {
-                **context_diagnostics,
-                "request_characters": len(wire_text),
-                "request_utf8_bytes": len(wire_text.encode()),
-                "http_status": None,
-                "error_category": None,
-            }
-            diagnostics.pop("quota_warning", None)
-            self.store.db.execute("BEGIN IMMEDIATE")
-            try:
-                self.store.db.execute(
-                    "INSERT INTO outgoing VALUES (?,?,?,?,?,?,?,?)",
-                    (digest, text_hash, "attempting", kind, caller, now, None, None),
-                )
-                self.store.db.execute(
-                    "INSERT INTO outgoing_bots VALUES (?,?)", (digest, self.store.bot_id)
-                )
-                if history_cid:
-                    task_id = (
-                        self.store.portal.tasks.create(history_cid, digest, task_card, now)
-                        if task_card
-                        else None
+                    self.store.db.execute(
+                        "INSERT INTO outgoing_bots VALUES (?,?)", (digest, self.store.bot_id)
                     )
-                    message_id = self.store.portal.add(
-                        history_cid,
-                        "assistant",
-                        "api",
-                        text,
-                        "attempting",
-                        outgoing_key=digest,
-                        at=now,
-                        task_id=task_id,
-                        bot_id=self.store.bot_id,
-                    )
-                    wire_text = render_wire(message_id)
-                    diagnostics["request_characters"] = len(wire_text)
-                    diagnostics["request_utf8_bytes"] = len(wire_text.encode())
-                self.store.send_diagnostics.save(digest, diagnostics)
-                if kind == "heartbeat":
-                    self.store.set("last_heartbeat_attempt_at", now)
-                self.store.db.commit()
-            except Exception:
-                self.store.db.rollback()
-                raise
+                    if history_cid:
+                        task_id = (
+                            self.store.portal.tasks.create(history_cid, digest, task_card, now)
+                            if task_card
+                            else None
+                        )
+                        message_id = self.store.portal.add(
+                            history_cid,
+                            "assistant",
+                            "api",
+                            text,
+                            "attempting",
+                            outgoing_key=digest,
+                            at=now,
+                            task_id=task_id,
+                            bot_id=self.store.bot_id,
+                        )
+                        wire_text = render_wire(message_id)
+                        diagnostics["request_characters"] = len(wire_text)
+                        diagnostics["request_utf8_bytes"] = len(wire_text.encode())
+                    self.store.send_diagnostics.save(digest, diagnostics)
+                    if kind == "heartbeat":
+                        self.store.set("last_heartbeat_attempt_at", now)
+                    self.store.db.commit()
+                except Exception:
+                    self.store.db.rollback()
+                    raise
             status, error = "unconfirmed_do_not_retry", None
             started = time.monotonic()
             try:
@@ -302,25 +307,26 @@ class Bridge:
                 error = type(exc).__name__
                 diagnostics["error_category"] = "internal_error"
             diagnostics["duration_ms"] = round((time.monotonic() - started) * 1000)
-            self.store.db.execute("BEGIN IMMEDIATE")
-            try:
-                finished = time.time()
-                self.store.db.execute(
-                    "UPDATE outgoing SET status=?,finished_at=?,error_code=? WHERE key=?",
-                    (status, finished, error, digest),
-                )
-                self.store.db.execute(
-                    "UPDATE chat_messages SET status=? WHERE outgoing_key=?", (status, digest)
-                )
-                self.store.send_diagnostics.save(digest, diagnostics)
-                if status in ACCEPTED:
-                    self.store.touch(finished)
-                if kind == "heartbeat":
-                    self.store.set("last_heartbeat_status", status)
-                self.store.db.commit()
-            except Exception:
-                self.store.db.rollback()
-                raise
+            async with self.lock:
+                self.store.db.execute("BEGIN IMMEDIATE")
+                try:
+                    finished = time.time()
+                    self.store.db.execute(
+                        "UPDATE outgoing SET status=?,finished_at=?,error_code=? WHERE key=?",
+                        (status, finished, error, digest),
+                    )
+                    self.store.db.execute(
+                        "UPDATE chat_messages SET status=? WHERE outgoing_key=?", (status, digest)
+                    )
+                    self.store.send_diagnostics.save(digest, diagnostics)
+                    if status in ACCEPTED:
+                        self.store.touch(finished)
+                    if kind == "heartbeat":
+                        self.store.set("last_heartbeat_status", status)
+                    self.store.db.commit()
+                except Exception:
+                    self.store.db.rollback()
+                    raise
             if status not in ACCEPTED:
                 logger.warning(
                     "WeChat send failed: key=%s category=%s code=%s http=%s context_age=%s accepted_before=%s",

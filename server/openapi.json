@@ -9,15 +9,40 @@
       "post": {
         "summary": "Exchange",
         "operationId": "exchange_api_receivers_exchange_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PairExchange"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -38,27 +63,47 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/receivers/verify": {
       "post": {
         "summary": "Verify",
         "operationId": "verify_api_receivers_verify_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ReceiverProof"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -79,12 +124,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/conversations/{conversation_id}/receiver": {
@@ -105,6 +145,24 @@
               "type": "string",
               "title": "Conversation Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "responses": {
@@ -147,6 +205,24 @@
               "type": "string",
               "title": "Conversation Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "responses": {
@@ -189,6 +265,24 @@
               "type": "string",
               "title": "Conversation Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "requestBody": {
@@ -243,6 +337,31 @@
       "get": {
         "summary": "Status",
         "operationId": "status_api_status_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -251,13 +370,18 @@
                 "schema": {}
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/conversations": {
@@ -279,6 +403,24 @@
               "default": false,
               "title": "Include Closed"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "responses": {
@@ -308,6 +450,26 @@
         "security": [
           {
             "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "requestBody": {
@@ -360,6 +522,24 @@
               "type": "string",
               "title": "Conversation Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "requestBody": {
@@ -421,6 +601,24 @@
               "type": "string",
               "title": "Image Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "responses": {
@@ -508,6 +706,24 @@
               "default": 50,
               "title": "Limit"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "responses": {
@@ -608,6 +824,24 @@
               ],
               "title": "Bot Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "responses": {
@@ -681,6 +915,24 @@
               "default": 20,
               "title": "Limit"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "responses": {
@@ -765,6 +1017,24 @@
               "default": false,
               "title": "Include Unaddressed"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "responses": {
@@ -807,6 +1077,24 @@
               "type": "integer",
               "title": "Inbox Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "requestBody": {
@@ -859,6 +1147,24 @@
               "type": "integer",
               "title": "Inbox Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "requestBody": {
@@ -911,6 +1217,24 @@
               "type": "integer",
               "title": "Inbox Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "requestBody": {
@@ -949,15 +1273,40 @@
       "post": {
         "summary": "Message",
         "operationId": "message_api_messages_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/Message"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -978,27 +1327,47 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/notifications": {
       "post": {
         "summary": "Notification",
         "operationId": "notification_api_notifications_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/Notice"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -1019,27 +1388,47 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/task-cards": {
       "post": {
         "summary": "Task Card",
         "operationId": "task_card_api_task_cards_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TaskCard"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -1060,12 +1449,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/conversations/{conversation_id}/tasks/{task_id}": {
@@ -1095,6 +1479,24 @@
               "type": "string",
               "title": "Task Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "responses": {
@@ -1146,6 +1548,24 @@
               "type": "string",
               "title": "Task Id"
             }
+          },
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
           }
         ],
         "requestBody": {
@@ -1184,6 +1604,31 @@
       "get": {
         "summary": "Schema",
         "operationId": "schema_openapi_json_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Notify-Receiver",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token.",
+              "title": "X-Notify-Receiver"
+            },
+            "description": "Conditional conversation capability, additional to application Bearer auth. Required for receiver verification and protected conversation content, sending, tasks, claims, renewals, reports and monitor acknowledgements. Legacy requests remain valid without this header. Pairing exchange omits it; registration and metadata follow docs/integration/RECEIVERS.md. Proves capability possession, not AI host/chat identity. Never log the token."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1192,13 +1637,18 @@
                 "schema": {}
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     }
   },

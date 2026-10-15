@@ -29,3 +29,18 @@ def test_shared_tool_definitions_and_guide_match():
 def test_checked_in_openapi_matches_application():
     server = Path(__file__).resolve().parents[1]
     assert json.loads((server / 'openapi.json').read_text(encoding='utf-8')) == create_app().openapi()
+
+
+def test_receiver_header_is_conditional_and_does_not_replace_bearer():
+    schema = create_app().openapi()
+    for path, method in (
+        ('/api/messages', 'post'),
+        ('/api/inbox', 'get'),
+        ('/api/inbox/{inbox_id}/claim', 'post'),
+        ('/api/receivers/verify', 'post'),
+    ):
+        operation = schema['paths'][path][method]
+        header = next(p for p in operation['parameters'] if p['name'] == 'X-Notify-Receiver')
+        assert header['in'] == 'header' and header['required'] is False
+        assert 'protected' in header['description'] and 'Legacy' in header['description']
+        assert operation['security'] == [{'HTTPBearer': []}]

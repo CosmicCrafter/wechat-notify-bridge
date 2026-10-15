@@ -30,7 +30,7 @@ flowchart LR
 | `channels/router.py`、`channels/drivers.py` | Bot 路由和内置通道能力注册 |
 | `channels/feishu/inbound.py` | 飞书消息和卡片回调处理 |
 | `config.py` | 公共 URL、Cookie 常量和静态资源根目录 |
-| `api/admin.py` | 管理员密钥和扫码配对路由 |
+| `api/admin.py` | 管理端资源、应用凭据和扫码配对路由；账号认证见 api/admin_auth.py |
 | `api/clients.py` | 客户端消息、会话、图片、回执和事件游标 API |
 | `api/portal.py` | 手机登录、历史、图片上传、回复、归档和删除路由 |
 | `api/schemas.py` | 管理端和客户端请求模型 |

@@ -58,10 +58,10 @@ App Secret 和回调密钥加密存入已有 SQLite 数据库，不写进源码�
 
 协议参考：[发送消息](https://open.feishu.cn/document/server-docs/im-v1/message/create)、[接收消息](https://open.feishu.cn/document/server-docs/im-v1/message/events/receive)、[卡片回调](https://open.feishu.cn/document/feishu-cards/card-callback-communication)、[表单容器](https://open.feishu.cn/document/feishu-cards/card-components/containers/form-container)。加密和签名实现对照飞书[官方 Python SDK](https://github.com/larksuite/oapi-sdk-python/tree/5a3c9779bc013258203fcadab2660a1b276feb34/lark_oapi)。
 
-### 飞书输入任务：聊天框直接回复
+### 飞书输入任务：引用目标卡片回复
 
-飞书 `mode=input` 卡片仅显示问题与回复说明，不再展示表单输入框。用户直接给 Bot 发送文本；当前 Bot 下只有一个可写、未过期、已发送成功且早于该消息的待输入任务时，回复自动提交给该任务。文本按字符串保存，保留前导零，最多 2000 字。
+飞书 `mode=input` 卡片显示问题和引用回复说明，不展示表单输入框。请长按目标卡片选择「回复」后发送文本；无论当前有几个待填任务，都不会猜测裸文本的答复目标。没有明确关联的文字保留待归属，不会自动提交任务；管理员明确归属消息也不等于替用户答题。文本按字符串保存，保留前导零，最多 2000 字。
 
-多个待输入任务不会按“最新一个”猜测。请长按目标卡片选择「回复」后发送文本；引用消息按 Bot 与原消息 ID 精确关联。未知引用不自动匹配其他任务。斜杠命令和超过十分钟的延迟消息不自动回答任务；重复事件不产生第二次任务答复。归档、禁用客户端和撤销 Bot 授权的任务不参与匹配。
+引用按同一 Bot 的原平台消息 ID 精确关联，未知引用、标签与引用冲突不会改投另一任务。只有可写、未过期的原输入任务可答复；斜杠命令、超过十分钟的延迟消息和重复事件不会产生新答案。新 UI 归档只改变列表可见性，不关闭通信；停用应用或撤销 Bot 授权仍会拒绝答复。
 
 结果仍通过原 `task_response` 和收件接口返回；后台尝试更新原飞书卡片。单选、多选、确认和多字段表单继续使用原生卡片控件，微信流程不变。

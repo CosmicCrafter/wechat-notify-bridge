@@ -21,6 +21,12 @@
 | POST | /api/inbox/{id}/report | 持 claim_id、固定报告 request_id，报告 processing/completed/failed |
 | GET | /openapi.json | 当前配置对应的 OpenAPI |
 
+## 条件性会话接收授权
+
+所有客户端接口仍使用应用 Bearer Key 或 OAuth。访问 protected 会话内容、发送、任务、领取、续期、报告及监控回执，还必须携带已验证的 `X-Notify-Receiver` 能力头；应用 Key 本身不证明具体 AI 聊天身份。legacy 会话不因此增加必填头。
+
+`/api/receivers/exchange` 使用私有配对码，不携带该头；`/api/receivers/verify` 使用待验证能力头和 challenge。注册及只读元数据的例外、观察者限制和完整流程见[接收绑定](../integration/RECEIVERS.md)。不要把令牌放进 URL、日志或提示词。OpenAPI 将该头声明为条件必需的可选参数，不会对旧客户端一律强制要求。
+
 ## 普通消息
 
 v0.3 新增：读取只标 client_read，不等于领取或执行；claim 返回 claim_id，report 终态不可降级、重放须同键同内容。结果是应用报告。管理员主动新建会话的首条消息和回复 source=admin，与手机/原应用共享同一记录。参考 [完整 HTTP 业务闭环](../integration/HTTP.md)。Feishu not_sent 且保存未开始消息请求的证据时才允许保持原参数附 retry_preparation:true；未知、已接收和缺历史不支持重试。

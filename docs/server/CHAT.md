@@ -2,7 +2,7 @@
 
 入口为配置的 `WECHAT_PUBLIC_BASE_URL` 加 `/chat/`，与 `/admin/` 分开。当前版本请查看服务器 `/health` 响应和插件清单。
 
-会话页顶部的“管理页”可直接进入管理面板；管理页顶部的“会话页”可切回对话。两个页面分别验证身份：手机登录不能代替管理员密钥。离开管理页后，再次进入需重新输入管理员密钥。
+手机会话页与管理端分别验证身份：手机 Cookie 不能代替管理员账号会话，应用 Key 也不能登录管理端。管理端使用账号密码，有效管理 Cookie 可在刷新后恢复；首次初始化与忘记密码见[管理与恢复](../product-v3/OPERATIONS.md)。
 
 AI 也可以发送 [任务卡片](TASK-CARDS.md)：在会话中选择一个方案或自行回复，点击“提交决定”。页面会区分已答复与 AI 的处理进度。
 
@@ -33,7 +33,7 @@ AI 也可以发送 [任务卡片](TASK-CARDS.md)：在会话中选择一个方�
 
 登录码最多尝试 6 次，哈希保存、使用后失效。浏览器会话使用随机 token，服务器只存哈希，通过 HttpOnly、Secure、SameSite=Strict Cookie 传递，路径限定到公开地址的 `/chat/`。仅本地回环 HTTP 预览关闭 Secure。会话有效期固定 30 天，不因访问续期。
 
-写操作要求同源 Origin 和自定义请求头；真实 HTTPS 域名必须正确配置为 WECHAT_PUBLIC_BASE_URL。页面不把管理密钥或 API 密钥写入 URL/localStorage。HTML、脚本、表单、外部图片嵌入会被过滤；普通 HTTPS 链接可访问。
+写操作要求同源 Origin 和自定义请求头；真实 HTTPS 域名必须正确配置为 WECHAT_PUBLIC_BASE_URL。页面不把管理密码或 API Key 写入 URL/localStorage。HTML、脚本、表单、外部图片嵌入会被过滤；普通 HTTPS 链接可访问。
 
 ## 实现与验证
 

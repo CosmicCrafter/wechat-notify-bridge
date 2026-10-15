@@ -12,6 +12,12 @@ def test_unquoted_reply_never_answers_even_a_single_input_task(feishu):
     portal, _ = feishu
     store, client, auth, *_ = portal
     task = input_task(feishu, "F02-unquoted")
+    from wechat_bridge.channels.feishu.cards import card
+    projected = card("", "test", task=task["task"])
+    import json
+    prompt = json.dumps(projected, ensure_ascii=False)
+    assert "请长按本卡片" in prompt and "未引用卡片的文字不会自动提交" in prompt
+    assert "直接在聊天框发送回复即可" not in prompt
     assert "task_id" not in callback(client, message("001234")).json()
     cid = task["task"]["conversation_id"]
     assert store.portal.tasks.get(cid, task["task"]["id"])["status"] == "pending"

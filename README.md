@@ -57,7 +57,7 @@ notify-bridge/
 
 朋友接手维护请先读 [维护手册](docs/MAINTAINER.md)，目录导航见 [文档索引](docs/README.md)。前端源码在 `frontend/src/`；运行用静态资源由构建生成。
 
-v0.3 整理升级候选版：统一管理端、共享会话、应用/Key 分离与管理员恢复，详见 [实施与验证](docs/product-v3/IMPLEMENTATION.md) 和 [管理、终端兜底及回退](docs/product-v3/OPERATIONS.md)。在独立升级分支验收，未经确认不部署正式服务。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
+维护基线为 **v1.17.1 / `8e1c03b`**，发布说明见 [v1.17.1](docs/history/release-1.17.1.md)。REFINE-01 在独立开发分支整理，未部署；实例实际版本以健康接口、镜像和受保护发布清单核对。账号初始化、升级与恢复以 [管理与恢复](docs/product-v3/OPERATIONS.md) 为准。v0.3/F02 的设计与分批记录属于历史证据。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
 
 三条交付路径：[部署维护](docs/MAINTAINER.md)、[AI 宿主 MCP 接入](docs/integration/AI-HOSTS.md)、[业务系统 HTTP 接入](docs/integration/HTTP.md)。AI/HTTP 资料可基于已有应用导出，不自动创建重复身份或轮换 Key。
 
@@ -100,10 +100,10 @@ curl http://127.0.0.1:18092/health
 
 ### 3. 添加 Bot 并创建接入密钥
 
-1. 本升级候选版本的管理端仅使用账号密码登录。首次需由获授权的服务器维护者按 [账号初始化与恢复说明](docs/product-v3/OPERATIONS.md) 使用终端工具建立账号；原管理员 Key 已停用。打开 `https://你的域名/bridge/admin/` 登录，应用 API Key 独立，不用于管理登录。
-2. 在“Bot 管理”点击“新增 Bot”：微信按向导扫码绑定；飞书填写应用配置，并按回调配置步骤在飞书后台保存、发布。
+1. 管理端仅使用账号密码登录。首次需由获授权的服务器维护者按 [账号初始化与恢复说明](docs/product-v3/OPERATIONS.md) 使用终端工具建立账号；原管理员 Key 已停用。打开 `https://你的域名/bridge/admin/` 登录，应用 API Key 独立，不用于管理登录。
+2. 在“通信连接”点击“新增连接”：微信按向导扫码绑定；飞书填写应用配置，并按回调配置步骤在飞书后台保存、发布。
 3. 使用微信时，在 ClawBot 聊天框发送一句“测试”，让服务获取微信回复上下文。纯飞书部署不需要这一步。
-4. 在“接入密钥”中为每个程序或 AI 创建独立密钥，选择允许调用的 Bot 和默认 Bot。微信 `/getkey codex` 仍可用于微信侧创建身份。
+4. 在“接入应用”中为每个程序或 AI 创建独立应用并签发 Key，选择允许调用的 Bot 和默认 Bot。微信 `/getkey codex` 仍可用于微信侧创建身份。
 
 ### 4. 把 MCP 接入 AI
 
@@ -179,7 +179,7 @@ AI 发消息时调用插件；服务器持续接收微信回复，AI 可以按�
 ## 已实现
 
 - 部署后打开网页扫码绑定，查看连接状态与心跳时间；支持验证码和同账号重新绑定。
-- 独立管理员密钥；AI 客户端无法生成二维码或修改绑定。
+- 独立管理员账号密码与 Cookie 会话；应用 Key 无法登录管理端、生成二维码或修改绑定。
 - 一个微信账号连接多个 AI 客户端，每个客户端独立密钥，消息自动标记真实来源。
 - 微信 `/getkey`、`/list`、`/resetkey`、`/revoke`、`/rename`、`/status`、`/help` 与 Admin 页面共用客户端数据。
 - Admin 支持确认后删除客户端密钥，保留历史消息；同名可重新创建。微信指令和管理页面统一使用北京时间（UTC+8）。

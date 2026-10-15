@@ -1,7 +1,8 @@
 """HTTP authentication, redacted validation errors and browser response policy."""
 
 import hmac
-from fastapi import Depends, HTTPException, Request
+from typing import Annotated
+from fastapi import Depends, Header, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
@@ -56,8 +57,24 @@ def install_security(app):
         return response
 
     async def authorize(
-        request: Request, auth: HTTPAuthorizationCredentials | None = Depends(bearer)
+        request: Request,
+        auth: HTTPAuthorizationCredentials | None = Depends(bearer),
+        _receiver_authorization: Annotated[
+            str | None,
+            Header(
+                alias="X-Notify-Receiver",
+                description=(
+                    "Conditional conversation capability, additional to application Bearer auth. "
+                    "Required for receiver verification and protected conversation content, "
+                    "sending, tasks, claims, renewals, reports and monitor acknowledgements. "
+                    "Legacy requests remain valid without this header. Pairing exchange omits it; "
+                    "registration and metadata follow docs/integration/RECEIVERS.md. "
+                    "Proves capability possession, not AI host/chat identity. Never log the token."
+                ),
+            ),
+        ] = None,
     ):
+        # Schema declaration only; receiver_identity retains all runtime scope checks.
         if auth is None or auth.scheme.lower() != "bearer":
             raise HTTPException(401, "Bearer token required")
         if auth.credentials.startswith("wna_") and app.state.oauth:

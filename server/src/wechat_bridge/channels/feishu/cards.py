@@ -36,7 +36,7 @@ def card(text, label, link=None, task=None):
                 elements.append(
                     dict(
                         tag="markdown",
-                        content="**直接在聊天框发送回复即可。**\n同时有多个待填写任务时，请长按本卡片，选择「回复」。",
+                        content="**请长按本卡片，选择「回复」后发送内容。**\n未引用卡片的文字不会自动提交给任务，可由管理员核对归属。",
                     )
                 )
             elif mode != "confirm" or task["allow_custom"]:

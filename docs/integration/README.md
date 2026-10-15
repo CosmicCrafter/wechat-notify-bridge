@@ -25,7 +25,7 @@
 | 支持本机 MCP 的 AI | 本机 stdio 插件包装 HTTP API | [MCP 配置](../../mcp-plugin/README.md) |
 | 普通程序，或由 AI 编写的程序 | HTTPS JSON + Bearer Key | [完整接口文档](../server/API.md) |
 
-远程 MCP 使用宿主 OAuth 授权流程，不等同于把 Key 拼在 MCP URL 中。授权与现有微信登录流程见 [REMOTE-MCP](../server/REMOTE-MCP.md)；仅部署飞书时不要假设远程授权登录流程已适配，优先用 HTTP 或本机 stdio。宿主必须支持工具调用；安装插件本身不会自动唤醒空闲 AI。
+远程 MCP 使用宿主 OAuth 授权流程，不等同于把 Key 拼在 MCP URL 中。授权与现有微信登录流程见 [REMOTE-MCP](../server/REMOTE-MCP.md)；纯飞书实例可由管理员在“系统设置→手机端登录”生成一次性本人登录码，无需先绑定微信。宿主必须支持工具调用；安装插件本身不会自动唤醒空闲 AI。
 
 ## 最小接入流程
 

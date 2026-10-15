@@ -48,7 +48,9 @@ def build(output):
             entries[filename] = portable_markdown(
                 entries[filename].decode(), "mcp-plugin/" + filename, included
             ).encode()
-    entries["RELEASE.json"] = json.dumps(release_metadata(source, entries), indent=2).encode()
+    entries["RELEASE.json"] = json.dumps(
+        release_metadata(source, entries, scope="standalone-local"), indent=2
+    ).encode()
     output.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
         for filename, content in sorted(entries.items()):

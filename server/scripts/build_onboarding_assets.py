@@ -48,7 +48,9 @@ def build(root=ROOT, *, check=False):
     sys.path.insert(0, str(ROOT / "mcp-plugin/tools"))
     from package_checks import release_metadata
 
-    expected["RELEASE.json"] = json.dumps(release_metadata(plugin, expected), indent=2).encode()
+    expected["RELEASE.json"] = json.dumps(
+        release_metadata(plugin, expected, scope="onboarding-template"), indent=2
+    ).encode()
     output = root / "server/src/wechat_bridge/web/admin/onboarding-template.zip"
     if check:
         try:

@@ -2,7 +2,7 @@
 
 使用管理员为该应用签发的有效 Key 和授权连接。站内负责通信、路由与记录；业务程序负责自己的执行与失败处理。
 
-私有配置文件含 base_url、api_key、default_bot_id；只放在运行主机的私有目录。模板 CONFIGURE_SEPARATELY 必须由维护者填写，不作为默认凭据。新 nb_ Key 和旧数字 Key 都作为字符串处理。
+私有配置文件含 base_url、api_key、default_bot_id；只放在运行主机的私有目录。模板 CONFIGURE_SEPARATELY 必须由维护者填写，不作为默认凭据。新 nb_ Key 和旧数字 Key 都作为字符串处理。RELEASE.json 的 fingerprint_scope=onboarding-template 标明网站共享模板来源，不能与 developer-docs 文档包直接比较指纹，也不覆盖导出后加入的私有凭据。
 
 使用导出包时，无需安装 MCP。openapi.json 是接口规范；notify_bridge.py 是无额外依赖、无自动重发的 Python 示例。完整源码仓库中的对应位置为 server/openapi.json 和 examples/python/notify_bridge.py。
 

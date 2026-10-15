@@ -14,7 +14,7 @@
 
 网站“快速接入”生成选定应用的接入包；“手动配置”提供无真实 Key 的模板或仅规则包；“接口文档”下载的是接入文档，不是可运行 MCP 插件。维护部署应下载完整源码，不能拿接入包安装服务器。
 
-RELEASE.json 记录服务版本、独立插件版本及公开构建输入指纹；CONNECTION.json / DEPLOYMENT.json 提供实际地址。插件身份保持 wechat-notify-local，不能用服务器版本推断插件内容。
+RELEASE.json 记录服务版本、独立插件版本及公开构建输入指纹；CONNECTION.json / DEPLOYMENT.json 提供实际地址。插件身份保持 wechat-notify-local，不能用服务器版本推断插件内容。fingerprint_scope 标明公开输入集合：developer-docs 是文档包，onboarding-template 是网站 AI/HTTP 模板，standalone-local/remote 是独立插件。不同范围指纹不同是正常的，只在相同范围比较；它不是整个私有 ZIP 的校验和。
 
 已配置包的 `CONNECTION.json` 记录服务地址、接入方式、期望客户端身份和默认 Bot，不包含密钥。它描述路由偏好，不是服务器权限证明。
 

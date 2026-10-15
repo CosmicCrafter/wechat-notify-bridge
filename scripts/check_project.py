@@ -4,9 +4,12 @@ import re
 import shutil
 import subprocess
 import sys
+import os
+from pathlib import Path
 
 from sync_shared import ROOT, sync
 from build_frontend import build as build_frontend
+from check_documentation import check as check_documentation, check_links
 
 
 def check():
@@ -48,6 +51,23 @@ def check():
                 broken.append(f"{file.relative_to(ROOT)}: {target}")
     if broken:
         raise SystemExit("Broken relative links:\n" + "\n".join(broken))
+    entries = {}
+    for directory, folders, files in os.walk(ROOT):
+        folders[:] = [name for name in folders if name not in ignored and not name.startswith(".")]
+        for name in files:
+            path = Path(directory) / name
+            if not path.is_symlink():
+                entries[path.relative_to(ROOT).as_posix()] = (
+                    path.read_bytes() if path.suffix == ".md" else b""
+                )
+    historical = ("docs/history/", "docs/product-v2/", "docs/product-v3/handoff/", "docs/f02/")
+    active = {
+        name
+        for name in entries
+        if not name.startswith(historical) and name != "docs/product-v3/IMPLEMENTATION.md"
+    }
+    check_links(entries, documents=active)
+    print("Documentation contracts:", check_documentation())
 
 
 if __name__ == "__main__":

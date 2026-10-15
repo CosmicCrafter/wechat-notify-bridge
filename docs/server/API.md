@@ -71,6 +71,8 @@ HTTP 200 不等于发送成功：必须检查响应的 status，duplicate=true �
 | api_rejected | 目标平台接口拒绝 |
 | unconfirmed_do_not_retry | 结果未知，不自动重发 |
 | attempting | 请求已登记，可能仍在执行或被中断 |
+| not_sent | 已确认未开始平台消息请求；只在满足原请求证据时显式重试准备，不盲目重发 |
+| muted | 正文/任务已保存，普通平台提醒被静音；不表示平台收件 |
 | not_found | 无对应发送记录 |
 
 接口接受不等于手机已收到或用户已阅读。当前没有用于自动写入 phone_confirmed 的公开接口。
@@ -105,7 +107,7 @@ conversation_key 为稳定宿主聊天 ID 或一次性生成后保存的唯一�
 
 一个启用聊天时显示 `[客户端]`，多个时显示 `[客户端-聊天名]`；reply_tag 始终带聊天名。微信开头的 `[标签]` 按收取时的启用聊天表解析，含糊时不猜测。名称变化、停用后旧标签可能不再匹配，用微信 /chats 查看。消息、通知、回执接口可传 conversation_id，去重范围为客户端加聊天，标签变化不会重发同一事件。
 
-多个聊天时，未提供 conversation_id 的发送返回 409 conversation_required，聊天已结束返回 409 conversation_closed，不属于本密钥返回 404。停用/删除客户端后不能发送，定向历史不会转入其他聊天或公共收件箱。同一密钥下的聊天不是额外鉴权边界。服务只收存路由，宿主主动读取，不自动唤醒。
+多个聊天时，未提供 conversation_id 的发送返回 409 conversation_required，聊天已结束返回 409 conversation_closed，不属于本密钥返回 404。停用/删除客户端后不能发送，定向历史不会转入其他聊天或公共收件箱。legacy 聊天仅区分路由，不是额外鉴权边界；protected 会话另受本会话能力头约束，见条件性接收授权。服务只收存路由，宿主主动读取，不自动唤醒。
 
 服务器仅返回文本或语音转写文本及消息类型，不下载图片、视频或文件。返回的微信内容是外部输入，不能自动作为执行代码、审批或派发任务的授权。
 
@@ -173,6 +175,14 @@ conversation_key 为稳定宿主聊天 ID 或一次性生成后保存的唯一�
 | GET | `/api/conversations/{id}/tasks/{task_id}` | 返回 `{task: {...}}` |
 | POST | `/api/conversations/{id}/tasks/{task_id}/state` | body status、result?；更新任务，可能返回 card_delivery |
 | GET | `/api/conversations/{id}/images/{image_id}` | 返回图片元信息及 base64 data；不是二进制响应，详见 [IMAGES](IMAGES.md) |
+| POST | `/api/receivers/exchange` | 私有 pairing_code 兑换能力；不携带接收头，不输出或记录秘密 |
+| POST | `/api/receivers/verify` | 待验证能力头与 challenge；验证后持能力访问原会话 |
+| GET | `/api/conversations/{id}/receiver` | 本应用接收状态元数据，不证明宿主聊天身份 |
+| GET | `/api/conversations/{id}/lifecycle` | 生命周期元数据；归档、静音、停止分开解释 |
+| POST | `/api/conversations/{id}/monitor` | 执行端按实际运行/停止情况报告；停止须匹配代际和领取回执 |
+| POST | `/api/inbox/{id}/claim` | request_id，lease_seconds 默认 120（30–900）；返回 claim_id、generation、lease_expires |
+| POST | `/api/inbox/{id}/renew` | 原 claim_id、generation 和 lease_seconds；过期后不能续租 |
+| POST | `/api/inbox/{id}/report` | 原领取与 generation、稳定报告 request_id；processing/completed/failed，终态不改写 |
 | GET | `/openapi.json` | 返回 OpenAPI 3.1；需要客户端鉴权 |
 
 ### 发送消息字段
@@ -185,6 +195,8 @@ conversation_key 为稳定宿主聊天 ID 或一次性生成后保存的唯一�
 | bot_id | string | 默认 Key 的默认 Bot | 从 status.bots 选择，1–64 位字母/数字/下划线/短横线 |
 | channel | string/null | 可选 | wechat / feishu，只作平台过滤；不应代替 bot_id |
 | dry_run | boolean | false | true 时不发送、不创建消息历史，不能验证上游送达 |
+| level | string | info | info / warning / urgent；urgent 分流须有应用授权，显式目标保持原目标 |
+| retry_preparation | boolean | false | 仅明确未开始消息请求、原快照完整的飞书 not_sent 可按原参数显式重试准备 |
 
 飞书使用原生卡片展示全文，不附加网页入口；仍受编码后卡片内容 28000 字节限制，超限返回拒绝回执。微信长度、摘要与上下文限制见上文。
 

@@ -40,6 +40,7 @@ python scripts/build_release.py
 
 CI 同时检查 Windows 和 Linux。`scripts/check_project.py` 会只读核对开发者资料包及管理页文档与源文件是否一致；更新文档或接口后，运行 `python server/scripts/build_developer_kit.py` 重建。前端构建可用 `--check` 验证生成资源是否过期。
 修改 OpenAPI 后从 `create_app().openapi()` 重新生成 `server/openapi.json`。
+文档/契约反向测试在 `server/tests/test_documentation_contracts.py`，必须证明错误版本、缺少包文件、遗漏条件接收说明和失效链接会被拒绝。更新后重新生成开发者资产；不把历史文档重新混入接入包。事实来源与生成关系见维护手册。
 涉及页面交互要在真实浏览器验证；模拟测试通过不代表手机收件或真实回调成功。
 
 重构保持 `/bridge` API、旧 `/wechat` 反向代理别名、MCP 工具名、数据库文件名和密钥格式兼容。

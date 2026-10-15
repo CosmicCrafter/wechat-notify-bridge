@@ -1,5 +1,7 @@
 # Notify Bridge v0.3 实施工作线
 
+> 历史实施日志：按批累积保留，早期“尚未完成/未部署”仅指当时。当前维护入口见 ../MAINTAINER.md，发布摘要见 ../history/release-1.17.1.md；操作规范仍见本目录 OPERATIONS.md。
+
 当前授权：用户于 2026-10-14 明确授权 E0–E4 隔离开发与测试；不授权生产部署、main 合并、生产数据库/认证/Bot 变更。交接包中的历史设计停止说明不覆盖本次授权。
 
 基线：升级分支 codex/upgrade-after-stable-20261014，接管 HEAD c964d1e；稳定代码 0bddeff，stable/2026-10-14-production-1.16.0。原工作区无未提交修改。交接包原文件保存在 handoff/，来源 SHA-256 在 handoff-source.sha256。

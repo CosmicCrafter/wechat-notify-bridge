@@ -1,31 +1,23 @@
 # 文档索引
 
-## 接手维护
+维护基线：v1.17.1 / 8e1c03b。REFINE-01 整理分支尚未部署；当前实例以实际运行版本及私有发布清单为准。
 
-- [维护手册](MAINTAINER.md)：架构、开发、验证、发布、备份与常见故障。
-- [贡献指南](../CONTRIBUTING.md)：源码边界与变更步骤。
-- [架构说明](architecture.md)：模块依赖和兼容约束。
-- [安全说明](../SECURITY.md)：密钥、输入、权限和发布边界。
-- [前端工程](../frontend/README.md)：Vue、Element Plus 与静态资源构建。
+## 部署和维护中转站
 
-- [本次交付验证](handoff-validation.md)：检查结果与明确边界。
+从 [维护手册](MAINTAINER.md) 开始，随后阅读 [配置与数据](server/CONFIGURATION.md)、[管理员初始化与恢复](product-v3/OPERATIONS.md)、[首次部署](../README.md#快速部署与使用)。修改前查 [工程边界](architecture.md)、[贡献指南](../CONTRIBUTING.md)、[安全说明](../SECURITY.md)；前端源码和构建见 [前端工程](../frontend/README.md)。
 
-## 部署与使用
+## AI 接入已有站
 
-- [配置与数据存储](server/CONFIGURATION.md)：.env、运行目录、SQLite 与备份。
+按 [客户端安装](integration/CLIENT-SETUP.md) 选择 Codex / Claude Code 的插件或独立 MCP 路径，结合 [宿主说明](integration/AI-HOSTS.md)、[受保护收件](integration/RECEIVERS.md)。[插件说明](../mcp-plugin/README.md) 负责独立分发；自动唤醒另见 [桌面接收器](../mcp-plugin/DESKTOP-WAKE.md) 与 [事件订阅](server/MCP-EVENTS.md)，不把工具可用等同唤醒。
 
-- [项目首页](../README.md)：服务器首次部署及本地运行。
-- [服务器说明](../server/README.md)：配置、运行和 API。
-- [多 Bot 与 Key](server/BOTS.md)、[飞书配置](server/FEISHU.md)。
-- [手机会话](mobile-experience.md)、[任务卡片](server/TASK-CARDS.md)。
+## 业务系统接入通知
 
-## 程序或 AI 接入
+从 [HTTP 接入](integration/HTTP.md) 和 [总指南](integration/README.md) 开始；字段与错误见 [API](server/API.md)，机器合同见 [OpenAPI](../server/openapi.json)。网站文档包不包含 MCP 程序或服务安装器，需按用途另取接入包或完整源码。
 
-- [客户端安装指南](integration/CLIENT-SETUP.md)：配置包、Skill、MCP、OAuth 与验收。
+## 日常操作
 
-- [接入指南](integration/README.md)、[HTTP 接口](server/API.md)。
-- [MCP 插件](../mcp-plugin/README.md)、[桌面唤醒](../mcp-plugin/DESKTOP-WAKE.md)。
-- [投递可靠性](server/DELIVERY-RELIABILITY.md)、[宿主回调](server/MCP-EVENTS.md)。
-- [微信 Markdown 排版](wechat-markdown/微信Markdown排版指南.md)。
+[应用与连接授权](server/BOTS.md)、[飞书](server/FEISHU.md)、[新增飞书 Bot](server/新增飞书Bot操作指南.md)、[手机使用](mobile-experience.md)、[会话管理](mobile-conversations.md)、[任务卡片](server/TASK-CARDS.md)、[投递诊断](server/DELIVERY-RELIABILITY.md)、[微信排版](wechat-markdown/微信Markdown排版指南.md)。
 
-`history/` 下的发布和历史验证记录用于追踪历史，不作为最新部署步骤；操作以当前首页、维护手册和源码为准。
+## 历史与验收
+
+[历史索引](history/README.md) 保留发布、设计和当时验收范围；[REFINE-01 交付](history/refine-01.md) 记录本次变更及未验证项。历史材料不属于当前部署步骤，也不默认进入接入包。

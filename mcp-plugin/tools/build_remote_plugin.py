@@ -70,7 +70,9 @@ def build(base_url, output, *, mcp_url=None):
         "用户必须完成 OAuth 授权并核对身份；管理端系统设置可生成本人手机登录码，微信也可发 /web。纯飞书不要求绑定微信。\n"
         "不包含 API Key 或访问令牌；不要将验证码、凭据交给 AI。独立 ZIP 的宿主安装方式见 INSTALL.md 路径 B。\n"
     ).encode()
-    entries["RELEASE.json"] = json.dumps(release_metadata(source, entries), indent=2).encode()
+    entries["RELEASE.json"] = json.dumps(
+        release_metadata(source, entries, scope="standalone-remote"), indent=2
+    ).encode()
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
         for filename, content in sorted(entries.items()):
             info = zipfile.ZipInfo(name + "/" + filename, (2026, 1, 1, 0, 0, 0))

@@ -43,7 +43,7 @@ jobs:
           npm test
           npm run format:check
       - name: Python formatting
-        run: ruff format --check server/src scripts mcp-plugin/server server/scripts examples
+        run: ruff format --check server/src scripts mcp-plugin/server mcp-plugin/tools server/scripts examples
       - name: Regression tests
         run: python -m pytest -q
       - name: Project checks

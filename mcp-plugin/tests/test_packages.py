@@ -30,6 +30,9 @@ def test_package_layout_and_references(tmp_path, transport):
     assert manifest['version'] == '1.11.0'
     assert (root/'INSTALL.md').is_file()
     assert json.loads((root/'RELEASE.json').read_text())['plugin_version'] == manifest['version']
+    sys.path.insert(0, str(TOOLS.parents[1]/'scripts'))
+    from check_documentation import check_archive
+    check_archive(archive.read_bytes(), transport, server_version='1.17.1', plugin_version=manifest['version'])
     assert manifest['extensions']['com.openai']['interface']['defaultPrompt'] == '通过微信通知插件查看服务状态。'
     if transport == 'local':
         assert (root/'server/api_errors.py').is_file()
@@ -43,3 +46,13 @@ def test_builders_refuse_to_write_inside_plugin_source():
     with pytest.raises(ValueError): local(output)
     with pytest.raises(ValueError): remote('https://example.com/wechat', output)
     assert not output.exists()
+
+
+def test_remote_package_preserves_explicit_legacy_mcp_endpoint(tmp_path):
+    path = tmp_path/'remote.zip'
+    remote('https://notify.example.com/bridge', path, mcp_url='https://notify.example.com/wechat/mcp')
+    with zipfile.ZipFile(path) as z:
+        value = json.loads(z.read('wechat-notify-local/CONNECTION.json'))
+        assert value['mcp_url'] == 'https://notify.example.com/wechat/mcp'
+    with pytest.raises(ValueError):
+        remote('https://notify.example.com/bridge', path, mcp_url='https://other.example.com/mcp')

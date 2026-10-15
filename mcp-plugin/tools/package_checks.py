@@ -34,7 +34,7 @@ def portable_markdown(text, name, included):
     return re.sub(r"\]\(([^)]+)\)", target, text)
 
 
-def release_metadata(plugin, entries):
+def release_metadata(plugin, entries, *, scope):
     """Public source fingerprint only; never hash or include configured credentials."""
     plugin = Path(plugin)
     version = json.loads((plugin / "plugin.json").read_text(encoding="utf-8"))["version"]
@@ -52,6 +52,7 @@ def release_metadata(plugin, entries):
         format_version=1,
         server_version=server,
         plugin_version=version,
+        fingerprint_scope=scope,
         public_source_sha256=digest.hexdigest(),
     )
 

@@ -60,7 +60,7 @@ def contents(root):
         if path.suffix == ".md":
             content = portable_markdown(content, name, set(FILES))
         entries[name] = content.encode("utf-8")
-    release = release_metadata(root / "mcp-plugin", entries)
+    release = release_metadata(root / "mcp-plugin", entries, scope="developer-docs")
     entries["RELEASE.json"] = json.dumps(release, ensure_ascii=False, indent=2).encode("utf-8")
     docs = {key: (root / path).read_text(encoding="utf-8") for key, path in DOCS.items()}
     docs.update(_sources=DOCS, _release=release)

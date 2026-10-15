@@ -57,13 +57,13 @@ notify-bridge/
 
 朋友接手维护请先读 [维护手册](docs/MAINTAINER.md)，目录导航见 [文档索引](docs/README.md)。前端源码在 `frontend/src/`；运行用静态资源由构建生成。
 
-当前源码候选为 **v1.18.0（未发布）**，见 [候选发布说明与上线检查](docs/history/release-1.18.0.md)。生产保护基线仍为 **v1.17.1 / `8e1c03b`**，历史说明见 [v1.17.1](docs/history/release-1.17.1.md)。REFINE-01 在独立开发分支整理，未部署；实例实际版本以健康接口、镜像和受保护发布清单核对。账号初始化、升级与恢复以 [管理与恢复](docs/product-v3/OPERATIONS.md) 为准。v0.3/F02 的设计与分批记录属于历史证据。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
+当前源码版本为 **v1.18.0**，MCP 插件 **1.11.0**，见 [发布说明与上线检查](docs/history/release-1.18.0.md)。升级前生产保护基线为 **v1.17.1 / `8e1c03b`**，历史说明见 [v1.17.1](docs/history/release-1.17.1.md)。REFINE-01 的隔离整理与验收记录仍保留；实例实际版本以健康接口、镜像和受保护发布清单核对。账号初始化、升级与恢复以 [管理与恢复](docs/product-v3/OPERATIONS.md) 为准。v0.3/F02 的设计与分批记录属于历史证据。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
 
 三条交付路径：[部署维护](docs/MAINTAINER.md)、[AI 宿主 MCP 接入](docs/integration/AI-HOSTS.md)、[业务系统 HTTP 接入](docs/integration/HTTP.md)。AI/HTTP 资料可基于已有应用导出，不自动创建重复身份或轮换 Key。
 
 ## 开发者接入
 
-部署后的公开文档入口为服务地址加 `/docs/`，无需管理登录，可直接分享给 Codex、Claude Code 或业务开发者。支持网页、`/docs/index.md`、`/docs/openapi.json` 与 `/docs/download.zip`。管理端、消息记录和含凭据导出包继续鉴权；公开资料不代表获得调用授权。本分支未部署，不能据此认定正式站已有该入口。
+部署后的公开文档入口为服务地址加 `/docs/`，无需管理登录，可直接分享给 Codex、Claude Code 或业务开发者。支持网页、`/docs/index.md`、`/docs/openapi.json` 与 `/docs/download.zip`。管理端、消息记录和含凭据导出包继续鉴权；公开资料不代表获得调用授权。该入口需随匹配版本部署，正式站可用性以实际匿名访问和版本核验为准。
 
 接入其他 AI、监控脚本或业务程序，请从 [开发者接入指南](docs/integration/README.md) 开始。配套提供 [HTTP 接口文档](docs/server/API.md)、[OpenAPI 文件](server/openapi.json) 和 [轻量 Python 客户端示例](examples/python/notify_bridge.py)。
 

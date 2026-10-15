@@ -26,7 +26,7 @@ python server/scripts/build_developer_kit.py
 python -m wechat_bridge --directory .private/local
 ```
 
-程序只监听 127.0.0.1。管理员密钥保存在指定目录的 `admin-key.txt`，不输出到日志、不拼进 URL。
+程序只监听 127.0.0.1。管理端使用独立账号密码；首次初始化及获授权终端恢复见[管理与恢复](docs/product-v3/OPERATIONS.md)。旧管理员 Key 不再用于管理端登录；应用 Key 保持独立。
 本地微信可主动连接上游；飞书 HTTPS 事件回调需要一个公网可达地址和反向代理，单纯启动本地页面不等于回调接通。
 不要将真实 data/secrets、会话内容或客户端凭据加入 Git。
 

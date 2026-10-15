@@ -27,7 +27,9 @@ def source(tmp_path, monkeypatch):
     plugin = tmp_path / "mcp-plugin/plugin.json"
     plugin.parent.mkdir(parents=True, exist_ok=True)
     plugin.write_text('{"version":"1.11.0"}', encoding="utf-8")
-    for name in ("frontend/render-docs.mjs", "frontend/src/shared/theme.css"):
+    for name in ["frontend/render-docs.mjs", "frontend/src/shared/theme.css"] + [
+        p.relative_to(ROOT).as_posix() for p in (ROOT / "frontend/docs").iterdir()
+    ]:
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes((ROOT / name).read_bytes())
@@ -38,6 +40,8 @@ def source(tmp_path, monkeypatch):
         lambda root, pages, release: {
             **{p["path"]: b"<h1>fixture</h1>" for p in pages},
             "style.css": b"body{}",
+            "script.js": b"// isolated renderer fixture",
+            "search-index.json": b"{}",
         },
     )
     builder.build(tmp_path)

@@ -1,6 +1,6 @@
 # Notify Bridge 工作入口
 
-先读 AGENTS.md 的生产保护边界，再读 README.md 与 docs/MAINTAINER.md。当前源码版本为 v1.18.0，MCP 插件 1.11.0；升级前生产保护基线为 v1.17.1 / 8e1c03b。运行版本、镜像和恢复点须核对实例发布清单，不能从文档或历史授权推断已上线或新增操作权限。管理认证、恢复及数据匹配见 docs/product-v3/OPERATIONS.md；历史迭代材料不作为当前操作步骤。
+先读 AGENTS.md 的生产保护边界，再读 README.md 与 docs/MAINTAINER.md。当前源码版本为 v1.18.0，MCP 插件 1.11.0；已发布保护基线为 v1.18.0 / a33517f。DOC-01 新文档网站仍为隔离候选。运行版本、镜像和恢复点须核对实例发布清单，不能从文档或历史授权推断已上线或新增操作权限。管理认证、恢复及数据匹配见 docs/product-v3/OPERATIONS.md；历史迭代材料不作为当前操作步骤。
 
 Notify Bridge 是统一消息中转站。你是站外开发、维护和使用助手，站内不运行通用 Agent。复用现有 Vue/FastAPI/SQLite/MCP 实现；不可仅为整理而重建框架、业务或历史。
 

@@ -18,7 +18,10 @@
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = "重新加载";
-      b.addEventListener("click", load);
+      b.addEventListener("click", async () => {
+        await load();
+        input.focus();
+      });
       box.append(b);
     }
     results.replaceChildren(box);
@@ -84,9 +87,12 @@
     failed = false;
     message("正在加载全文索引…");
     loading = (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
       try {
         const response = await fetch(new URL("search-index.json", root), {
           credentials: "omit",
+          signal: controller.signal,
         });
         if (!response.ok) throw new Error("index unavailable");
         const data = await response.json();
@@ -101,6 +107,7 @@
         failed = true;
         message("搜索索引暂时不可用，仍可使用左侧目录阅读文档。", true);
       } finally {
+        clearTimeout(timeout);
         loading = null;
       }
     })();
@@ -119,6 +126,7 @@
     );
     menu.setAttribute("aria-expanded", String(open));
     sidebar.inert = mobile.matches && !open;
+    q(".page-layout").inert = mobile.matches && open;
     if (open && mobile.matches) sidebar.querySelector("a")?.focus();
     if (!open && restore) menu.focus();
   };
@@ -155,6 +163,10 @@
     }
     if (e.key === "Escape" && sidebar.classList.contains("is-open"))
       setNav(false, true);
+    if (dialog.open && e.key === "Enter" && document.activeElement === input) {
+      e.preventDefault();
+      results.querySelector("a")?.click();
+    }
     if (dialog.open && ["ArrowDown", "ArrowUp"].includes(e.key)) {
       const links = [...results.querySelectorAll("a")];
       if (!links.length) return;
@@ -165,13 +177,24 @@
     }
   });
   const copy = async (text) => {
+    let timeout;
     try {
       if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
+        await Promise.race([
+          navigator.clipboard.writeText(text),
+          new Promise((_, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error("clipboard timeout")),
+              2500,
+            );
+          }),
+        ]);
         return true;
       }
     } catch {
       /* selection fallback */
+    } finally {
+      clearTimeout(timeout);
     }
     const textarea = document.createElement("textarea");
     textarea.className = "sr-only";
@@ -190,11 +213,16 @@
     return ok;
   };
   const copied = async (button, text) => {
-    const original = button.textContent,
-      ok = await copy(text);
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = "正在复制…";
+    const ok = await copy(text);
+    button.disabled = false;
     button.textContent = ok ? "已复制" : "复制失败，请手动选择";
+    button.setAttribute("aria-label", button.textContent);
     setTimeout(() => {
       button.textContent = original;
+      button.setAttribute("aria-label", original);
     }, 1800);
   };
   document.querySelectorAll("pre > code").forEach((code) => {

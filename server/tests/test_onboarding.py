@@ -1,9 +1,30 @@
 import io
 import json
 import zipfile
+import httpx
 
 import pytest
-from test_portal import portal, ADMIN
+from test_portal import portal as portal_fixture, ADMIN
+from test_feishu import CONFIG
+
+portal = portal_fixture
+
+
+def configure_feishu(client, bot):
+    # A created record now stays disabled until setup; validate the fixture through the real API.
+    client.app.state.channels.adapter(bot["id"]).transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200, json={"code": 0, "tenant_access_token": "fixture", "expire": 3600}
+        )
+    )
+    assert (
+        client.post(
+            "/admin/api/bots/" + bot["id"] + "/feishu",
+            headers=ADMIN,
+            json={**CONFIG, "verify_credentials": True},
+        ).status_code
+        == 200
+    )
 
 
 def unpack(response):
@@ -23,6 +44,23 @@ def base_url(portal, monkeypatch):
 def test_configured_local_issues_only_selected_grant_and_keeps_key_private(portal):
     store, client, *_ = portal
     bot = store.bots.create("专用飞书", "feishu")
+    before = store.clients.list()
+    assert (
+        client.post(
+            "/admin/api/onboarding/package",
+            headers=ADMIN,
+            json={
+                "transport": "local",
+                "credential_mode": "new",
+                "client_name": "包测试",
+                "bot_id": bot["id"],
+                "private_ack": True,
+            },
+        ).status_code
+        == 409
+    )
+    assert store.clients.list() == before
+    configure_feishu(client, bot)
     files = unpack(
         client.post(
             "/admin/api/onboarding/package",
@@ -114,6 +152,7 @@ def test_export_auth_permissions_validation_and_loopback_policy(portal, monkeypa
         assert client.post(path, headers=headers, json={"kind": "rules"}).status_code == 401
     identity = store.clients.authenticate(auth["Authorization"][7:])
     bot = store.bots.create("未授权", "feishu")
+    configure_feishu(client, bot)
     assert (
         client.post(
             path, headers=ADMIN, json={"client_id": identity.id, "bot_id": bot["id"]}
@@ -243,7 +282,12 @@ def test_downloaded_local_package_starts_and_discovers_tools(portal, monkeypatch
                 async with stdio_client(parameters) as (reader, writer):
                     async with ClientSession(reader, writer) as session:
                         await session.initialize()
-                        assert {'getCallerIdentity','getConversationHistory','claimMessage','reportMessage'} <= {tool.name for tool in (await session.list_tools()).tools}
+                        assert {
+                            "getCallerIdentity",
+                            "getConversationHistory",
+                            "claimMessage",
+                            "reportMessage",
+                        } <= {tool.name for tool in (await session.list_tools()).tools}
                         result = await session.call_tool("getCallerIdentity", {})
                         assert not result.isError
                         assert (

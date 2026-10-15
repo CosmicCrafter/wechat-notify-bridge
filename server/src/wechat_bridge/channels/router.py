@@ -78,7 +78,24 @@ class Channels:
                 continue
             adapter = self.adapter(bot["id"])
             status = self.drivers[bot["platform"]].status(adapter)
-            result.append(dict(bot, status=status))
+            configured = self.registry.configured(bot["id"])
+            result.append(
+                dict(
+                    bot,
+                    status=status,
+                    configuration_state="configured" if configured else "pending_configuration",
+                    delivery_ready=bool(
+                        bot["enabled"]
+                        and configured
+                        and (
+                            status.get("enabled")
+                            if bot["platform"] == "feishu"
+                            else status.get("context_ready")
+                            and status.get("connection_status") != "session_expired"
+                        )
+                    ),
+                )
+            )
         return result
 
     def status(self, identity=None):

@@ -85,9 +85,15 @@ export async function api(path, body, binary = false) {
   if (!r.ok) {
     const d = await r.json().catch(() => ({}));
     if (r.status === 401 && d.detail === "admin_login_required") clearSession();
+    const code = typeof d.detail === "string" ? d.detail : d.detail?.code;
+    const platformCode =
+      code === "feishu_credentials_rejected" &&
+      Number.isSafeInteger(d.detail?.platform_code)
+        ? "（飞书代码 " + d.detail.platform_code + "）"
+        : "";
     throw Object.assign(
       Error(
-        errors[d.detail] ||
+        (errors[code] && errors[code] + platformCode) ||
           {
             401: "认证信息不正确或已失效",
             404: "记录已变化，请刷新重试",

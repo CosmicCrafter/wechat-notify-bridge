@@ -1,4 +1,11 @@
 export const errors = {
+  bot_configuration_required: "连接尚未完成配置，不能启用投递，请先继续配置。",
+  feishu_credentials_rejected:
+    "飞书凭据验证失败，请核对 App ID 和 App Secret。本次修改未保存。",
+  feishu_credentials_unavailable:
+    "暂时无法连接飞书凭据校验服务，本次修改未保存，请稍后重试。",
+  feishu_credentials_response_invalid:
+    "飞书校验响应异常，本次修改未保存，请稍后重试。",
   urgent_not_authorized: "此应用尚未获授权使用紧急连接。",
   urgent_rate_limited: "紧急提醒过于频繁，请等待配置的间隔，不要换键重发。",
   urgent_bot_required: "请先选择紧急飞书 B。",
@@ -63,7 +70,7 @@ export const errors = {
   feishu_owner_mismatch:
     "已有飞书应用与本人绑定不能替换，可修改 Secret 和回调密钥。",
   admin_not_configured:
-    "服务器尚未配置管理员密钥，请按部署说明添加管理员配置后重启。",
+    "尚未初始化管理员账号，请按登录页的服务器终端说明初始化。管理端不支持应用 Key 登录。",
   confirm_rebind_required: "已有绑定，请确认后重新绑定。",
   pairing_retry_later: "请稍等几秒再生成二维码。",
   no_verification_pending: "验证码步骤已变化，请按当前提示继续。",

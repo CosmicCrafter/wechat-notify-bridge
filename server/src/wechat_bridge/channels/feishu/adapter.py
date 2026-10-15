@@ -13,6 +13,7 @@ from wechat_bridge.services.commands import format_time
 from wechat_bridge.channels.registry import BotConversations
 from wechat_bridge.core.errors import BridgeError
 from wechat_bridge.channels.feishu.inbound import FeishuInbound
+from fastapi import HTTPException
 
 BASE = "https://open.feishu.cn/open-apis"
 
@@ -41,7 +42,8 @@ class Feishu(FeishuInbound):
     def config(self):
         return self.state.settings(self.scope_name)
 
-    def configure(self, value):
+    def prepare_config(self, value):
+        value = dict(value)
         previous = self.config()
         for name in ("app_id", "owner_open_id", "app_secret", "verification_token", "encrypt_key"):
             if not value.get(name):
@@ -75,12 +77,43 @@ class Feishu(FeishuInbound):
             )
         ):
             self.store.bots.assert_safe_change(self.bot_id)
-        self.state.save_settings(self.scope_name, value)
-        self.store.db.execute(
-            "UPDATE bots SET enabled=? WHERE id=?", (int(value["enabled"]), self.bot_id)
-        )
+        return value
+
+    def configure(self, value):
+        value = self.prepare_config(value)
+        self.store.db.execute("SAVEPOINT configure_feishu")
+        try:
+            self.state.save_settings(self.scope_name, value)
+            self.store.db.execute(
+                "UPDATE bots SET enabled=? WHERE id=?", (int(value["enabled"]), self.bot_id)
+            )
+            self.store.db.execute("RELEASE configure_feishu")
+        except Exception:
+            self.store.db.execute("ROLLBACK TO configure_feishu")
+            self.store.db.execute("RELEASE configure_feishu")
+            raise
         self.token, self.token_until = "", 0
         return self.status()
+
+    async def validate_credentials(self, value):
+        candidate = self.prepare_config(value)
+        if not all(
+            candidate.get(k)
+            for k in ("app_id", "app_secret", "owner_open_id", "verification_token", "encrypt_key")
+        ):
+            raise BridgeError(422, "incomplete_feishu_configuration")
+        try:
+            # Never reuse the old token to validate changed credentials. Do not persist first.
+            await self.fetch_access_token(candidate)
+        except Rejected as exc:
+            detail = {"code": "feishu_credentials_rejected"}
+            if exc.code.isdigit():
+                detail["platform_code"] = int(exc.code)
+            raise HTTPException(422, detail) from None
+        except httpx.HTTPError:
+            raise BridgeError(503, "feishu_credentials_unavailable") from None
+        except (ValueError, TypeError, AttributeError):
+            raise BridgeError(502, "feishu_credentials_response_invalid") from None
 
     def ready(self):
         config = self.config()
@@ -90,6 +123,7 @@ class Feishu(FeishuInbound):
 
     def status(self):
         config = self.config()
+        configured = self.store.bots.configured(self.bot_id)
         return dict(
             enabled=bool(config.get("enabled") and self.store.bots.get(self.bot_id)["enabled"]),
             configured=all(
@@ -116,7 +150,11 @@ class Feishu(FeishuInbound):
             else None,
             bot_id=self.bot_id,
             last_event_at=self.store.get(self.scope_name + ":last_event_at"),
-            connection_status="disabled" if not config.get("enabled") else "configured",
+            connection_status="pending_configuration"
+            if not configured
+            else "configured"
+            if config.get("enabled") and self.store.bots.get(self.bot_id)["enabled"]
+            else "disabled",
             capabilities=[
                 "message",
                 "notification",
@@ -180,6 +218,10 @@ class Feishu(FeishuInbound):
     async def access_token(self, config):
         if self.token_until > time.time():
             return self.token
+        self.token, self.token_until = await self.fetch_access_token(config)
+        return self.token
+
+    async def fetch_access_token(self, config):
         response = await self.client().post(
             BASE + "/auth/v3/tenant_access_token/internal",
             json=dict(app_id=config["app_id"], app_secret=config["app_secret"]),
@@ -193,8 +235,7 @@ class Feishu(FeishuInbound):
         token, expires = value.get("tenant_access_token"), value.get("expire")
         if not isinstance(token, str) or not token or type(expires) is not int or expires < 120:
             raise ValueError("invalid_auth_response")
-        self.token, self.token_until = token, time.time() + min(expires, 7200) - 60
-        return token
+        return token, time.time() + min(expires, 7200) - 60
 
     async def send(
         self,

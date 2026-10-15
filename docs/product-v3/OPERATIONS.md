@@ -25,10 +25,22 @@
 只在获得该实例维护授权且有其数据库文件权限的交互终端执行。先确认实例与私有备份目录；不要把密码或Key作为命令参数。示例中的路径要替换为当前实例实际路径：
 
 ```sh
-python -m wechat_bridge.admin_reset --database /data/wechat.sqlite3 --backup-dir /private/admin-reset-backups --authorize RESET_ADMIN
+python -m wechat_bridge.admin_reset --database "<数据库绝对路径>" --backup-dir "<私有备份目录绝对路径>" --authorize RESET_ADMIN
 ```
 
-原来未建账号时才另加 --initialize --username 维护用户名。工具交互读两次新密码，先SQLite在线backup和integrity_check，再只改管理凭据与管理会话；不改通知/消息/应用Key/主加密密钥。没有公网无验证重置接口。终端快照生成和完整性检查不等于恢复测试。
+首次安装尚无管理员时使用初始化模式；已有账号忘记密码时使用上方重置模式，保留原用户名：
+
+```sh
+python -m wechat_bridge.admin_reset --database "<数据库绝对路径>" --backup-dir "<私有备份目录绝对路径>" --authorize RESET_ADMIN --initialize --username "<管理员用户名>"
+```
+
+登录页未初始化时直接显示说明，找回密码页可展开“服务器终端恢复”，选择执行环境、填写路径并复制对应命令；网页不执行命令或新增公开初始化/重置接口。
+
+- 本机入口默认数据库位于用户主目录的 .notify-bridge/data/wechat.sqlite3；--directory 自定义时为该目录下 data/wechat.sqlite3。
+- ASGI 部署按实际 WECHAT_DATA/wechat.sqlite3 确认，使用安装服务的 Python 环境；不要新建空库替代正在使用的数据库。
+- 仓库 Docker Compose 在 server/ 执行，服务名为 wechat-notifier，默认 ./.data 挂载到 /data。容器内数据库是 /data/wechat.sqlite3，持久私有备份目录可填 /data/admin-reset-backups；自定义挂载/服务名必须相应调整，勿写入只读 /run/secrets。
+
+工具交互读两次新密码，先SQLite在线backup和integrity_check，再只改管理凭据与管理会话；不改通知/消息/应用Key/主加密密钥。没有公网无验证重置接口。终端快照生成和完整性检查不等于恢复测试。
 
 ## 升级与失败回退
 
@@ -51,3 +63,12 @@ python -m wechat_bridge.admin_reset --database /data/wechat.sqlite3 --backup-dir
 仓库根目录以独立环境运行 scripts/run_v03_test.py，访问 [本地管理端](http://127.0.0.1:19865/admin/)；随机账号仅在 .private/test-v03/local-access.json。此目录与生产完全独立，所有平台/扫码/代理出口都是替身，长期收件/定时后台关闭。页面有明确测试标识；真人验证码接收须独立测试Bot。
 
 scripts/verify_v03_test.py 验证HTTP流程；scripts/verify_v03_mcp.py 验证新应用通过真实stdio MCP SDK发现/调用工具并与管理端、手机HTTP共用账本。它们不连接生产、不证明真人平台或新Codex/Claude宿主已安装成功。
+
+
+## 连接配置的三种状态（F03/F04）
+
+新建记录先为“待配置、不可投递”，不自动启用；关闭向导后从该记录“继续配置”，不另建同名连接。飞书向导显式验证 App ID/Secret，通过后原子保存加密配置并按开关启用。失败时保留表单，显示验证拒绝代码、网络不可用或响应异常，原配置/授权不改。保存仅证明凭据落库，不证明消息发送、本人回程或回调权限可用，需另做既有收发测试。
+
+旧保存 API 未传 verify_credentials 时维持原本地配置校验合同，不新增隐式平台请求；新向导明确传 true。旧已保存记录与授权不批量迁移。微信新连接允许先扫码，成功首次绑定后启用；已有停用连接不会因凭据修复自动启用。真实收发证据仍来自既有连接测试。
+
+向导底部保留必要的上一步、保存并继续和完成，关闭使用右上角×。未保存输入关闭需确认，已创建待配置记录保留；正在扫码时关闭会取消本次扫码。提交期间锁定操作并防双击跨步，取消关闭继续保留现场。真实账号密码、Bot Secret不放入报告或日志。

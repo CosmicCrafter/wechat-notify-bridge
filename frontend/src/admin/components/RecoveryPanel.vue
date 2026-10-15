@@ -2,6 +2,7 @@
 import { ref, onBeforeUnmount } from "vue";
 import { api, run, session, clearSession } from "../session.js";
 import { ElMessage } from "element-plus";
+import TerminalRecovery from "./TerminalRecovery.vue";
 const emit = defineEmits(["back"]);
 const username = ref(""),
   platform = ref("wechat"),
@@ -107,6 +108,7 @@ onBeforeUnmount(() => {
     没有可用恢复连接时，请有服务器权限的维护者使用终端重置工具。接入应用
     Key、消息和通信配置会保留。
   </p>
+  <TerminalRecovery />
   <el-button text :disabled="session.busy" @click="emit('back')"
     >返回登录</el-button
   >

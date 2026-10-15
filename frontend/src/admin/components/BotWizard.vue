@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, computed, onBeforeUnmount, watch, nextTick } from "vue";
 import { ElMessageBox, ElMessage } from "element-plus";
-import { api, run, session, refresh, copy } from "../session.js";
+import { api, session, refresh, copy } from "../session.js";
 import { date, connectionLabels } from "../../shared/format.js";
 import { confirmConnectionChange } from "../connection-impact.js";
 const visible = ref(false),
@@ -26,7 +26,40 @@ const callback = ref(""),
 let generation = 0,
   timer = null,
   qrVersion = "";
-let savedConfig = null;
+const savedConfig = ref(null),
+  saving = ref(false),
+  loaded = ref(false),
+  error = ref(""),
+  createdHere = ref(false),
+  credentialsSaved = ref(false);
+const busy = computed(() => saving.value || session.busy);
+const dirty = computed(() =>
+  step.value === 0
+    ? !!name.value.trim() || platform.value !== "wechat"
+    : platform.value === "feishu" &&
+      loaded.value &&
+      savedConfig.value &&
+      Object.keys(config).some((k) => config[k] !== savedConfig.value[k]),
+);
+async function execute(fn) {
+  if (busy.value) return false;
+  const started = performance.now();
+  saving.value = true;
+  error.value = "";
+  try {
+    await fn();
+    return true;
+  } catch (e) {
+    if (!e.stale) error.value = e.message;
+    return false;
+  } finally {
+    // Keep the replacement footer button disabled through the second click.
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, 400 - (performance.now() - started))),
+    );
+    saving.value = false;
+  }
+}
 const contentTop = ref();
 watch(step, async () => {
   await nextTick();
@@ -44,7 +77,12 @@ function clearQr() {
   qrVersion = "";
 }
 function reset() {
-  savedConfig = null;
+  savedConfig.value = null;
+  error.value = "";
+  loaded.value = false;
+  credentialsSaved.value = false;
+  createdHere.value = false;
+  loading.value = false;
   generation++;
   clearInterval(timer);
   clearQr();
@@ -58,8 +96,47 @@ function closed() {
   reset();
   bot.value = null;
 }
-function close(done) {
-  if (!session.busy) done();
+async function close(done) {
+  if (busy.value) return;
+  const unfinished = createdHere.value && !credentialsSaved.value;
+  const pairing = platform.value === "wechat" && pair.value?.pairing.active;
+  if (dirty.value || unfinished || pairing) {
+    try {
+      await ElMessageBox.confirm(
+        (dirty.value ? "未保存的输入将丢弃。" : "") +
+          (unfinished
+            ? "连接记录会保留为待配置，无法投递，可从列表继续配置。"
+            : "已保存的配置会保留。") +
+          (pairing ? "关闭将取消本次扫码绑定。" : ""),
+        "关闭配置？",
+        {
+          confirmButtonText: "确认关闭",
+          cancelButtonText: "继续配置",
+          type: "warning",
+        },
+      );
+    } catch (e) {
+      if (!["cancel", "close"].includes(e)) error.value = e.message;
+      return;
+    }
+  }
+  if (
+    pairing &&
+    !(await execute(async () => {
+      await api(`bots/${bot.value.id}/pairing/cancel`, {
+        session_id: pair.value.pairing.session_id,
+      });
+    }))
+  )
+    return;
+  done();
+}
+async function finish(event) {
+  if (busy.value || event?.detail > 1) return;
+  if (await execute(refresh)) {
+    visible.value = false;
+    ElMessage.success("配置已保存；真实收发状态以连接测试为准。");
+  }
 }
 async function poll() {
   if (
@@ -76,6 +153,8 @@ async function poll() {
     const p = await api(`bots/${id}/pairing`);
     if (gen !== generation) return;
     pair.value = p;
+    loaded.value = true;
+    credentialsSaved.value = !!p.service.bound;
     const v = p.pairing.session_id + "/" + p.pairing.qr_version;
     if (!p.pairing.qr_available) clearQr();
     else if (v !== qrVersion) {
@@ -91,17 +170,18 @@ async function poll() {
     }
     if (p.service.bound && !p.pairing.active) step.value = 2;
   } finally {
-    loading.value = false;
+    if (gen === generation) loading.value = false;
   }
 }
 async function open(existing = null) {
+  if (busy.value) return;
   reset();
   bot.value = existing;
   name.value = existing?.name || "";
   platform.value = existing?.platform || "wechat";
   step.value = existing ? 1 : 0;
   visible.value = true;
-  if (existing) await load();
+  if (existing) await execute(load);
 }
 async function load() {
   if (platform.value === "feishu") {
@@ -109,9 +189,12 @@ async function load() {
     const d = await api(`bots/${bot.value.id}/feishu`);
     if (gen !== generation) return;
     for (const k of Object.keys(config))
-      config[k] = d[k] ?? (k === "enabled" ? false : "");
+      config[k] =
+        k === "enabled" ? (d.configured ? !!d.enabled : true) : (d[k] ?? "");
     config.owner_open_id = d.owner_open_id || d.default_owner_open_id || "";
-    savedConfig = { ...config };
+    savedConfig.value = { ...config };
+    credentialsSaved.value = !!d.configured;
+    loaded.value = true;
     callback.value = d.callback_url || "";
     lastEvent.value = d.last_event_at;
   } else {
@@ -119,19 +202,20 @@ async function load() {
     timer = setInterval(() => {
       if (!session.busy)
         poll().catch((e) => {
-          if (!e.stale) session.error = e.message;
+          if (!e.stale) error.value = e.message;
         });
     }, 3000);
   }
 }
 async function next() {
-  await run(async () => {
+  await execute(async () => {
     if (step.value === 0) {
       if (!name.value.trim()) throw Error("请填写连接名称。");
       bot.value = await api("bots", {
         name: name.value.trim(),
         platform: platform.value,
       });
+      createdHere.value = true;
       step.value = 1;
       await refresh();
       await load();
@@ -140,6 +224,7 @@ async function next() {
         await poll();
       }
     } else {
+      if (!loaded.value) throw Error("请先重新载入配置。");
       for (const k of [
         "app_id",
         "owner_open_id",
@@ -150,8 +235,9 @@ async function next() {
         if (!String(config[k]).trim())
           throw Error("请完整填写应用凭据与接收人 Open ID。");
       if (
-        savedConfig &&
-        Object.keys(config).some((k) => savedConfig[k] !== config[k]) &&
+        credentialsSaved.value &&
+        savedConfig.value &&
+        Object.keys(config).some((k) => savedConfig.value[k] !== config[k]) &&
         !(await confirmConnectionChange(bot.value, "更新配置", {
           repair: config.enabled,
         }))
@@ -159,18 +245,27 @@ async function next() {
         return;
       const password =
         bot.value.last_recovery_protected &&
-        savedConfig &&
-        Object.keys(config).some((k) => savedConfig[k] !== config[k])
+        savedConfig.value &&
+        Object.keys(config).some((k) => savedConfig.value[k] !== config[k])
           ? await currentPassword()
           : undefined;
       if (password === null) return;
-      await api(`bots/${bot.value.id}/feishu`, {
+      const d = await api(`bots/${bot.value.id}/feishu`, {
         ...config,
+        verify_credentials: true,
         ...(password ? { admin_password: password } : {}),
       });
-      await load();
+      savedConfig.value = { ...config };
+      credentialsSaved.value = true;
+      // The save response is authoritative even if refreshing the list subsequently fails.
       step.value = 2;
-      await refresh();
+      callback.value = d.callback_url || "";
+      lastEvent.value = d.last_event_at;
+      try {
+        await refresh();
+      } catch (e) {
+        error.value = "凭据已保存，但列表刷新失败：" + e.message;
+      }
     }
   });
 }
@@ -189,11 +284,11 @@ async function startPair() {
         if (password === null) return;
       }
     } catch (e) {
-      session.error = e.message;
+      error.value = e.message;
       return;
     }
   }
-  await run(async () => {
+  await execute(async () => {
     await api(`bots/${bot.value.id}/pairing/start`, {
       replace: !!pair.value?.service.bound,
       ...(password ? { admin_password: password } : {}),
@@ -220,7 +315,7 @@ async function currentPassword() {
   }
 }
 async function verify() {
-  await run(async () => {
+  await execute(async () => {
     await api(`bots/${bot.value.id}/pairing/verify`, {
       session_id: pair.value.pairing.session_id,
       code: code.value.trim(),
@@ -246,16 +341,35 @@ onBeforeUnmount(reset);
     <el-steps :active="step" finish-status="success" simple
       ><el-step v-for="label in labels" :key="label" :title="label"
     /></el-steps>
+    <el-alert
+      v-if="bot"
+      :title="
+        credentialsSaved
+          ? dirty
+            ? '原凭据已保存 · 当前修改尚未保存'
+            : '凭据已保存 · 真实收发请单独验证'
+          : '连接记录已创建 · 待配置，不可投递'
+      "
+      type="info"
+      :closable="false"
+    />
+    <el-alert v-if="error" :title="error" type="error" :closable="false" />
+    <el-button v-if="bot && !loaded" :loading="saving" @click="execute(load)"
+      >重新载入配置</el-button
+    >
     <div class="step-body">
       <template v-if="step === 0"
         ><h3>选择通信平台</h3>
         <p class="help">每个连接独立配置平台账号，创建后不能更换平台。</p>
-        <el-radio-group v-model="platform" class="platform-options"
+        <el-radio-group
+          v-model="platform"
+          :disabled="busy"
+          class="platform-options"
           ><el-radio value="wechat" border>微信 ClawBot</el-radio
           ><el-radio value="feishu" border
             >飞书应用机器人</el-radio
           ></el-radio-group
-        ><el-form label-position="top" @submit.prevent="next"
+        ><el-form label-position="top" :disabled="busy" @submit.prevent="next"
           ><el-form-item label="连接名称" required
             ><el-input
               v-model="name"
@@ -269,8 +383,15 @@ onBeforeUnmount(reset);
       >
       <template v-else-if="platform === 'feishu' && step === 1"
         ><h3>连接应用与接收人</h3>
-        <p class="help">先保存凭据，再到飞书开放平台配置事件和卡片回调。</p>
-        <el-form label-position="top" @submit.prevent="next"
+        <p class="help">
+          验证 App ID 和 Secret
+          后保存，再到飞书开放平台配置回调；此时仍未证明真实收发。
+        </p>
+        <el-form
+          v-if="loaded"
+          label-position="top"
+          :disabled="busy"
+          @submit.prevent="next"
           ><el-form-item label="应用 ID · App ID" required
             ><el-input
               v-model="config.app_id"
@@ -279,6 +400,8 @@ onBeforeUnmount(reset);
           ><el-form-item label="应用密钥 · App Secret" required
             ><el-input
               v-model="config.app_secret"
+              type="password"
+              show-password
               maxlength="256"
               autocomplete="off" /></el-form-item
           ><el-form-item label="接收人 Open ID" required
@@ -293,9 +416,16 @@ onBeforeUnmount(reset);
           ><el-form-item label="校验令牌 · Verification Token" required
             ><el-input
               v-model="config.verification_token"
+              type="password"
+              show-password
               maxlength="256" /></el-form-item
           ><el-form-item label="加密密钥 · Encrypt Key" required
-            ><el-input v-model="config.encrypt_key" maxlength="256" />
+            ><el-input
+              v-model="config.encrypt_key"
+              type="password"
+              show-password
+              maxlength="256"
+            />
             <p class="help">
               从飞书「事件与回调 → 加密策略」获取，必须与后台一致。
             </p></el-form-item
@@ -306,11 +436,7 @@ onBeforeUnmount(reset);
         ></template
       >
       <template v-else-if="platform === 'feishu'"
-        ><el-alert
-          title="通知桥配置已保存，请继续配置飞书后台"
-          type="success"
-          :closable="false" />
-        <h3>事件与卡片回调地址</h3>
+        ><h3>事件与卡片回调地址</h3>
         <el-input :model-value="callback" readonly
           ><template #append
             ><el-button @click="copy(callback)">复制</el-button></template
@@ -348,8 +474,10 @@ onBeforeUnmount(reset);
       <template v-else
         ><el-alert
           :title="
-            connectionLabels[pair?.service.connection_status] ||
-            '正在读取连接状态'
+            !credentialsSaved
+              ? '等待扫码绑定 · 当前不可投递'
+              : connectionLabels[pair?.service.connection_status] ||
+                '正在读取连接状态'
           "
           :type="pair?.service.bound ? 'success' : 'info'"
           :closable="false"
@@ -376,21 +504,21 @@ onBeforeUnmount(reset);
               v-model="code"
               inputmode="numeric"
               maxlength="16" /></el-form-item
-          ><el-button type="primary" :loading="session.busy" @click="verify"
+          ><el-button type="primary" :loading="saving" @click="verify"
             >验证连接</el-button
           ></el-form
         >
         <div class="actions">
           <el-button
-            :disabled="session.busy || pair?.pairing.active"
+            :disabled="busy || pair?.pairing.active"
             type="primary"
             @click="startPair"
             >{{ pair?.service.bound ? "重新绑定" : "生成二维码" }}</el-button
           ><el-button
             v-if="pair?.pairing.active"
-            :disabled="session.busy"
+            :disabled="busy"
             @click="
-              run(async () => {
+              execute(async () => {
                 await api(`bots/${bot.id}/pairing/cancel`, {
                   session_id: pair.pairing.session_id,
                 });
@@ -425,24 +553,23 @@ onBeforeUnmount(reset);
       >
     </div>
     <template #footer
-      ><el-button :disabled="session.busy" @click="visible = false"
-        >关闭</el-button
       ><el-button
         v-if="platform === 'feishu' && step === 2"
-        :disabled="session.busy"
+        :disabled="busy"
         @click="step = 1"
         >上一步</el-button
       ><el-button
         v-if="step === 0 || (platform === 'feishu' && step === 1)"
         type="primary"
-        :loading="session.busy"
+        :loading="saving"
+        :disabled="busy || (step === 1 && !loaded)"
         @click="next"
         >{{ step === 0 ? "下一步" : "保存并继续" }}</el-button
       ><el-button
         v-else
         type="primary"
-        :disabled="session.busy"
-        @click="visible = false"
+        :disabled="busy || !credentialsSaved"
+        @click="finish"
         >完成</el-button
       ></template
     ></el-dialog

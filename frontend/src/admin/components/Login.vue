@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { session, run, loginAccount } from "../session.js";
 import RecoveryPanel from "./RecoveryPanel.vue";
+import TerminalRecovery from "./TerminalRecovery.vue";
 const username = ref(""),
   password = ref(""),
   mode = ref("password");
@@ -38,6 +39,7 @@ async function login() {
           type="info"
           :closable="false"
         />
+        <TerminalRecovery v-if="!session.configured" initialize />
         <el-form label-position="top" @submit.prevent="login">
           <el-form-item label="用户名"
             ><el-input

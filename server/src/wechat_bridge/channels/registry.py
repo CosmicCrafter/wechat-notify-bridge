@@ -79,13 +79,30 @@ class BotRegistry:
         if self.db.execute("SELECT count(*) FROM bots").fetchone()[0] >= 32:
             raise ClientError("bot_limit_reached", 429)
         id = uuid.uuid4().hex
-        self.db.execute("INSERT INTO bots VALUES (?,?,?,?,?)", (id, name, platform, 1, time.time()))
+        # A record is not a configured transport. Existing rows/defaults retain their state.
+        self.db.execute("INSERT INTO bots VALUES (?,?,?,?,?)", (id, name, platform, 0, time.time()))
         return self.get(id)
+
+    def configured(self, id):
+        bot = self.get(id)
+        if bot["platform"] == "wechat":
+            return bool(
+                self.store.account()
+                if id == DEFAULT
+                else self.store.channels.settings("wechat:" + id)
+            )
+        config = self.store.channels.settings("feishu:" + id)
+        return all(
+            config.get(k)
+            for k in ("app_id", "app_secret", "owner_open_id", "verification_token", "encrypt_key")
+        )
 
     def update(self, id, name, enabled):
         if not enabled:
             self.assert_safe_change(id)
-        self.get(id)
+        current = self.get(id)
+        if enabled and not current["enabled"] and not self.configured(id):
+            raise ClientError("bot_configuration_required", 409)
         name = self.name(name)
         if self.db.execute("SELECT 1 FROM bots WHERE name=? AND id<>?", (name, id)).fetchone():
             raise ClientError("bot_name_conflict")

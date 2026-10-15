@@ -3,6 +3,48 @@ import assert from "node:assert/strict";
 import { taskCanSubmit, taskAnswerPayload } from "../src/chat/task-model.js";
 import { browserDrafts, createDrafts } from "../src/chat/drafts.js";
 import { api as phoneRequest, onUnauthorized } from "../src/chat/api.js";
+import { recoveryCommand } from "../src/admin/terminal-recovery.js";
+test("terminal recovery commands match the existing CLI without passwords or browser execution", () => {
+  const values = {
+    environment: "powershell",
+    database: "D:\\private data\\wechat.sqlite3",
+    backup: "D:\\owner's backups",
+    username: "维护者",
+    initialize: true,
+  };
+  const command = recoveryCommand(values);
+  assert.equal(
+    command,
+    "python -m wechat_bridge.admin_reset --database 'D:\\private data\\wechat.sqlite3' --backup-dir 'D:\\owner''s backups' --authorize RESET_ADMIN --initialize --username '维护者'",
+  );
+  const reset = recoveryCommand({ ...values, initialize: false });
+  assert.ok(
+    !reset.includes("--initialize") &&
+      !reset.includes("--username") &&
+      !reset.includes("--password"),
+  );
+  assert.ok(
+    recoveryCommand({
+      environment: "compose",
+      database: "/data/wechat.sqlite3",
+      backup: "/data/private backup",
+    }).startsWith(
+      "docker compose exec wechat-notifier python -m wechat_bridge.admin_reset --database '/data/wechat.sqlite3'",
+    ),
+  );
+  assert.ok(
+    recoveryCommand({
+      environment: "shell",
+      database: "/owner's/$(command).sqlite3",
+      backup: "/private",
+    }).includes("'/owner'\"'\"'s/$(command).sqlite3'"),
+  );
+  assert.ok(
+    recoveryCommand({ environment: "powershell", initialize: true }).includes(
+      "'<管理员用户名>'",
+    ),
+  );
+});
 test("leading zero replies and multi-choice limits survive payload conversion", () => {
   const draft = {
     text: "001234",

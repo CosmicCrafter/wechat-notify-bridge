@@ -117,9 +117,22 @@ async function copyCallback(bot) {
         <div class="bot-info">
           <h3>
             {{ bot.name
-            }}<el-tag size="small" :type="bot.enabled ? 'success' : 'info'">{{
-              bot.enabled ? "已启用" : "已停用"
-            }}</el-tag
+            }}<el-tag
+              size="small"
+              :type="
+                bot.configuration_state === 'pending_configuration'
+                  ? 'warning'
+                  : bot.enabled
+                    ? 'success'
+                    : 'info'
+              "
+              >{{
+                bot.configuration_state === "pending_configuration"
+                  ? "待配置 · 不可投递"
+                  : bot.enabled
+                    ? "已启用"
+                    : "已停用"
+              }}</el-tag
             ><el-tag v-if="bot.recovery_bound" size="small" type="warning">{{
               bot.last_recovery_protected
                 ? "最后恢复连接 · 受保护"
@@ -130,7 +143,9 @@ async function copyCallback(bot) {
             {{ platformName(bot.platform) }} ·
             {{
               bot.platform === "wechat"
-                ? connectionLabels[bot.status.connection_status]
+                ? bot.configuration_state === "pending_configuration"
+                  ? "待扫码绑定"
+                  : connectionLabels[bot.status.connection_status]
                 : bot.status.configured
                   ? "平台凭据已保存"
                   : "待配置平台应用"
@@ -159,7 +174,9 @@ async function copyCallback(bot) {
           <p class="help">{{ bot.applications?.length || 0 }} 个应用获得授权</p>
         </div>
         <div class="actions">
-          <el-button :disabled="session.busy || !bot.enabled" @click="test(bot)"
+          <el-button
+            :disabled="session.busy || !bot.delivery_ready"
+            @click="test(bot)"
             >收发测试</el-button
           ><el-button :disabled="session.busy" @click="impact(bot)"
             >影响范围</el-button
@@ -167,7 +184,7 @@ async function copyCallback(bot) {
             @command="
               (kind) =>
                 kind === 'configure'
-                  ? run(() => wizard.open(bot))
+                  ? wizard.open(bot)
                   : kind === 'rename'
                     ? rename(bot)
                     : kind === 'callback'
@@ -177,8 +194,11 @@ async function copyCallback(bot) {
             ><el-button :disabled="session.busy">管理连接 ▾</el-button
             ><template #dropdown
               ><el-dropdown-menu
-                ><el-dropdown-item command="configure"
-                  >配置连接</el-dropdown-item
+                ><el-dropdown-item command="configure">{{
+                  bot.configuration_state === "pending_configuration"
+                    ? "继续配置"
+                    : "配置连接"
+                }}</el-dropdown-item
                 ><el-dropdown-item command="rename">修改名称</el-dropdown-item
                 ><el-dropdown-item
                   v-if="bot.platform === 'feishu'"
@@ -186,7 +206,11 @@ async function copyCallback(bot) {
                   >复制回调地址</el-dropdown-item
                 ><el-dropdown-item
                   command="enabled"
-                  :disabled="bot.enabled && bot.last_recovery_protected"
+                  :disabled="
+                    (bot.enabled && bot.last_recovery_protected) ||
+                    (!bot.enabled &&
+                      bot.configuration_state === 'pending_configuration')
+                  "
                   >{{ bot.enabled ? "停用连接" : "启用连接" }}</el-dropdown-item
                 ><el-dropdown-item
                   command="delete"

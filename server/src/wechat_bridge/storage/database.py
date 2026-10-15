@@ -155,6 +155,8 @@ class Store:
         self.db.execute("BEGIN IMMEDIATE")
         try:
             self.save_account(account)
+            if not current:
+                self.db.execute("UPDATE bots SET enabled=1 WHERE id=?", (self.bot_id,))
             self.db.executemany(
                 "DELETE FROM state WHERE key=?",
                 [

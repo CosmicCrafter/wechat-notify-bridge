@@ -9,6 +9,7 @@ created connections. This is an HTTP/UI test version, not real recipient proof.
 # ruff: noqa: E402
 
 import asyncio
+import argparse
 import json
 import os
 from pathlib import Path
@@ -47,6 +48,11 @@ def platform(request, scope=None):
     if "qrcode_status" in request.url.path:
         return httpx.Response(200, json={"status": "wait"})
     if request.url.path.endswith("tenant_access_token/internal"):
+        secret = json.loads(request.content or b"{}").get("app_secret", "")
+        if secret.startswith("test-invalid"):
+            return httpx.Response(200, json={"code": 10003, "msg": "isolated credential rejection"})
+        if secret.startswith("test-auth-timeout"):
+            raise httpx.ConnectError("isolated auth unavailable", request=request)
         return httpx.Response(
             200, json={"code": 0, "tenant_access_token": secrets.token_urlsafe(24), "expire": 3600}
         )
@@ -141,7 +147,18 @@ def make_proxy(store):
 
 
 def main():
-    private = ROOT / ".private/test-v03"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--first-install",
+        action="store_true",
+        help="Temporary F01 profile without an administrator, loopback 19866",
+    )
+    args = parser.parse_args()
+    port = 19866 if args.first_install else 19865
+    os.environ["WECHAT_PUBLIC_BASE_URL"] = f"http://127.0.0.1:{port}"
+    private = ROOT / (
+        ".private/test-first-install-f01" if args.first_install else ".private/test-v03"
+    )
     private.mkdir(parents=True, exist_ok=True)
     key_path = private / "encryption.key"
     if not key_path.exists():
@@ -149,14 +166,17 @@ def main():
     store = Store(private / "test.sqlite3", key_path.read_bytes())
     access_path = private / "local-access.json"
     accounts = AdminAccounts(store.db)
-    if not accounts.account():
+    if args.first_install and accounts.account():
+        raise RuntimeError(
+            "First-install test profile already has an account; existing data was not changed."
+        )
+    if not args.first_install and not accounts.account():
         access = {
             "username": "local-admin",
             "password": secrets.token_urlsafe(32),
         }
         accounts.initialize(access["username"], password_hash(access["password"]))
         access_path.write_text(json.dumps(access, indent=2), encoding="utf-8")
-    access = json.loads(access_path.read_text(encoding="utf-8"))
     if not store.account():
         store.bind(
             dict(
@@ -201,12 +221,14 @@ def main():
         "candidate": "v0.3",
         "receive_workers": False,
     }
-    print("Isolated HTTP acceptance: http://127.0.0.1:19865/admin/")
+    print(f"Isolated HTTP acceptance: http://127.0.0.1:{port}/admin/")
     print(
-        "Random local login stored in .private/test-v03/local-access.json; platform responses are simulated."
+        "No administrator created in the separate F01 first-install test profile."
+        if args.first_install
+        else "Random local login stored in .private/test-v03/local-access.json; platform responses are simulated."
     )
     try:
-        uvicorn.run(app, host="127.0.0.1", port=19865, access_log=False)
+        uvicorn.run(app, host="127.0.0.1", port=port, access_log=False)
     finally:
         asyncio.run(bridge.close())
         store.close()

@@ -23,6 +23,7 @@ class FeishuSettings(BaseModel):
     verification_token: str = Field(default="", max_length=256)
     encrypt_key: str = Field(default="", max_length=256)
     admin_password: SecretStr | None = Field(default=None, max_length=128)
+    verify_credentials: bool = False
 
 
 class BotCreate(BaseModel):
@@ -151,7 +152,10 @@ def mount_channels(app, authorize_admin):
                 for f in ("app_secret", "verification_token", "encrypt_key")
             ):
                 await credential_repair(bot_id, body.admin_password)
-            result = adapter.configure(body.model_dump(exclude={"admin_password"}))
+            value = body.model_dump(exclude={"admin_password", "verify_credentials"})
+            if body.verify_credentials:
+                await adapter.validate_credentials(value)
+            result = adapter.configure(value)
             app.state.admin_accounts.audit("connection_credentials", "web:" + bot_id)
             return result
 
@@ -170,11 +174,16 @@ def mount_channels(app, authorize_admin):
         include_in_schema=False,
     )
     async def pair_start(bot_id: str, body: PairStart):
-        if not app.state.channels.registry.get(bot_id)["enabled"]:
+        registry = app.state.channels.registry
+        configured = registry.configured(bot_id)
+        if not registry.get(bot_id)["enabled"] and configured:
             raise ClientError("bot_disabled")
         if body.replace:
             await credential_repair(bot_id, body.admin_password)
-        return await app.state.channels.pairing(bot_id).start(body.replace)
+        pair = app.state.channels.pairing(bot_id)
+        if not configured:
+            pair.run_workers = app.state.channels.run_workers
+        return await pair.start(body.replace)
 
     @app.get(
         "/admin/api/bots/{bot_id}/pairing/qr",
@@ -225,7 +234,10 @@ def mount_channels(app, authorize_admin):
                 for f in ("app_secret", "verification_token", "encrypt_key")
             ):
                 await credential_repair(adapter.bot_id, body.admin_password)
-            result = adapter.configure(body.model_dump(exclude={"admin_password"}))
+            value = body.model_dump(exclude={"admin_password", "verify_credentials"})
+            if body.verify_credentials:
+                await adapter.validate_credentials(value)
+            result = adapter.configure(value)
             app.state.admin_accounts.audit("connection_credentials", "web:" + adapter.bot_id)
             return result
 

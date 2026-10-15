@@ -102,7 +102,7 @@ README、远程 MCP 指南和插件说明统一要求使用导出的 mcp_url，�
 | 本轮独立浏览器 | BLOCKED：浏览器工具两次无法加载请求头策略，未绕过；本轮不记浏览器 PASS。86ead62 的旧浏览器通过保留为历史，不能扩大为 1.18.0 的本次验证 |
 | 无历史新 AI | PASS：公开文档 + 本次隔离应用包；HTTP identity-only/默认 dry_run，实际 stdio MCP initialize/list 18 tools/身份/登记/dry_run。未外发、未读出私有配置、未改全局设置；不是新的 Codex/Claude 完整宿主或自动唤醒验收 |
 | Nginx 前缀与缓存 | PASS：原 nginx.conf 模板在无外网/无公开端口的独立临时容器中，/bridge/docs 相对跳转和 12 个 GET、私有 401/路径 404、no-store、旧 /wechat 别名均通过；容器已清理，未改正式代理 |
-| GitHub 托管 Linux/Windows CI | 提交前 UNVERIFIED：本地两种系统的同套检查不等于托管 CI；未将旧提交的 CI 当作本提交通过。后续托管结果以交付消息和精确提交的运行记录为准 |
+| GitHub 托管 Linux/Windows CI | BLOCKED：用户允许仅推送候选分支后，46a1f02 的推送被 GitHub 拒绝，OAuth App 缺 workflow 权限，无法上传历史 CI 文件变更；远端分支未创建、main 仍为 8e1c03b，未运行托管任务，未扩权或强推 |
 | 正式域名、TLS/CDN、真人通信 | UNVERIFIED：未访问生产、未切回调、未部署；发布清单见 [1.18.0 候选说明](release-1.18.0.md) |
 
 Linux 完整测试读取固定公开源码副本，断网运行、不挂载生产或主工作区；后续仅补前端 README 菜单文案及本交付记录，代码和生成资产无再变更。首次临时代理检查未等后端就绪出现 502；就绪等待后原模板全部通过，属于准备脚本时序，未修改产品去规避校验。
@@ -111,7 +111,7 @@ Linux 完整测试读取固定公开源码副本，断网运行、不挂载生�
 
 测试原记录和制品在本机受保护忽略目录 `.private/release-prep/`：windows-junit.xml、linux-results/、anonymous-http.json、proxy/result.json、fresh-reader/release-prep-fresh-reader-result.json、release/。它们不进入仓库或匿名文档。19869 仅重载隔离测试进程至 1.18.0，保留测试数据和随机账号；没有生产操作或数据库迁移。旧审查 ZIP 保持 86ead62，不覆盖成另一候选。
 
-本批当前源码变更清单可用 `git show --stat` 和 `git diff --name-status 86ead62..HEAD`；发布步骤与恢复边界见候选发布说明。正式上线授权前停止。
+本批代码提交为 46a1f02；后续提交仅补实际收口结果。源码 ZIP 328 文件独立解压检查通过，最终交付包按当前提交保存；没有重新运行与记录变更无关的全量测试。当前变更清单可用 `git show --stat` 和 `git diff --name-status 86ead62..HEAD`；发布步骤与恢复边界见候选发布说明。正式上线授权前停止。
 
 ## 完整文件清单
 

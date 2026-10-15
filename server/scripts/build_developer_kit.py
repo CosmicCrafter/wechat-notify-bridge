@@ -2,6 +2,11 @@
 
 import argparse
 import json
+import hashlib
+import posixpath
+import re
+import shutil
+import subprocess
 from pathlib import Path
 import zipfile
 
@@ -38,11 +43,150 @@ DOCS = {
 INTRO = """# 通知桥接入文档包
 
 先读 [接入指南](docs/integration/README.md)，按用途选择 [AI 安装](docs/integration/CLIENT-SETUP.md) 或 [HTTP 接入](docs/integration/HTTP.md)。
-在线下载的 DEPLOYMENT.json 提供实际 base_url 和 mcp_url；不要自行拼接迁移后的 MCP 地址。
+匿名下载只含通用资料，没有实例配置。若管理员提供 DEPLOYMENT.json / CONNECTION.json，使用其中实际 base_url 和 mcp_url，不自行拼接迁移后的 MCP 地址。
 版本与公开源指纹见 RELEASE.json；接口规范 server/openapi.json，示例 examples/python/notify_bridge.py。
 本包不含真实 Key、MCP 可执行插件或服务端安装程序。请管理员另行提供私有凭据或从向导下载对应接入包。
 未收录的维护/源码资料链接会明确指向完整仓库；历史设计和验收记录不混入本包。
 """
+
+
+def public_contents(entries):
+    """Project the existing public allowlist, preserving one Markdown maintenance source."""
+    from urllib.parse import quote
+
+    mapping = {name: name.removeprefix("docs/") for name in entries}
+    mapping["server/openapi.json"] = "openapi.json"
+    mapping.pop("START-HERE.md")
+    public, pages = {}, []
+
+    def markdown(text, source, destination, html=False):
+        def link(match):
+            href = match[1]
+            if re.match(r"\w+:|#", href):
+                return match[0]
+            path, separator, anchor = href.partition("#")
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(source), path))
+            if target not in mapping:
+                raise ValueError("Public documentation target is not allowlisted: " + target)
+            output = mapping[target]
+            if html and output.endswith(".md"):
+                output = output[:-3] + ".html"
+            relative = posixpath.relpath(output, posixpath.dirname(destination) or ".")
+            return (
+                "](" + quote(relative, safe="/") + (separator + anchor if separator else "") + ")"
+            )
+
+        return re.sub(r"\]\(([^)]+)\)", link, text)
+
+    for source, destination in mapping.items():
+        value = entries[source]
+        if source.endswith(".md"):
+            text = value.decode("utf-8")
+            public[destination] = markdown(text, source, destination).encode("utf-8")
+            title = next(
+                (line[2:] for line in text.splitlines() if line.startswith("# ")), destination
+            )
+            page = destination[:-3] + ".html"
+            pages.append(
+                dict(
+                    path=page,
+                    title=title,
+                    markdown_path=destination,
+                    markdown=markdown(text, source, page, True),
+                )
+            )
+        else:
+            public[destination] = value
+    guide = "docs/integration/README.md"
+    text = entries[guide].decode("utf-8")
+    public["index.md"] = markdown(text, guide, "index.md").encode("utf-8")
+    pages.insert(
+        0,
+        dict(
+            path="index.html",
+            title="公开开发文档",
+            markdown_path="index.md",
+            markdown=markdown(text, guide, "index.html", True),
+        ),
+    )
+    return public, pages
+
+
+def render_public(root, pages, release):
+    node = shutil.which("node")
+    if not node:
+        raise RuntimeError("Public HTML build requires Node and frontend/npm ci; --check does not")
+    data = dict(
+        pages=pages,
+        release=release,
+        theme=(root / "frontend/src/shared/theme.css").read_text(encoding="utf-8"),
+    )
+    result = subprocess.run(
+        [node, str(root / "frontend/render-docs.mjs"), str(ROOT / "frontend")],
+        input=json.dumps(data, ensure_ascii=False),
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        check=True,
+    )
+    return {name: value.encode("utf-8") for name, value in json.loads(result.stdout).items()}
+
+
+def build_public(root, entries, *, check):
+    public, pages = public_contents(entries)
+    digest = hashlib.sha256()
+    inputs = {
+        **public,
+        "render-input.json": json.dumps(pages, ensure_ascii=False, sort_keys=True).encode("utf-8"),
+        **{
+            name: (root / name).read_text(encoding="utf-8").encode("utf-8")
+            for name in ("frontend/render-docs.mjs", "frontend/src/shared/theme.css")
+        },
+    }
+    for name, value in sorted(inputs.items()):
+        digest.update(name.encode() + b"\0" + value + b"\0")
+    expected_rendered = {page["path"] for page in pages} | {"style.css"}
+    output = root / "server/src/wechat_bridge/web/admin/public-docs.zip"
+    if check:
+        try:
+            with zipfile.ZipFile(output) as archive:
+                names = archive.namelist()
+                manifest = json.loads(archive.read("_build.json"))
+                if (
+                    len(names) != len(set(names))
+                    or set(names) != set(public) | expected_rendered | {"_build.json"}
+                    or manifest["inputs_sha256"] != digest.hexdigest()
+                    or set(manifest["outputs"]) != expected_rendered
+                    or any(archive.read(n) != b for n, b in public.items())
+                    or any(
+                        hashlib.sha256(archive.read(n)).hexdigest() != h
+                        for n, h in manifest["outputs"].items()
+                    )
+                ):
+                    raise ValueError("stale")
+        except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+            raise SystemExit(
+                "Stale public documentation; run python server/scripts/build_developer_kit.py"
+            ) from None
+        return
+    rendered = render_public(root, pages, json.loads(entries["RELEASE.json"]))
+    if set(rendered) != expected_rendered:
+        raise ValueError("Public renderer returned unexpected files")
+    public.update(rendered)
+    public["_build.json"] = json.dumps(
+        dict(
+            inputs_sha256=digest.hexdigest(),
+            outputs={n: hashlib.sha256(v).hexdigest() for n, v in rendered.items()},
+        ),
+        sort_keys=True,
+    ).encode()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, value in sorted(public.items()):
+            info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
+            info.create_system = 3
+            info.external_attr = 0o100644 << 16
+            info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(info, value)
 
 
 def contents(root):
@@ -92,6 +236,7 @@ def build(root=ROOT, *, check=False):
                 + ", ".join(stale)
                 + "; run python server/scripts/build_developer_kit.py"
             )
+        build_public(root, entries, check=True)
         return
     out.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out / "developer-kit.zip", "w", zipfile.ZIP_DEFLATED) as archive:
@@ -102,6 +247,7 @@ def build(root=ROOT, *, check=False):
             info.external_attr = 0o100644 << 16
             archive.writestr(info, content)
     (out / "developer-docs.json").write_bytes(docs)
+    build_public(root, entries, check=False)
 
 
 if __name__ == "__main__":

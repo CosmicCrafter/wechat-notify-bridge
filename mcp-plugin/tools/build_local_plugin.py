@@ -5,7 +5,13 @@ import json
 from pathlib import Path
 import zipfile
 
-from package_checks import check, public_files, portable_markdown, release_metadata
+from package_checks import (
+    check,
+    public_files,
+    portable_markdown,
+    release_metadata,
+    integration_document,
+)
 
 
 def build(output):
@@ -41,7 +47,7 @@ def build(output):
         "AI-HOSTS.md": "docs/integration/AI-HOSTS.md",
         "F02-RECEIVERS.md": "docs/integration/RECEIVERS.md",
     }.items():
-        entries[target] = (source.parent / original).read_text(encoding="utf-8").encode()
+        entries[target] = integration_document(source.parent, Path(original).name)
     included = {"mcp-plugin/" + n for n in entries}
     for filename in list(entries):
         if filename.endswith(".md"):

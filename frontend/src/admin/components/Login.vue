@@ -84,5 +84,6 @@ async function login() {
         >
       </template>
     </el-card>
+    <a href="../docs/" class="help">公开开发文档 · 无需登录</a>
   </div>
 </template>

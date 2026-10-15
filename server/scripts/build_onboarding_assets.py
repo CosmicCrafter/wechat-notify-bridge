@@ -10,6 +10,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def build(root=ROOT, *, check=False):
+    sys.path.insert(0, str(ROOT / "mcp-plugin/tools"))
+    from package_checks import release_metadata, integration_document
+
     plugin = root / "mcp-plugin"
     names = [
         "plugin.json",
@@ -34,9 +37,7 @@ def build(root=ROOT, *, check=False):
         if path.is_symlink():
             raise ValueError("Symlink in onboarding template")
         expected[name] = path.read_text(encoding="utf-8").encode("utf-8")
-    expected["INSTALL.md"] = (
-        (root / "docs/integration/CLIENT-SETUP.md").read_text(encoding="utf-8").encode("utf-8")
-    )
+    expected["INSTALL.md"] = integration_document(root, "CLIENT-SETUP.md")
     for destination, source in {
         "http-client.py": "examples/python/notify_bridge.py",
         "http-api.json": "server/openapi.json",
@@ -44,9 +45,11 @@ def build(root=ROOT, *, check=False):
         "AI-HOSTS.md": "docs/integration/AI-HOSTS.md",
         "F02-RECEIVERS.md": "docs/integration/RECEIVERS.md",
     }.items():
-        expected[destination] = (root / source).read_text(encoding="utf-8").encode()
-    sys.path.insert(0, str(ROOT / "mcp-plugin/tools"))
-    from package_checks import release_metadata
+        expected[destination] = (
+            integration_document(root, Path(source).name)
+            if source.startswith("docs/integration/")
+            else (root / source).read_text(encoding="utf-8").encode()
+        )
 
     expected["RELEASE.json"] = json.dumps(
         release_metadata(plugin, expected, scope="onboarding-template"), indent=2

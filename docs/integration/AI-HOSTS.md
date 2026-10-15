@@ -35,6 +35,6 @@ Codex TOML 只需 mcp_servers 下的 URL，使用宿主 MCP OAuth 登录；Claud
 
 ## F02 接收范围与隔离
 
-每个会话需独立的私有 receiver_file（绝对路径），与应用配置分开；管理端下载配对文件后放到该位置。本机适配器自动交换、验证并保存能力，模型结果不含令牌。首次 AI 主动 protected 注册也要求先配置此独立路径。未验证的远程宿主停在 legacy 或待绑定，不冒充聊天身份验证。普通应用 Key 不能直接读取 protected 会话。详见随包 F02-RECEIVERS.md（完整仓库为 docs/integration/RECEIVERS.md）。
+每个会话需独立的私有 receiver_file（绝对路径），与应用配置分开；管理端下载配对文件后放到该位置。本机适配器自动交换、验证并保存能力，模型结果不含令牌。首次 AI 主动 protected 注册也要求先配置此独立路径。未验证的远程宿主停在 legacy 或待绑定，不冒充聊天身份验证。普通应用 Key 不能直接读取 protected 会话。详见[会话接收协议](RECEIVERS.md)。
 
 私有 client.json 可设置 use_notification_policy:true，使省略目标的发送使用服务端策略；默认 false 保持旧默认 Bot 注入。为每个聊天指定路径不代表宿主能阻止同一用户下其他进程读该文件，真正宿主隔离须另行验收。归档、静音与外部停止分别处理。

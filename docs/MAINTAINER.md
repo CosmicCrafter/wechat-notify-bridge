@@ -39,6 +39,7 @@
 | HTTP 路由、请求模型、接收授权头 | api/ 源码 → `create_app().openapi()` → server/openapi.json；API.md 解释操作语义，不另造接口 |
 | 服务版本 / 插件版本 | wechat_bridge/__init__.py / mcp-plugin/plugin.json；项目清单及兼容插件清单必须一致，插件独立版本不随服务号猜测 |
 | 网站七类帮助正文 | docs/integration、docs/server、product-v3/OPERATIONS.md → build_developer_kit.py → developer-docs.json；前端按 _sources 解析链接 |
+| 公开文档站 | 同一用途白名单 → build_developer_kit.py 调用现有 marked 构建 HTML/Markdown/OpenAPI → public-docs.zip → /docs/；网页直接含正文，无运行时脚本。--check 比对输入与产物摘要，无需 Node |
 | 开发者文档 ZIP | build_developer_kit.py 的用途白名单；排除历史设计，未收录源码链接明确指向完整仓库 |
 | AI / HTTP 接入包 | 插件 Skill、CLIENT-SETUP.md、HTTP.md、RECEIVERS.md、示例和 OpenAPI → build_onboarding_assets.py → 模板；services/onboarding.py 仅在内存加入实例连接配置 |
 | 独立插件 ZIP | mcp-plugin/tools/build_local_plugin.py 或 build_remote_plugin.py，复用同一安装说明与 Skill |
@@ -81,7 +82,7 @@ python -m wechat_bridge --directory .private/local
 
 纯文案或 CSS 小改采用定向检查；协议、权限、数据或生命周期变更运行完整回归。不要用生产 Bot 删除或真实审批做测试。
 
-check_project.py 复用现有构建校验，并检查有效文档链接/锚点、服务与插件版本、工具清单对照、OpenAPI 条件接收头、JSON 请求示例和五类交付包完整性。负向测试在 test_documentation_contracts.py，故意损坏版本、接收说明或必需文件必须失败；完整测试同时执行 HTTP 示例及解压后的 stdio 适配器。
+check_project.py 复用现有构建校验，并检查有效文档链接/锚点、服务与插件版本、工具清单对照、OpenAPI 条件接收头、JSON 请求示例和五类接入包与公开文档资源完整性。负向测试在 test_documentation_contracts.py，故意损坏版本、接收说明或必需文件必须失败；完整测试同时执行 HTTP 示例及解压后的 stdio 适配器。
 
 需要独立本地网页验收时可运行 `python scripts/run_v03_test.py --port 19868 --directory .private/refine-01-test`；仅回环、随机管理凭据写入该私有目录，平台与代理均为替身。不要读取或复用生产配置；其他已有本地实例可保留。
 

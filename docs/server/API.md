@@ -1,6 +1,6 @@
 # HTTP API 接口文档
 
-首次接入先看 [开发者接入指南](../integration/README.md)。机器可读规范见 [OpenAPI 3.1](../../server/openapi.json)，线上以带客户端鉴权的 `GET /openapi.json` 为准。下述 JSON 示例均为示意数据，不含真实凭据。
+首次接入先看 [开发者接入指南](../integration/README.md)。机器可读规范见 [OpenAPI 3.1](../../server/openapi.json)，匿名可读服务地址后的 `GET /docs/openapi.json`（同源通用规范）；原 `GET /openapi.json` 仍需客户端鉴权并提供实例配置地址。公开文档不会开放管理 API、消息或私有接入包。下述 JSON 示例均为示意数据，不含真实凭据。
 
 假设公开地址为 `https://notify.example.com/bridge`，下表的路径都相对于该地址。真实地址由部署者配置。
 

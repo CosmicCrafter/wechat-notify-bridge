@@ -250,6 +250,9 @@ function reset() {
     <p class="help">
       选择接入方式，下载配置与使用规则。连接、消息送达和自动唤醒分别验收。
     </p>
+    <a href="../docs/" target="_blank" rel="noopener noreferrer"
+      >公开开发文档 · 可直接分享给接入者，无需管理登录</a
+    >
     <p v-if="docs?._release" class="help">
       资料：服务 {{ docs._release.server_version }} · 插件
       {{ docs._release.plugin_version }}。安装与配置以包内 INSTALL.md /

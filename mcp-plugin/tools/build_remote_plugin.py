@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlsplit
 import zipfile
-from package_checks import check, public_files, release_metadata
+from package_checks import check, public_files, release_metadata, integration_document
 
 
 def build(base_url, output, *, mcp_url=None):
@@ -54,7 +54,7 @@ def build(base_url, output, *, mcp_url=None):
         "AI-HOSTS.md": "docs/integration/AI-HOSTS.md",
         "F02-RECEIVERS.md": "docs/integration/RECEIVERS.md",
     }.items():
-        entries[target] = (source.parent / original).read_text(encoding="utf-8").encode()
+        entries[target] = integration_document(source.parent, Path(original).name)
     entries["CONNECTION.json"] = json.dumps(
         {
             "base_url": base,

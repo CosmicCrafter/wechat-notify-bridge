@@ -63,6 +63,8 @@ notify-bridge/
 
 ## 开发者接入
 
+部署后的公开文档入口为服务地址加 `/docs/`，无需管理登录，可直接分享给 Codex、Claude Code 或业务开发者。支持网页、`/docs/index.md`、`/docs/openapi.json` 与 `/docs/download.zip`。管理端、消息记录和含凭据导出包继续鉴权；公开资料不代表获得调用授权。本分支未部署，不能据此认定正式站已有该入口。
+
 接入其他 AI、监控脚本或业务程序，请从 [开发者接入指南](docs/integration/README.md) 开始。配套提供 [HTTP 接口文档](docs/server/API.md)、[OpenAPI 文件](server/openapi.json) 和 [轻量 Python 客户端示例](examples/python/notify_bridge.py)。
 
 ## 快速部署与使用

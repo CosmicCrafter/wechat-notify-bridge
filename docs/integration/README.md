@@ -2,7 +2,9 @@
 
 适用于 AI、监控脚本、业务程序。服务负责向已绑定的微信/飞书 Bot 发消息、接收回复和任务决定；调用方负责业务判断及执行。
 
-下载包中的 `DEPLOYMENT.json` 提供该部署的实际 `base_url` 和 `mcp_url`，优先使用这两个值。`api_key` 是占位符，需单独配置。升级部署可能保留旧 MCP 授权地址，不能自行用新 base_url 推算 MCP 地址。
+公开入口为服务地址后的 `/docs/`，网页正文无需登录；AI 可直接读取 `/docs/index.md`、`/docs/integration/HTTP.md`、`/docs/integration/CLIENT-SETUP.md`、`/docs/integration/RECEIVERS.md` 与 `/docs/openapi.json`，通用文档 ZIP 为 `/docs/download.zip`。匿名资料不包含实例配置或真实凭据，也不授予调用权限。
+
+实际 `base_url` 和 `mcp_url` 由管理员提供。若持有管理端导出的 `DEPLOYMENT.json` / `CONNECTION.json`，优先使用其中地址；`api_key` 占位符需单独配置。升级部署可能保留旧 MCP 授权地址，不能从文档 URL 或新 base_url 猜测 MCP 地址。
 
 ## 接入前拿到什么
 
@@ -22,7 +24,7 @@
 | 调用方 | 接入方式 | 入口 |
 | --- | --- | --- |
 | 支持远程 MCP 与 OAuth 的 AI | Streamable HTTP MCP | 实例提供的 mcp_url，迁移后不自行按 base_url 拼接 |
-| 支持本机 MCP 的 AI | 本机 stdio 插件包装 HTTP API | [MCP 配置](../../mcp-plugin/README.md) |
+| 支持本机 MCP 的 AI | 本机 stdio 插件包装 HTTP API | [MCP 安装](CLIENT-SETUP.md) |
 | 普通程序，或由 AI 编写的程序 | HTTPS JSON + Bearer Key | [完整接口文档](../server/API.md) |
 
 远程 MCP 使用宿主 OAuth 授权流程，不等同于把 Key 拼在 MCP URL 中。授权与现有微信登录流程见 [REMOTE-MCP](../server/REMOTE-MCP.md)；纯飞书实例可由管理员在“系统设置→手机端登录”生成一次性本人登录码，无需先绑定微信。宿主必须支持工具调用；安装插件本身不会自动唤醒空闲 AI。
@@ -71,20 +73,15 @@
 
 [Python 示例](../../examples/python/notify_bridge.py) 只依赖 Python 标准库，默认 `dry_run`，不包含后台轮询或自动重发。它是可复制的轻量客户端示例，不是已发布到 PyPI 的 SDK。
 
-PowerShell：
+PowerShell / Bash（路径有空格时加引号）：
 
-```powershell
-$env:NOTIFY_BASE_URL='https://notify.example.com/bridge'
-$env:NOTIFY_API_KEY='你的客户端 Key'
-$env:NOTIFY_BOT_ID='从 status 获取的 Bot ID'
-$env:NOTIFY_CONVERSATION_KEY='my-ai-chat-001'
-$env:NOTIFY_EVENT_ID='job-42-completed'
-python examples/python/notify_bridge.py
-# 核对身份、Bot 与参数后，真实发送：
-python examples/python/notify_bridge.py --send
+```sh
+python examples/python/notify_bridge.py --config "<私有配置文件路径>" --identity-only
+python examples/python/notify_bridge.py --config "<私有配置文件路径>" --conversation-key my-ai-chat-001 --event-id job-42-completed
+# 已确认目标与发送授权后，才在第二条命令末尾加 --send
 ```
 
-`--send` 只发一条示例通知并读取一次本会话收件箱。实际程序应按自己的业务事件设置 EVENT_ID，并持久保存收件游标；同一个事件重试不能修改正文。
+第一条只核对身份，不登记会话；第二条会登记稳定逻辑会话并 dry_run，不发平台通知。`--send` 才提交一条通知并读取一次本会话收件箱。实际程序按业务事件设置稳定键并保存游标，同一事件不改正文重发。原环境变量方式保持兼容；不要把真实 Key 写入终端历史或 AI 提示词。私有 JSON 字段与完整闭环见 [HTTP 接入](HTTP.md)。
 
 curl（Bash；Windows 使用 curl.exe 并按 shell 调整引用）：
 
@@ -105,7 +102,7 @@ curl -H "Authorization: Bearer $NOTIFY_API_KEY" "$NOTIFY_BASE_URL/openapi.json" 
 ## 文档与验收
 
 - [HTTP 接口文档：字段、响应与错误](../server/API.md)
-- [OpenAPI 3.1 文件](../../server/openapi.json)：可导入支持 OpenAPI 的工具。线上 `/openapi.json` 需客户端 Bearer Key，部署地址以管理员提供值为准。
+- [OpenAPI 3.1 文件](../../server/openapi.json)：可导入支持 OpenAPI 的工具。公开 `/docs/openapi.json` 无需登录，是同源构建的通用规范；旧 `/openapi.json` 仍需应用 Bearer Key，保留原兼容行为。部署地址以管理员提供值为准。
 - [任务卡片模式与生命周期](../server/TASK-CARDS.md)
 - [Bot 和 Key 权限](../server/BOTS.md)、[飞书配置](../server/FEISHU.md)
 

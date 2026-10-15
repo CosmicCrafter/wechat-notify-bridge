@@ -10,6 +10,7 @@ import sys
 import tomllib
 from urllib.parse import unquote
 import zipfile
+from html.parser import HTMLParser
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -55,9 +56,12 @@ def check_schema(schema, version):
         raise ValueError("OpenAPI version differs from server version")
     for path, item in schema["paths"].items():
         for method, operation in item.items():
-            if method not in ("get", "post", "put", "patch", "delete") or not operation.get(
-                "security"
-            ):
+            if method not in ("get", "post", "put", "patch", "delete"):
+                continue
+            if path.startswith("/api/") or path == "/openapi.json":
+                if operation.get("security") != [{"HTTPBearer": []}]:
+                    raise ValueError("Missing application Bearer authorization: " + path)
+            if not operation.get("security"):
                 continue
             header = next(
                 (
@@ -76,6 +80,44 @@ def check_schema(schema, version):
                 raise ValueError("Incomplete receiver authorization explanation: " + path)
 
 
+def check_html_links(entries):
+    class Page(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.links, self.ids = [], set()
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if "id" in attrs:
+                self.ids.add(attrs["id"])
+            for key in ("href", "src"):
+                if key in attrs:
+                    self.links.append(attrs[key])
+            if tag == "script":
+                raise ValueError("Public documentation must not need runtime scripts")
+
+    pages = {}
+    for name, value in entries.items():
+        if name.endswith(".html"):
+            parser = Page()
+            parser.feed(value.decode("utf-8"))
+            pages[name] = parser
+    for name, page in pages.items():
+        for href in page.links:
+            if re.match(r"https?://", href):
+                continue
+            if re.match(r"\w+:", href) or href.startswith("//"):
+                raise ValueError("Unsafe public documentation link")
+            path, _, anchor = unquote(href).partition("#")
+            target = (
+                posixpath.normpath(posixpath.join(posixpath.dirname(name), path)) if path else name
+            )
+            if target != "download.zip" and target not in entries:
+                raise ValueError("Missing public HTML target: " + name + " -> " + href)
+            if anchor and target in pages and anchor not in pages[target].ids:
+                raise ValueError("Missing public HTML anchor: " + name + " -> " + href)
+
+
 def check_archive(blob, flavor, *, server_version, plugin_version):
     with zipfile.ZipFile(io.BytesIO(blob)) as archive:
         names = archive.namelist()
@@ -84,9 +126,12 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
         ):
             raise ValueError("Unsafe or duplicate package members")
         entries = {n: archive.read(n) for n in names}
-    root = {"docs": "", "http": "notify-bridge-http/", "rules": "notify-bridge-rules/"}.get(
-        flavor, "wechat-notify-local/"
-    )
+    root = {
+        "docs": "",
+        "public": "",
+        "http": "notify-bridge-http/",
+        "rules": "notify-bridge-rules/",
+    }.get(flavor, "wechat-notify-local/")
     required = ["RELEASE.json"]
     if flavor == "docs":
         required += [
@@ -97,6 +142,18 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
         ]
         if any(n.startswith(("docs/history/", "docs/product-", "docs/f02/")) for n in names):
             raise ValueError("Historical material entered client documentation package")
+    elif flavor == "public":
+        required += [
+            "index.html",
+            "index.md",
+            "style.css",
+            "openapi.json",
+            "examples/python/notify_bridge.py",
+        ]
+        if any(
+            n.startswith(("history/", "product-", "f02/", "admin/", ".private/")) for n in names
+        ):
+            raise ValueError("Non-public source entered public documentation")
     elif flavor == "http":
         required += [
             "README.md",
@@ -133,6 +190,7 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
     release = json.loads(entries[root + "RELEASE.json"])
     scopes = {
         "docs": ("developer-docs",),
+        "public": ("developer-docs",),
         "http": ("onboarding-template",),
         "rules": ("onboarding-template",),
         "local": ("onboarding-template", "standalone-local"),
@@ -146,7 +204,7 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
         for name in ("plugin.json", ".codex-plugin/plugin.json"):
             if json.loads(entries[root + name])["version"] != plugin_version:
                 raise ValueError("Incorrect packaged plugin version")
-    if flavor in ("docs", "http"):
+    if flavor in ("docs", "http", "public"):
         check_schema(
             json.loads(
                 entries[root + ("server/openapi.json" if flavor == "docs" else "openapi.json")]
@@ -165,6 +223,8 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
         if ".private" not in name.split("/") and secret.search(value):
             raise ValueError("Credential-shaped value in public package member: " + name)
     check_links(entries)
+    if flavor == "public":
+        check_html_links(entries)
     return len(entries)
 
 
@@ -247,11 +307,17 @@ def check(root=ROOT):
         server_version=__version__,
         plugin_version=plugin["version"],
     )
+    check_archive(
+        (root / "server/src/wechat_bridge/web/admin/public-docs.zip").read_bytes(),
+        "public",
+        server_version=__version__,
+        plugin_version=plugin["version"],
+    )
     return dict(
         server_version=__version__,
         plugin_version=plugin["version"],
         tools=len(names),
-        public_package_types=5,
+        public_package_types=6,
     )
 
 

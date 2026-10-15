@@ -12,6 +12,7 @@ from wechat_bridge.api.admin_queries import mount_admin_queries
 from wechat_bridge.api.admin_conversations import mount_admin_conversations
 from wechat_bridge.api.admin_recovery import mount_admin_recovery
 from wechat_bridge.api.onboarding import mount_onboarding
+from wechat_bridge.api.documentation import mount_documentation
 from wechat_bridge.api.clients import mount_client_api
 from wechat_bridge.api.channels import mount_channels
 from wechat_bridge.api.proxy import mount_proxy
@@ -61,6 +62,7 @@ def create_app(
     mount_admin_recovery(app, authorize_admin)
     mount_admin(app, authorize_admin)
     mount_onboarding(app, authorize_admin)
+    mount_documentation(app)
     mount_proxy(app, authorize_admin)
     mount_channels(app, authorize_admin)
     mount_receivers(app, authorize, authorize_admin)

@@ -47,7 +47,7 @@ def build(output):
         "AI-HOSTS.md": "docs/integration/AI-HOSTS.md",
         "F02-RECEIVERS.md": "docs/integration/RECEIVERS.md",
     }.items():
-        entries[target] = integration_document(source.parent, Path(original).name)
+        entries[target] = integration_document(source.parent, Path(original).name, bundle=source)
     included = {"mcp-plugin/" + n for n in entries}
     for filename in list(entries):
         if filename.endswith(".md"):

@@ -6,12 +6,13 @@ from pathlib import Path
 from wechat_bridge import __version__
 import sys
 import zipfile
+import subprocess
 
 import pytest
 
 TOOLS = Path(__file__).resolve().parents[1] / "tools"
 sys.path.insert(0, str(TOOLS))
-from package_checks import check
+from package_checks import check, integration_document
 from build_local_plugin import build as local
 from build_remote_plugin import build as remote
 
@@ -74,3 +75,55 @@ def test_remote_package_preserves_explicit_legacy_mcp_endpoint(tmp_path):
         assert value["mcp_url"] == "https://notify.example.com/wechat/mcp"
     with pytest.raises(ValueError):
         remote("https://notify.example.com/bridge", path, mcp_url="https://other.example.com/mcp")
+
+
+@pytest.mark.parametrize("transport", ["local", "remote"])
+def test_extracted_local_plugin_builders_need_no_repository_docs(tmp_path, transport):
+    original = local(tmp_path / "original.zip")
+    with zipfile.ZipFile(original) as archive:
+        archive.extractall(tmp_path / "unpacked")
+    plugin = tmp_path / "unpacked/wechat-notify-local"
+    assert not (plugin.parent / "docs").exists()
+    output = tmp_path / "rebuilt.zip"
+    command = [
+        sys.executable,
+        str(plugin / "tools" / ("build_" + transport + "_plugin.py")),
+        "--output",
+        str(output),
+    ]
+    if transport == "remote":
+        command += [
+            "--base-url",
+            "https://notify.example.com/bridge",
+            "--mcp-url",
+            "https://notify.example.com/wechat/mcp",
+        ]
+    result = subprocess.run(command, cwd=plugin, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    from check_documentation import check_archive
+
+    check_archive(
+        output.read_bytes(), transport, server_version=__version__, plugin_version="1.11.0"
+    )
+
+
+@pytest.mark.parametrize("canonical_exists", [True, False])
+def test_checkout_docs_remain_authoritative_without_stale_bundle_fallback(
+    tmp_path, canonical_exists
+):
+    (tmp_path / "server").mkdir()
+    (tmp_path / "server/openapi.json").write_text("{}", encoding="utf-8")
+    bundle = tmp_path / "plugin"
+    bundle.mkdir()
+    (bundle / "INSTALL.md").write_text("stale bundled copy", encoding="utf-8")
+    if canonical_exists:
+        canonical = tmp_path / "docs/integration/CLIENT-SETUP.md"
+        canonical.parent.mkdir(parents=True)
+        canonical.write_text("current [receiver](RECEIVERS.md)", encoding="utf-8")
+        assert (
+            integration_document(tmp_path, "CLIENT-SETUP.md", bundle=bundle)
+            == b"current [receiver](F02-RECEIVERS.md)"
+        )
+    else:
+        with pytest.raises(FileNotFoundError):
+            integration_document(tmp_path, "CLIENT-SETUP.md", bundle=bundle)

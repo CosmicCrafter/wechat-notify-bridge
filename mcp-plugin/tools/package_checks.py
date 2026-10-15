@@ -10,9 +10,22 @@ from urllib.parse import quote
 REPOSITORY = "https://github.com/CosmicCrafter/wechat-notify-bridge/blob/main/"
 
 
-def integration_document(root, filename):
-    """Relocate canonical receiver links to the existing client-bundle filename."""
-    text = (Path(root) / "docs/integration" / filename).read_text(encoding="utf-8")
+def integration_document(root, filename, *, bundle=None):
+    """Use repository sources, or the already-generated docs in an extracted plugin."""
+    root = Path(root)
+    path = root / "docs/integration" / filename
+    if path.is_symlink():
+        raise ValueError("Symlink in integration documentation")
+    if not path.exists() and bundle is not None and not (root / "server/openapi.json").exists():
+        bundled_names = {
+            "CLIENT-SETUP.md": "INSTALL.md",
+            "AI-HOSTS.md": "AI-HOSTS.md",
+            "RECEIVERS.md": "F02-RECEIVERS.md",
+        }
+        path = Path(bundle) / bundled_names[filename]
+    if path.is_symlink():
+        raise ValueError("Symlink in integration documentation")
+    text = path.read_text(encoding="utf-8")
     return text.replace("](RECEIVERS.md)", "](F02-RECEIVERS.md)").encode("utf-8")
 
 

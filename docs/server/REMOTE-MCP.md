@@ -1,12 +1,12 @@
 # 云端与本机 MCP
 
-服务 1.9.1 在同一个常驻进程提供 `/mcp`（Streamable HTTP）。原 HTTPS API、微信绑定、空闲心跳和聊天记录保持共用。没有设置 `WECHAT_PUBLIC_BASE_URL` 时，不启用远程 MCP；生产必须设置实际 HTTPS 地址。
+服务在同一个常驻进程提供 `/mcp`（Streamable HTTP）。原 HTTPS API、微信绑定、空闲心跳和聊天记录保持共用。没有设置 `WECHAT_PUBLIC_BASE_URL` 时，不启用远程 MCP；生产必须设置实际 HTTPS 地址。
 
 ## 连接
 
-1. 使用 `mcp-plugin/tools/build_remote_plugin.py --base-url https://notify.example.com/bridge --output remote-plugin.zip` 生成实际服务器地址对应的插件包。包中不放任何密钥。
-2. 私人账号插件通过宿主的插件创建/安装功能注册；本机也可以安装这个包。支持 MCP 的其他宿主填写 `<公开地址>/mcp` 并使用 OAuth。
-3. 首次连接跳转到授权页。在微信发送 `/web` 获取登录码，网页登录后选择已创建的客户端身份，例如 `codex` 或 `gpt`，再点“允许连接”。已有网页登录可直接选择身份。
+1. 优先使用管理端导出 CONNECTION.json / DEPLOYMENT.json 中的实际 `mcp_url`。独立构建可用 `mcp-plugin/tools/build_remote_plugin.py --base-url https://notify.example.com/bridge --mcp-url <实际mcp_url> --output remote-plugin.zip`；示例域名不可直接使用，包中不放任何密钥。
+2. 私人账号插件通过宿主的插件创建/安装功能注册；本机也可以安装这个包。支持 MCP 的其他宿主填写实际 `mcp_url` 并使用 OAuth；`<公开地址>/mcp` 只适用于使用该前缀的新部署，升级实例不能由网站地址猜测。
+3. 首次连接跳转到授权页。微信可发送 `/web` 获取登录码；纯飞书可请管理员在“系统设置→手机端登录”生成，无需绑定微信。网页登录后选择已创建的接入应用，例如 `codex` 或 `gpt`，再点“允许连接”。已有网页登录可直接选择身份。
 4. 连接后调用 `getCallerIdentity` 校验身份；每个聊天调用 `registerConversation` 登记名称，并为收发工具传入独立 `conversation_id`。
 
 原 stdio 本机插件仍支持私有 API 配置。每个宿主选择一种方式，避免重复启用相同工具。插件注册、OAuth 连接和宿主实际调用是三个不同的验证步骤。安装不代表自动轮询或自动唤醒 AI。
@@ -15,7 +15,7 @@
 
 - OAuth Authorization Code + S256 PKCE，动态客户端注册（DCR）；无密码/客户端凭证授权模式。
 - 授权请求有效 10 分钟，授权码 2 分钟且只能交换一次；访问令牌 1 小时，刷新令牌 30 天。刷新时撤销旧授权令牌，刷新令牌不能重放。
-- 授权/令牌请求必须携带准确 `resource=<公开地址>/mcp`；只授予 `wechat:bridge`。
+- 授权/令牌请求必须携带准确 `resource=<实际mcp_url>`；只授予 `wechat:bridge`。
 - 令牌只存哈希；注册客户端秘密使用既有服务器加密密钥加密。重启后连接信息仍保留。
 - OAuth 绑定应用及其独立授权。新版正常 Key 轮换不隐式撤销独立 OAuth；旧兼容 rotate 接口会改变旧密钥版本并使依赖它的授权失效。停用/删除整个应用同时禁止 Key 和 OAuth；泄露时按凭据类型分别撤销，重命名保留身份。
 - `/revoke` 支持宿主撤销该 OAuth 授权，不撤销其他连接。OAuth 令牌无法访问管理员接口或获得网页会话身份。

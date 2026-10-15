@@ -1,6 +1,6 @@
 # Notify Bridge 工作入口
 
-先读 AGENTS.md 的生产保护边界，再读 README.md 与 docs/MAINTAINER.md。REFINE-01 以生产稳定 v1.17.1 / 8e1c03b 为基线，在独立分支整理，未经部署验收不能称本分支已上线。管理认证、恢复及数据匹配见 docs/product-v3/OPERATIONS.md；历史迭代材料不作为当前操作步骤。
+先读 AGENTS.md 的生产保护边界，再读 README.md 与 docs/MAINTAINER.md。当前源码为 v1.18.0 候选，未发布；REFINE-01 以生产稳定 v1.17.1 / 8e1c03b 为基线，在独立分支整理，未经部署验收不能称本分支已上线。管理认证、恢复及数据匹配见 docs/product-v3/OPERATIONS.md；历史迭代材料不作为当前操作步骤。
 
 Notify Bridge 是统一消息中转站。你是站外开发、维护和使用助手，站内不运行通用 Agent。复用现有 Vue/FastAPI/SQLite/MCP 实现；不可仅为整理而重建框架、业务或历史。
 

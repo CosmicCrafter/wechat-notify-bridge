@@ -15,6 +15,24 @@ from html.parser import HTMLParser
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def check_onboarding_guidance(root):
+    paths = (
+        "README.md",
+        "docs/integration/CLIENT-SETUP.md",
+        "docs/server/新增飞书Bot操作指南.md",
+        "frontend/src/admin/pages/Developer.vue",
+        "mcp-plugin/README.md",
+    )
+    for name in paths:
+        if "接入密钥" in (root / name).read_text(encoding="utf-8"):
+            raise ValueError("Outdated application menu name: " + name)
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    if not all(
+        word in readme for word in ("CONNECTION.json", "mcp_url", "纯飞书", "系统设置→手机端登录")
+    ):
+        raise ValueError("README omits exported MCP address or Feishu-only login guidance")
+
+
 def heading_ids(text):
     counts, ids = {}, set()
     # Headings inside fenced examples are not document anchors.
@@ -229,6 +247,7 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
 
 
 def check(root=ROOT):
+    check_onboarding_guidance(root)
     sys.path[:0] = [str(root / "server/src"), str(root / "mcp-plugin/tools")]
     from wechat_bridge import __version__
     from wechat_bridge.app import create_app
@@ -239,7 +258,16 @@ def check(root=ROOT):
     plugin = check_plugin(root / "mcp-plugin")
     project = tomllib.loads((root / "server/pyproject.toml").read_text(encoding="utf-8"))
     frontend = json.loads((root / "frontend/package.json").read_text(encoding="utf-8"))
-    if project["project"]["version"] != __version__ or frontend["version"] != __version__:
+    lock = json.loads((root / "frontend/package-lock.json").read_text(encoding="utf-8"))
+    if any(
+        value != __version__
+        for value in (
+            project["project"]["version"],
+            frontend["version"],
+            lock["version"],
+            lock["packages"][""]["version"],
+        )
+    ):
         raise ValueError("Server/project/frontend release versions differ")
     if "插件 " + plugin["version"] not in (root / "mcp-plugin/README.md").read_text(
         encoding="utf-8"

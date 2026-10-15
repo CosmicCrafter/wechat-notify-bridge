@@ -445,7 +445,7 @@ function reset() {
           v-if="failed"
           type="warning"
           :closable="false"
-          title="本次下载结果未确认。若选择了新建身份，请先查看接入密钥列表是否已创建，不要反复创建或重置其他 Key。"
+          title="本次下载结果未确认。若选择了新建身份，请先在接入应用列表确认是否已创建，并在应用详情查看 Key；不要反复创建或重置其他 Key。"
         />
       </template>
       <template v-else

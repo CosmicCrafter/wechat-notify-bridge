@@ -78,7 +78,10 @@ onMounted(() => run(load));
             await load();
           })
         "
-        ><p class="help">在微信发送 /web，输入一次性登录码。</p>
+        ><p class="help">
+          输入一次性手机登录码。微信可发送 /web
+          获取；纯飞书请管理员在“系统设置→手机端登录”生成，无需绑定微信。
+        </p>
         <el-form-item label="8 位登录码"
           ><el-input
             v-model="code"
@@ -104,7 +107,10 @@ onMounted(() => run(load));
                 :value="c.id"
                 :label="c.name" /></el-select></el-form-item
         ></el-form>
-        <p class="help">停用、删除或重置该身份的密钥会使授权失效。</p>
+        <p class="help">
+          停用或删除接入应用会阻止访问。正常轮换 Key 不撤销独立 OAuth
+          授权；泄露时需分别撤销相应凭据。
+        </p>
         <div class="actions">
           <el-button
             type="primary"

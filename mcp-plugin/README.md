@@ -2,7 +2,7 @@
 
 通过常驻通知桥发送本人微信或飞书消息和任务卡片、读取通道与手机网页的回复。插件 1.11.0 保留身份 `wechat-notify-local`、Skill 名 `wechat-notify` 与中文显示名“微信通知”。服务器负责通道连接和数据，插件不另建微信会话。
 
-服务器 1.15.0 支持多个微信与飞书 Bot。在管理页给 Key 关联可调用的 Bot 并设置默认 Bot；先查询身份中的 Bot 列表，发送及查回执指定 `bot_id`，省略时使用该 Key 的默认 Bot。旧 Key 自动保留原微信权限。飞书卡片直接在飞书交互，回复、任务状态和唤醒事件复用原会话。详见 [Bot 与 Key 管理](../docs/server/BOTS.md)及[飞书接入](../docs/server/FEISHU.md)。
+服务支持多个微信与飞书 Bot。在“接入应用”的详情中给 Key 关联可调用的 Bot 并设置默认 Bot；先查询身份中的 Bot 列表，发送及查回执指定 `bot_id`，省略时使用该 Key 的默认 Bot。旧 Key 自动保留原微信权限。飞书卡片直接在飞书交互，回复、任务状态和唤醒事件复用原会话。详见 [Bot 与 Key 管理](../docs/server/BOTS.md)及[飞书接入](../docs/server/FEISHU.md)。
 
 服务器 1.14.0 提供加密发送诊断和本地推送条数提示，便于区分明确限流、上下文错误与结果未知。心跳不保证微信发送权限续期，见 [推送可靠性](../docs/server/DELIVERY-RELIABILITY.md)。
 
@@ -29,7 +29,7 @@
 python mcp-plugin/tools/build_remote_plugin.py --base-url https://notify.example.com/bridge --output dist/wechat-notify-remote.zip
 ```
 
-将 ZIP 导入支持该插件格式的宿主。连接时通过 OAuth 页面登录并选择已有客户端身份；手机登录码在管理页“会话登录”生成，或在微信发送 `/web` 获取，不需要把 API 密钥粘贴给 AI。插件包的地址必须换成自己的部署地址，示例地址不能用于实际通信。
+将 ZIP 导入支持该插件格式的宿主。连接时通过 OAuth 页面登录并选择已有客户端身份；手机登录码在管理端“系统设置→手机端登录”生成（纯飞书无需绑定微信），或在微信发送 `/web` 获取，不需要把 API 密钥粘贴给 AI。插件包的地址必须换成自己的部署地址，示例地址不能用于实际通信。
 
 仅支持 MCP 的宿主也可以配置服务器的 `/mcp` 端点；其 Skill 加载方式由宿主决定。远程连接不等于任何宿主都支持自动唤醒，详见项目中的 `docs/server/REMOTE-MCP.md` 和 `docs/server/MCP-EVENTS.md`。
 

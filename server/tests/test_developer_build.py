@@ -4,6 +4,8 @@ import importlib.util
 from pathlib import Path
 import zipfile
 import pytest
+import json
+from wechat_bridge import __version__
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location(
@@ -19,7 +21,9 @@ def source(tmp_path, monkeypatch):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("fixture " + name, encoding="utf-8")
-    (tmp_path / "server/openapi.json").write_text('{"info":{"version":"1.17.1"}}', encoding="utf-8")
+    (tmp_path / "server/openapi.json").write_text(
+        json.dumps({"info": {"version": __version__}}), encoding="utf-8"
+    )
     plugin = tmp_path / "mcp-plugin/plugin.json"
     plugin.parent.mkdir(parents=True, exist_ok=True)
     plugin.write_text('{"version":"1.11.0"}', encoding="utf-8")

@@ -12,8 +12,15 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
-from check_documentation import check_archive, check_links, check_schema, check_html_links
+from check_documentation import (
+    check_archive,
+    check_links,
+    check_schema,
+    check_html_links,
+    check_onboarding_guidance,
+)
 from wechat_bridge.services.onboarding import package, template_files
+from wechat_bridge import __version__
 
 
 @pytest.mark.parametrize(
@@ -28,7 +35,7 @@ from wechat_bridge.services.onboarding import package, template_files
 )
 def test_openapi_guard_fails_for_broken_receiver_contract(damage):
     schema = json.loads((ROOT / "server/openapi.json").read_text(encoding="utf-8"))
-    check_schema(schema, "1.17.1")
+    check_schema(schema, __version__)
     operation = schema["paths"]["/api/messages"]["post"]
     header = next(p for p in operation["parameters"] if p["name"] == "X-Notify-Receiver")
     if damage == "missing_header":
@@ -42,7 +49,7 @@ def test_openapi_guard_fails_for_broken_receiver_contract(damage):
     else:
         schema["info"]["version"] = "0.0.0"
     with pytest.raises(ValueError):
-        check_schema(schema, "1.17.1")
+        check_schema(schema, __version__)
 
 
 @pytest.mark.parametrize(
@@ -68,7 +75,7 @@ def test_download_guard_rejects_damaged_http_and_mcp_packages(damage):
         base_url="https://notify.example.com/bridge",
         mcp_url="https://notify.example.com/wechat/mcp",
     )
-    check_archive(blob, flavor, server_version="1.17.1", plugin_version="1.11.0")
+    check_archive(blob, flavor, server_version=__version__, plugin_version="1.11.0")
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         entries = {n: z.read(n) for n in z.namelist()}
     root = "notify-bridge-http/" if flavor == "http" else "wechat-notify-local/"
@@ -103,7 +110,9 @@ def test_download_guard_rejects_damaged_http_and_mcp_packages(damage):
         for name, content in entries.items():
             z.writestr(name, content)
     with pytest.raises(ValueError):
-        check_archive(buffer.getvalue(), flavor, server_version="1.17.1", plugin_version="1.11.0")
+        check_archive(
+            buffer.getvalue(), flavor, server_version=__version__, plugin_version="1.11.0"
+        )
 
 
 def test_links_check_real_headings_and_missing_targets():
@@ -123,3 +132,28 @@ def test_public_html_guard_rejects_broken_or_active_links(href):
     }
     with pytest.raises(ValueError):
         check_html_links(entries)
+
+
+@pytest.mark.parametrize("damage", ["menu", "mcp_url", "feishu"])
+def test_onboarding_guidance_rejects_old_menu_or_missing_entry(tmp_path, damage):
+    paths = (
+        "README.md",
+        "docs/integration/CLIENT-SETUP.md",
+        "docs/server/新增飞书Bot操作指南.md",
+        "frontend/src/admin/pages/Developer.vue",
+        "mcp-plugin/README.md",
+    )
+    for name in paths:
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text((ROOT / name).read_text(encoding="utf-8"), encoding="utf-8")
+    check_onboarding_guidance(tmp_path)
+    target = tmp_path / (paths[3] if damage == "menu" else paths[0])
+    text = target.read_text(encoding="utf-8")
+    if damage == "menu":
+        text = text.replace("接入应用", "接入密钥")
+    else:
+        text = text.replace("mcp_url" if damage == "mcp_url" else "系统设置→手机端登录", "omitted")
+    target.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError):
+        check_onboarding_guidance(tmp_path)

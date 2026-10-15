@@ -85,6 +85,34 @@ CLI 使用按次隔离配置及 --ignore-user-config / --ignore-rules，参考[�
 
 原始证据留在忽略目录 `.private/refine-01-public/`：`anonymous-final.json`、`wheel-check.json`、`reader/`（含初轮发现及 `recheck-20261015T160147Z/final-recheck-result.json`）。公开资料不收录这些环境证据或任何私有配置。
 
+## RELEASE-PREP：1.18.0 候选收尾
+
+日期：2026-10-16（Asia/Singapore），起点 86ead62。复用用户提供的独立审核结论：P1 发布前独立服务版本、P2 MCP 实际地址/纯飞书登录、P3 接入应用名称。只处理这些定点项，搜索/复制和 D 类重构不实施。
+
+服务、前端、锁文件根元数据、OpenAPI 及生成资料升级为 **1.18.0 候选**；插件保留 **1.11.0**。新增匿名路由是向后兼容扩展，现有版本规则无冲突。README/维护入口明确候选与生产保护基线 v1.17.1/8e1c03b 分开；未创建发布或移动标签。
+
+README、远程 MCP 指南和插件说明统一要求使用导出的 mcp_url，固定 /bridge/mcp 只作为新部署示例；纯飞书在“系统设置→手机端登录”取码。网站 OAuth 登录及失效码提示同步，授权提示区分正常 Key 轮换和 OAuth 撤销。当前菜单统一“接入应用”，Key 仍是应用凭据。增加前端锁文件版本校验及菜单/地址/纯飞书入口的 3 个反向场景；真实产物测试改从服务版本源读取，不重复硬编码每轮版本。
+
+| 项目 | 本批结果与边界 |
+|---|---|
+| Windows Python 完整回归 | PASS：Python 3.12.3 / Node 20.19.6；424 passed / 1 既有弃用警告，598.97 秒；不是远端托管运行 |
+| Linux 隔离流水线 | PASS：Python 3.12.15、Node 20，424 passed / 1 既有弃用警告，131.46 秒；离线 npm ci、前端构建/7 测试/格式、Ruff、pip check、project check、wheel、源码/解压校验、本机/远程插件均通过 |
+| 本机前端/工程 | PASS：三入口构建、7 项测试、Prettier、101 Python 文件格式、pip check、六类资料与 OpenAPI/版本一致性检查；Windows wheel 干净构建并从解压路径实际加载，公开入口与版本正确、无外部请求 |
+| 匿名真实 HTTP | PASS：15 个公开/私有边界检查；公开 HTML/MD/OpenAPI/ZIP 200、私有数据/账号/Key/消息及配置包 POST 拒绝；no-store、无 Set-Cookie，公开包 19 成员且无 DEPLOYMENT |
+| 本轮独立浏览器 | BLOCKED：浏览器工具两次无法加载请求头策略，未绕过；本轮不记浏览器 PASS。86ead62 的旧浏览器通过保留为历史，不能扩大为 1.18.0 的本次验证 |
+| 无历史新 AI | PASS：公开文档 + 本次隔离应用包；HTTP identity-only/默认 dry_run，实际 stdio MCP initialize/list 18 tools/身份/登记/dry_run。未外发、未读出私有配置、未改全局设置；不是新的 Codex/Claude 完整宿主或自动唤醒验收 |
+| Nginx 前缀与缓存 | PASS：原 nginx.conf 模板在无外网/无公开端口的独立临时容器中，/bridge/docs 相对跳转和 12 个 GET、私有 401/路径 404、no-store、旧 /wechat 别名均通过；容器已清理，未改正式代理 |
+| GitHub 托管 Linux/Windows CI | 提交前 UNVERIFIED：本地两种系统的同套检查不等于托管 CI；未将旧提交的 CI 当作本提交通过。后续托管结果以交付消息和精确提交的运行记录为准 |
+| 正式域名、TLS/CDN、真人通信 | UNVERIFIED：未访问生产、未切回调、未部署；发布清单见 [1.18.0 候选说明](release-1.18.0.md) |
+
+Linux 完整测试读取固定公开源码副本，断网运行、不挂载生产或主工作区；后续仅补前端 README 菜单文案及本交付记录，代码和生成资产无再变更。首次临时代理检查未等后端就绪出现 502；就绪等待后原模板全部通过，属于准备脚本时序，未修改产品去规避校验。
+
+依赖告警另记：npm audit 报 3 项 high，沿 unplugin-vue-components → chokidar → braces，实际 npm ls --omit=dev 不含这条链；[上游公告](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)记录深嵌套模式导致 Node 栈耗尽。它属于现有构建工具依赖，Python 服务和静态页面不运行该 Node 工具；这不构成“已证明无风险”。本批未升级依赖，正式发布前应单独决定构建依赖处置，不能用 npm audit fix --force 顺带大版本升级。Windows 本机 registry 的 audit API 返回空错误，Linux 官方 registry 查询成功，未把前者记安全通过。
+
+测试原记录和制品在本机受保护忽略目录 `.private/release-prep/`：windows-junit.xml、linux-results/、anonymous-http.json、proxy/result.json、fresh-reader/release-prep-fresh-reader-result.json、release/。它们不进入仓库或匿名文档。19869 仅重载隔离测试进程至 1.18.0，保留测试数据和随机账号；没有生产操作或数据库迁移。旧审查 ZIP 保持 86ead62，不覆盖成另一候选。
+
+本批当前源码变更清单可用 `git show --stat` 和 `git diff --name-status 86ead62..HEAD`；发布步骤与恢复边界见候选发布说明。正式上线授权前停止。
+
 ## 完整文件清单
 
 下表相对于生产代码基线 8e1c03b；M=修改、A=新增、R=归位。历史原件未永久删除，唯一移除的原路径由 R 行明确列出。生成产物的内容收缩不等于删除仓库历史。
@@ -104,6 +132,7 @@ CLI 使用按次隔离配置及 --ignore-user-config / --ignore-rules，参考[�
 | R100 | `docs/handoff-validation.md` → `docs/history/20261013-handoff-validation.md` |
 | M | `docs/history/README.md` |
 | A | `docs/history/refine-01.md` |
+| A | `docs/history/release-1.18.0.md` |
 | M | `docs/integration/AI-HOSTS.md` |
 | M | `docs/integration/CLIENT-SETUP.md` |
 | M | `docs/integration/HTTP.md` |
@@ -124,11 +153,15 @@ CLI 使用按次隔离配置及 --ignore-user-config / --ignore-rules，参考[�
 | M | `docs/server/TASK-CARDS.md` |
 | M | `docs/server/新增飞书Bot操作指南.md` |
 | M | `examples/python/notify_bridge.py` |
+| M | `frontend/README.md` |
 | M | `frontend/build-manifest.json` |
+| M | `frontend/package-lock.json` |
 | M | `frontend/package.json` |
 | A | `frontend/render-docs.mjs` |
 | M | `frontend/src/admin/components/Login.vue` |
 | M | `frontend/src/admin/pages/Developer.vue` |
+| M | `frontend/src/chat/errors.js` |
+| M | `frontend/src/oauth/App.vue` |
 | M | `mcp-plugin/.codex-plugin/plugin.json` |
 | M | `mcp-plugin/README.md` |
 | M | `mcp-plugin/examples/client.json` |
@@ -145,8 +178,10 @@ CLI 使用按次隔离配置及 --ignore-user-config / --ignore-rules，参考[�
 | M | `scripts/run_v03_test.py` |
 | M | `server/README.md` |
 | M | `server/openapi.json` |
+| M | `server/pyproject.toml` |
 | M | `server/scripts/build_developer_kit.py` |
 | M | `server/scripts/build_onboarding_assets.py` |
+| M | `server/src/wechat_bridge/__init__.py` |
 | A | `server/src/wechat_bridge/api/documentation.py` |
 | M | `server/src/wechat_bridge/api/security.py` |
 | M | `server/src/wechat_bridge/app.py` |
@@ -158,6 +193,8 @@ CLI 使用按次隔离配置及 --ignore-user-config / --ignore-rules，参考[�
 | M | `server/src/wechat_bridge/web/admin/onboarding-template.zip` |
 | A | `server/src/wechat_bridge/web/admin/public-docs.zip` |
 | M | `server/src/wechat_bridge/web/admin/style.css` |
+| M | `server/src/wechat_bridge/web/chat/app.js` |
+| M | `server/src/wechat_bridge/web/oauth/app.js` |
 | M | `server/tests/test_developer_build.py` |
 | A | `server/tests/test_documentation_contracts.py` |
 | M | `server/tests/test_f02_inbound.py` |

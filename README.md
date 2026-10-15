@@ -57,7 +57,7 @@ notify-bridge/
 
 朋友接手维护请先读 [维护手册](docs/MAINTAINER.md)，目录导航见 [文档索引](docs/README.md)。前端源码在 `frontend/src/`；运行用静态资源由构建生成。
 
-维护基线为 **v1.17.1 / `8e1c03b`**，发布说明见 [v1.17.1](docs/history/release-1.17.1.md)。REFINE-01 在独立开发分支整理，未部署；实例实际版本以健康接口、镜像和受保护发布清单核对。账号初始化、升级与恢复以 [管理与恢复](docs/product-v3/OPERATIONS.md) 为准。v0.3/F02 的设计与分批记录属于历史证据。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
+当前源码候选为 **v1.18.0（未发布）**，见 [候选发布说明与上线检查](docs/history/release-1.18.0.md)。生产保护基线仍为 **v1.17.1 / `8e1c03b`**，历史说明见 [v1.17.1](docs/history/release-1.17.1.md)。REFINE-01 在独立开发分支整理，未部署；实例实际版本以健康接口、镜像和受保护发布清单核对。账号初始化、升级与恢复以 [管理与恢复](docs/product-v3/OPERATIONS.md) 为准。v0.3/F02 的设计与分批记录属于历史证据。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
 
 三条交付路径：[部署维护](docs/MAINTAINER.md)、[AI 宿主 MCP 接入](docs/integration/AI-HOSTS.md)、[业务系统 HTTP 接入](docs/integration/HTTP.md)。AI/HTTP 资料可基于已有应用导出，不自动创建重复身份或轮换 Key。
 
@@ -100,7 +100,7 @@ curl http://127.0.0.1:18092/health
 
 将 [Nginx 配置示例](server/deploy/nginx.conf) 中的 location 配置放入已有 HTTPS 站点的 server 块，检查 `nginx -t` 通过后 reload。示例包含 `/wechat/` 和远程 MCP 所需的两个根级 OAuth discovery 路径，图片请求上限为 `6m`。容器默认仅监听本机 `127.0.0.1:18092`，外部客户端通过 HTTPS 访问。
 
-### 3. 添加 Bot 并创建接入密钥
+### 3. 添加通信连接并创建接入应用
 
 1. 管理端仅使用账号密码登录。首次需由获授权的服务器维护者按 [账号初始化与恢复说明](docs/product-v3/OPERATIONS.md) 使用终端工具建立账号；原管理员 Key 已停用。打开 `https://你的域名/bridge/admin/` 登录，应用 API Key 独立，不用于管理登录。
 2. 在“通信连接”点击“新增连接”：微信按向导扫码绑定；飞书填写应用配置，并按回调配置步骤在飞书后台保存、发布。
@@ -109,7 +109,7 @@ curl http://127.0.0.1:18092/health
 
 ### 4. 把 MCP 接入 AI
 
-**远程 MCP：** 在支持 Streamable HTTP 与 OAuth 的宿主中配置 `https://你的域名/bridge/mcp`。首次连接时在微信发送 `/web` 获取手机登录码，登录授权页面、选择刚创建的 AI 身份，再确认授权。远程模式无需将 API 密钥粘贴给 AI。
+**远程 MCP：** 在支持 Streamable HTTP 与 OAuth 的宿主中，配置管理端导出 `CONNECTION.json` / `DEPLOYMENT.json` 中的实际 `mcp_url`；`https://你的域名/bridge/mcp` 仅为新部署示例。升级实例可能保留旧 OAuth 前缀，不根据网站地址拼接 MCP 地址。首次连接时，用一次性手机登录码登录授权页，选择刚创建的接入应用，再确认授权。微信可发送 `/web` 取码；纯飞书部署由管理员在“系统设置→手机端登录”生成登录码，无需先绑定微信。手机码与管理员密码独立，远程模式无需将 API Key 或登录码粘贴给 AI。
 
 如果宿主支持本项目的插件包，可从项目根目录生成：
 

@@ -11,8 +11,9 @@ export const errors = {
   conversation_name_conflict:
     "已有同名有效对话。请先归档同名对话，再恢复这一条。",
   login_required: "请重新登录。",
-  invalid_login_code: "登录码不正确，请检查微信中的 8 位数字。",
-  login_code_expired: "登录码已过期或尝试次数过多，请在微信重新发送 /web。",
+  invalid_login_code: "登录码不正确，请检查管理员或微信提供的 8 位数字。",
+  login_code_expired:
+    "登录码已过期或尝试次数过多，请管理员生成新码，或在微信重新发送 /web。",
   conversation_closed: "这个对话已结束或客户端已停用，暂时无法回复。",
   conversation_not_found: "对话不存在，请从列表重新选择。",
   message_not_found: "未找到链接指向的消息，请从对话列表进入。",

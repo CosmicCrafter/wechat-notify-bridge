@@ -40,7 +40,7 @@
 | 服务版本 / 插件版本 | wechat_bridge/__init__.py / mcp-plugin/plugin.json；项目清单及兼容插件清单必须一致，插件独立版本不随服务号猜测 |
 | 网站七类帮助正文 | docs/integration、docs/server、product-v3/OPERATIONS.md → build_developer_kit.py → developer-docs.json；前端按 _sources 解析链接 |
 | 公开文档站 | 同一用途白名单 → build_developer_kit.py 调用现有 marked 构建 HTML/Markdown/OpenAPI → public-docs.zip → /docs/；网页直接含正文，本地脚本仅增强搜索、复制、主题。frontend/docs 的展示模板/导航是 UI 维护源，全文索引和 llms.txt 自动生成。--check 比对输入与产物摘要，无需 Node |
-| 开发者文档 ZIP | build_developer_kit.py 的用途白名单；排除历史设计，未收录源码链接明确指向完整仓库 |
+| 开发者文档 ZIP | build_developer_kit.py 的用途白名单；同一 ai_index 函数按包内路径生成 llms.txt，公开站按网页路径生成。排除历史设计，未收录源码链接明确指向完整仓库 |
 | AI / HTTP 接入包 | 插件 Skill、CLIENT-SETUP.md、HTTP.md、RECEIVERS.md、示例和 OpenAPI → build_onboarding_assets.py → 模板；services/onboarding.py 仅在内存加入实例连接配置 |
 | 独立插件 ZIP | mcp-plugin/tools/build_local_plugin.py 或 build_remote_plugin.py，复用同一安装说明与 Skill |
 | 实例运行和恢复点 | 维护者受保护的镜像/挂载/备份清单；公开文档只给定位方法，不复制生产密钥或假定旧目录 |

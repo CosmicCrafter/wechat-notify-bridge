@@ -45,6 +45,7 @@ INTRO = """# 通知桥接入文档包
 先读 [接入指南](docs/integration/README.md)，按用途选择 [AI 安装](docs/integration/CLIENT-SETUP.md) 或 [HTTP 接入](docs/integration/HTTP.md)。
 匿名下载只含通用资料，没有实例配置。若管理员提供 DEPLOYMENT.json / CONNECTION.json，使用其中实际 base_url 和 mcp_url，不自行拼接迁移后的 MCP 地址。
 版本与公开源指纹见 RELEASE.json；接口规范 server/openapi.json，示例 examples/python/notify_bridge.py。
+AI 可从 llms.txt 按需查阅同源接入资料；本 ZIP 是通用 Markdown/接口/示例包，网页增强资源由 /docs/ 提供。
 本包不含真实 Key、MCP 可执行插件或服务端安装程序。请管理员另行提供私有凭据或从向导下载对应接入包。
 未收录的维护/源码资料链接会明确指向完整仓库；历史设计和验收记录不混入本包。
 """
@@ -57,6 +58,7 @@ def public_contents(entries):
     mapping = {name: name.removeprefix("docs/") for name in entries}
     mapping["server/openapi.json"] = "openapi.json"
     mapping.pop("START-HERE.md")
+    mapping.pop("llms.txt", None)
     public, pages = {}, []
 
     def markdown(text, source, destination, html=False):
@@ -112,6 +114,35 @@ def public_contents(entries):
     return public, pages
 
 
+def navigation(root):
+    return json.loads((root / "frontend/docs/navigation.json").read_text(encoding="utf-8"))
+
+
+def ai_index(groups, release, targets, *, schema, example):
+    """Same index facts and titles, projected into website or portable package paths."""
+    text = [
+        "# Notify Bridge 开发者文档",
+        f"> 服务 {release['server_version']} · MCP 插件 {release['plugin_version']}。统一消息中转站。",
+        "阅读公开资料无需登录；调用 API 仍须应用授权。实际 base_url / mcp_url 与凭据由管理员提供，不从文档地址猜测 MCP 地址。",
+        "先核对身份和授权，再 dry_run；真实发送另需明确授权。共享应用 Key 不证明宿主聊天身份；protected 会话另需 X-Notify-Receiver。自动唤醒和工具调用分别验收。",
+    ]
+    for group in groups:
+        text.append("## " + group["group"])
+        text.append(
+            "\n".join(
+                f"- [{label}]({targets[path]}): {summary}"
+                for path, label, summary in group["pages"]
+            )
+        )
+    text.extend(
+        [
+            "## 规范与示例",
+            f"- [OpenAPI 3.1]({schema})\n- [Python 示例]({example})\n- [版本与源指纹](RELEASE.json)",
+        ]
+    )
+    return ("\n\n".join(text) + "\n").encode("utf-8")
+
+
 def render_public(root, pages, release):
     node = shutil.which("node")
     if not node:
@@ -134,6 +165,17 @@ def render_public(root, pages, release):
 
 def build_public(root, entries, *, check):
     public, pages = public_contents(entries)
+    groups = navigation(root)
+    paths = [p[0] for g in groups for p in g["pages"]]
+    if len(paths) != len(set(paths)) or set(paths) != {p["path"] for p in pages}:
+        raise ValueError("Documentation navigation differs from public Markdown pages")
+    public["llms.txt"] = ai_index(
+        groups,
+        json.loads(entries["RELEASE.json"]),
+        {p["path"]: p["markdown_path"] for p in pages},
+        schema="openapi.json",
+        example="examples/python/notify_bridge.py",
+    )
     digest = hashlib.sha256()
     inputs = {
         **public,
@@ -153,7 +195,6 @@ def build_public(root, entries, *, check):
         "style.css",
         "script.js",
         "search-index.json",
-        "llms.txt",
     }
     output = root / "server/src/wechat_bridge/web/admin/public-docs.zip"
     if check:
@@ -213,6 +254,18 @@ def contents(root):
         if path.suffix == ".md":
             content = portable_markdown(content, name, set(FILES))
         entries[name] = content.encode("utf-8")
+    version = release_metadata(root / "mcp-plugin", entries, scope="developer-docs")
+    targets = {
+        name.removeprefix("docs/")[:-3] + ".html": name for name in FILES if name.endswith(".md")
+    }
+    targets["index.html"] = "docs/integration/README.md"
+    entries["llms.txt"] = ai_index(
+        navigation(root),
+        version,
+        targets,
+        schema="server/openapi.json",
+        example="examples/python/notify_bridge.py",
+    )
     release = release_metadata(root / "mcp-plugin", entries, scope="developer-docs")
     entries["RELEASE.json"] = json.dumps(release, ensure_ascii=False, indent=2).encode("utf-8")
     docs = {key: (root / path).read_text(encoding="utf-8") for key, path in DOCS.items()}

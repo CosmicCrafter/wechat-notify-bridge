@@ -31,6 +31,9 @@ def test_public_documents_need_neither_login_nor_database():
             ("/docs/integration/CLIENT-SETUP.md", "text/markdown"),
             ("/docs/integration/RECEIVERS.md", "text/markdown"),
             ("/docs/openapi.json", "application/json"),
+            ("/docs/llms.txt", "text/plain"),
+            ("/docs/script.js", "text/javascript"),
+            ("/docs/search-index.json", "application/json"),
             ("/docs/examples/python/notify_bridge.py", "text/plain"),
             ("/docs/download.zip", "application/zip"),
         ]:
@@ -96,6 +99,8 @@ def test_public_download_and_example_are_usable_anonymously(tmp_path):
         with zipfile.ZipFile(io.BytesIO(response.content)) as z:
             assert "server/openapi.json" in z.namelist()
             assert "DEPLOYMENT.json" not in z.namelist()
+            assert "llms.txt" in z.namelist()
+            assert "docs/integration/HTTP.md" in z.read("llms.txt").decode()
             assert not any(
                 ".private" in n or n.endswith((".env", ".db", ".key")) for n in z.namelist()
             )
@@ -123,8 +128,34 @@ def test_public_links_work_behind_existing_bridge_prefix():
         assert client.get("/bridge/docs/integration/HTTP.html").status_code == 200
         assert client.get("/bridge/docs/integration/RECEIVERS.md").status_code == 200
         assert client.get("/bridge/docs/download.zip").status_code == 200
+        for path in ["llms.txt", "script.js", "search-index.json", "integration/HTTP.md"]:
+            assert client.get("/bridge/docs/" + path).status_code == 200
     finally:
         client.close()
+
+
+def test_doc01_download_and_internal_docs_share_actual_content_and_release(portal):
+    store, client, *_ = portal
+    internal = client.get("/admin/api/developer-docs", headers=ADMIN).json()
+    public_release = client.get("/docs/RELEASE.json").json()
+    assert internal["_release"] == public_release
+    with zipfile.ZipFile(io.BytesIO(client.get("/docs/download.zip").content)) as archive:
+        assert json.loads(archive.read("RELEASE.json")) == public_release
+        assert archive.read("server/openapi.json") == client.get("/docs/openapi.json").content
+        assert (
+            archive.read("examples/python/notify_bridge.py")
+            == client.get("/docs/examples/python/notify_bridge.py").content
+        )
+        assert "只把文档根网址" in archive.read("docs/integration/README.md").decode()
+        assert "只把文档根网址" in internal["guide"]
+        assert "X-Notify-Receiver" in archive.read("llms.txt").decode()
+    for path in [
+        "/docs/private.js",
+        "/docs/.private/config.txt",
+        "/docs/%2e%2e/.env",
+        "/docs/secrets/encryption.key",
+    ]:
+        assert client.get(path).status_code == 404
 
 
 def test_public_enhancement_is_local_and_articles_keep_static_navigation():

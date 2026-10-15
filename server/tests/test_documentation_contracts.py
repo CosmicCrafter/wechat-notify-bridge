@@ -5,6 +5,7 @@ import io
 import json
 from pathlib import Path
 import secrets
+import shutil
 import sys
 import zipfile
 
@@ -132,6 +133,59 @@ def test_public_html_guard_rejects_broken_or_active_links(href):
     }
     with pytest.raises(ValueError):
         check_html_links(entries)
+
+
+@pytest.mark.parametrize("damage", ["missing_llms", "missing_script", "wrong_search_version", "missing_search_page", "empty_search_content", "missing_guide", "private_link", "missing_alternate", "external_script", "inline_handler"])
+def test_doc01_guard_rejects_broken_discovery_or_active_content(damage):
+    path = ROOT / "server/src/wechat_bridge/web/admin/public-docs.zip"
+    with zipfile.ZipFile(path) as archive:
+        entries = {n: archive.read(n) for n in archive.namelist()}
+    if damage.startswith("missing_") and damage in ("missing_llms", "missing_script"):
+        entries.pop("llms.txt" if damage == "missing_llms" else "script.js")
+    elif damage in ("wrong_search_version", "missing_search_page", "empty_search_content"):
+        search = json.loads(entries["search-index.json"])
+        if damage == "wrong_search_version":
+            search["release"]["server_version"] = "0.0.0"
+        elif damage == "missing_search_page":
+            search["pages"].pop()
+        else:
+            search["pages"][0]["content"] = ""
+        entries["search-index.json"] = json.dumps(search).encode()
+    elif damage == "missing_guide":
+        entries["llms.txt"] = b"\n".join(line for line in entries["llms.txt"].splitlines() if b"integration/HTTP.md" not in line)
+    elif damage == "private_link":
+        entries["llms.txt"] += b"\n[private](.private/client.json)"
+    elif damage == "missing_alternate":
+        entries["index.html"] = entries["index.html"].replace(b'rel="alternate" type="text/markdown"', b'rel="unknown" type="text/markdown"')
+    elif damage == "external_script":
+        entries["index.html"] += b'<script src="https://example.invalid/track.js" defer></script>'
+    else:
+        entries["index.html"] += b'<button onclick="alert(1)">run</button>'
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, content in entries.items():
+            archive.writestr(name, content)
+    with pytest.raises(ValueError):
+        check_archive(buffer.getvalue(), "public", server_version=__version__, plugin_version="1.11.0")
+
+
+@pytest.mark.parametrize("asset", ["site.js", "site.css", "home.html"])
+def test_doc01_build_guard_catches_changed_presentation_inputs_without_node(tmp_path, asset):
+    sys.path.insert(0, str(ROOT / "server/scripts"))
+    from build_developer_kit import contents, build_public
+
+    entries, _ = contents(ROOT)
+    paths = ["frontend/render-docs.mjs", "frontend/src/shared/theme.css", "server/src/wechat_bridge/web/admin/public-docs.zip"]
+    paths += [p.relative_to(ROOT).as_posix() for p in (ROOT / "frontend/docs").iterdir()]
+    for name in paths:
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / name, target)
+    build_public(tmp_path, entries, check=True)
+    changed = tmp_path / "frontend/docs" / asset
+    changed.write_bytes(changed.read_bytes() + b"\nchanged presentation input\n")
+    with pytest.raises(SystemExit, match="Stale public documentation"):
+        build_public(tmp_path, entries, check=True)
 
 
 @pytest.mark.parametrize("damage", ["menu", "mcp_url", "feishu"])

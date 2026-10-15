@@ -4,6 +4,8 @@
 
 公开入口为服务地址后的 `/docs/`，网页正文无需登录；AI 可直接读取 `/docs/index.md`、`/docs/integration/HTTP.md`、`/docs/integration/CLIENT-SETUP.md`、`/docs/integration/RECEIVERS.md` 与 `/docs/openapi.json`，通用文档 ZIP 为 `/docs/download.zip`。匿名资料不包含实例配置或真实凭据，也不授予调用权限。
 
+只把文档根网址交给能访问网页的 AI 即可开始阅读：首页包含 HTTP、AI/MCP 和会话协议入口，并链接 Markdown、OpenAPI 与自动生成的 `/docs/llms.txt`。网页正文与普通导航不依赖 JavaScript；本地脚本只增强全文搜索、复制和主题。`llms.txt` 是可发现的阅读索引，不保证所有 AI 宿主自动读取。离线通用资料包也含同源索引；它是 Markdown/接口/示例包，不是含凭据的 MCP 安装包。
+
 实际 `base_url` 和 `mcp_url` 由管理员提供。若持有管理端导出的 `DEPLOYMENT.json` / `CONNECTION.json`，优先使用其中地址；`api_key` 占位符需单独配置。升级部署可能保留旧 MCP 授权地址，不能从文档 URL 或新 base_url 猜测 MCP 地址。
 
 ## 接入前拿到什么

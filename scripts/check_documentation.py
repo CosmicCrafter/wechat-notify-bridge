@@ -47,7 +47,11 @@ def heading_ids(text):
 
 def check_links(entries, *, check_anchors=True, documents=None):
     for name, content in entries.items():
-        if not name.endswith(".md") or documents is not None and name not in documents:
+        if (
+            (not name.endswith(".md") and Path(name).name != "llms.txt")
+            or documents is not None
+            and name not in documents
+        ):
             continue
         for href in re.findall(r"\]\(([^)]+)\)", content.decode("utf-8")):
             if re.match(r"\w+:", href):
@@ -141,6 +145,50 @@ def check_html_links(entries):
                 raise ValueError("Missing public HTML anchor: " + name + " -> " + href)
 
 
+def check_ai_discovery(entries, release, *, public):
+    index = entries["llms.txt"].decode("utf-8")
+    if not all(
+        word in index
+        for word in (
+            release["server_version"],
+            release["plugin_version"],
+            "X-Notify-Receiver",
+            "dry_run",
+        )
+    ):
+        raise ValueError("Incomplete or stale AI documentation index")
+    targets = {unquote(path) for path in re.findall(r"\]\(([^)]+)\)", index)}
+    required = {n for n in entries if n.endswith(".md") and (public or n.startswith("docs/"))}
+    if not required <= targets:
+        raise ValueError("AI documentation index omits a public guide")
+    if public:
+        search = json.loads(entries["search-index.json"])
+        paths = [p["path"] for p in search["pages"]]
+        if (
+            search["release"] != release
+            or len(paths) != len(set(paths))
+            or set(paths) != {n for n in entries if n.endswith(".html")}
+        ):
+            raise ValueError("Stale or incomplete full-text search index")
+        if not all(
+            isinstance(p.get("content"), str) and p["content"].strip() for p in search["pages"]
+        ):
+            raise ValueError("Empty full-text search content")
+        for name, value in entries.items():
+            if name.endswith(".html"):
+                text = value.decode("utf-8")
+                if not all(
+                    word in text
+                    for word in (
+                        'rel="alternate" type="text/markdown"',
+                        "llms.txt",
+                        "openapi.json",
+                        '<main class="doc-main" id="content">',
+                    )
+                ):
+                    raise ValueError("Static document or machine links omitted: " + name)
+
+
 def check_archive(blob, flavor, *, server_version, plugin_version):
     with zipfile.ZipFile(io.BytesIO(blob)) as archive:
         names = archive.namelist()
@@ -158,6 +206,7 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
     required = ["RELEASE.json"]
     if flavor == "docs":
         required += [
+            "llms.txt",
             "START-HERE.md",
             "server/openapi.json",
             "examples/python/notify_bridge.py",
@@ -167,6 +216,9 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
             raise ValueError("Historical material entered client documentation package")
     elif flavor == "public":
         required += [
+            "llms.txt",
+            "script.js",
+            "search-index.json",
             "index.html",
             "index.md",
             "style.css",
@@ -246,6 +298,8 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
         if ".private" not in name.split("/") and secret.search(value):
             raise ValueError("Credential-shaped value in public package member: " + name)
     check_links(entries)
+    if flavor in ("public", "docs"):
+        check_ai_discovery(entries, release, public=flavor == "public")
     if flavor == "public":
         check_html_links(entries)
     return len(entries)

@@ -128,29 +128,4 @@ output["search-index.json"] = JSON.stringify({
   release: data.release,
   pages: search,
 });
-output["llms.txt"] = `# Notify Bridge 开发者文档
-
-> 服务 ${data.release.server_version} · MCP 插件 ${data.release.plugin_version}。统一消息中转站；阅读公开资料无需登录，调用 API 仍需应用授权。
-
-接入使用管理员提供的实际 base_url / mcp_url 与私有凭据。不要从文档地址推测 MCP 地址。共享应用 Key 不证明具体宿主聊天身份；protected 会话另需 X-Notify-Receiver。先核对身份，再 dry_run；真实发送另需明确授权。
-
-${navigation
-  .map(
-    (g) =>
-      `## ${g.group}\n\n${g.pages
-        .map(([path, label, summary]) => {
-          const p = data.pages.find((p) => p.path === path);
-          return p ? `- [${label}](${p.markdown_path}): ${summary}` : "";
-        })
-        .filter(Boolean)
-        .join("\n")}`,
-  )
-  .join("\n\n")}
-
-## 规范与示例
-
-- [OpenAPI 3.1](openapi.json)
-- [Python 示例](examples/python/notify_bridge.py)
-- [公开文档包](download.zip)
-`;
 process.stdout.write(JSON.stringify(output));

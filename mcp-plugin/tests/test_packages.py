@@ -27,7 +27,9 @@ def test_package_layout_and_references(tmp_path, transport):
         bundle.extractall(tmp_path/'unpacked')
     root = tmp_path/'unpacked/wechat-notify-local'
     manifest = check(root)
-    assert manifest['version'] == '1.10.0'
+    assert manifest['version'] == '1.11.0'
+    assert (root/'INSTALL.md').is_file()
+    assert json.loads((root/'RELEASE.json').read_text())['plugin_version'] == manifest['version']
     assert manifest['extensions']['com.openai']['interface']['defaultPrompt'] == '通过微信通知插件查看服务状态。'
     if transport == 'local':
         assert (root/'server/api_errors.py').is_file()

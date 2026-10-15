@@ -1,4 +1,5 @@
 {
-  "base_url": "https://notify.example.com/wechat",
-  "api_key": "REPLACE_WITH_YOUR_CLIENT_API_KEY"
+  "base_url": "https://notify.example.com/bridge",
+  "api_key": "CONFIGURE_SEPARATELY",
+  "default_bot_id": ""
 }

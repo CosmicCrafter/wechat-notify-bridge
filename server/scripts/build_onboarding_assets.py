@@ -3,6 +3,8 @@
 import argparse
 from pathlib import Path
 import zipfile
+import json
+import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -19,13 +21,13 @@ def build(root=ROOT, *, check=False):
     for directory, extensions in [
         ("server", {".py"}),
         ("skills", {".md", ".yaml"}),
-        ("tools", {".py"}),
     ]:
         names += [
             p.relative_to(plugin).as_posix()
             for p in sorted((plugin / directory).rglob("*"))
             if p.is_file() and p.suffix in extensions and "__pycache__" not in p.parts
         ]
+    names.append("tools/configure_client.py")
     expected = {}
     for name in names:
         path = plugin / name
@@ -43,6 +45,10 @@ def build(root=ROOT, *, check=False):
         "F02-RECEIVERS.md": "docs/integration/RECEIVERS.md",
     }.items():
         expected[destination] = (root / source).read_text(encoding="utf-8").encode()
+    sys.path.insert(0, str(ROOT / "mcp-plugin/tools"))
+    from package_checks import release_metadata
+
+    expected["RELEASE.json"] = json.dumps(release_metadata(plugin, expected), indent=2).encode()
     output = root / "server/src/wechat_bridge/web/admin/onboarding-template.zip"
     if check:
         try:

@@ -31,10 +31,12 @@ def package(files, *, kind, transport, target, base_url, mcp_url, client=None, b
         "bot_name": bot["name"] if bot else None,
         "platform": bot["platform"] if bot else None,
         "authorization": "Server grants are authoritative; profile preferences do not grant access.",
+        "release": json.loads(files["RELEASE.json"]),
     }
     if target == "http" and kind != "rules":
         root = "notify-bridge-http"
         entries = {
+            "RELEASE.json": files["RELEASE.json"],
             "CONNECTION.json": json_bytes(profile),
             "notify_bridge.py": files["http-client.py"],
             "openapi.json": files["http-api.json"],
@@ -53,8 +55,16 @@ def package(files, *, kind, transport, target, base_url, mcp_url, client=None, b
     elif kind == "rules":
         entries = {n: b for n, b in files.items() if n.startswith("skills/")}
         entries["INSTALL.md"] = files["INSTALL.md"]
+        entries["RELEASE.json"] = files["RELEASE.json"]
+        entries["AI-HOSTS.md"] = files["AI-HOSTS.md"]
+        entries["F02-RECEIVERS.md"] = files["F02-RECEIVERS.md"]
         root = "notify-bridge-rules"
     else:
+        files = {
+            n: b
+            for n, b in files.items()
+            if n not in ("http-client.py", "http-api.json", "HTTP-INTEGRATION.md")
+        }
         if transport == "remote":
             files = {
                 n: b

@@ -1,6 +1,6 @@
 # 微信通知插件
 
-通过常驻通知桥发送本人微信或飞书消息和任务卡片、读取通道与手机网页的回复。插件 1.10.0 保留身份 `wechat-notify-local`、Skill 名 `wechat-notify` 与中文显示名“微信通知”。服务器负责通道连接和数据，插件不另建微信会话。
+通过常驻通知桥发送本人微信或飞书消息和任务卡片、读取通道与手机网页的回复。插件 1.11.0 保留身份 `wechat-notify-local`、Skill 名 `wechat-notify` 与中文显示名“微信通知”。服务器负责通道连接和数据，插件不另建微信会话。
 
 服务器 1.15.0 支持多个微信与飞书 Bot。在管理页给 Key 关联可调用的 Bot 并设置默认 Bot；先查询身份中的 Bot 列表，发送及查回执指定 `bot_id`，省略时使用该 Key 的默认 Bot。旧 Key 自动保留原微信权限。飞书卡片直接在飞书交互，回复、任务状态和唤醒事件复用原会话。详见 [Bot 与 Key 管理](../docs/server/BOTS.md)及[飞书接入](../docs/server/FEISHU.md)。
 
@@ -10,7 +10,7 @@
 
 只需通知时调用 `sendMessage`；需要选择方案时调用 `sendTaskCard`，默认单选，也支持按需设置 `mode="multiple"`（多选）、`mode="confirm"`（按钮确认）或 `mode="input"`（独立输入）。通过 `getMessages` 接收带任务 ID 的决定；用 `getTaskCard` 查询，用 `updateTaskCard` 更新实际处理状态。详见 [任务卡片](../docs/server/TASK-CARDS.md)，三种新模式要求服务器 1.12.0，原单选兼容 1.11.0。
 
-管理员可在开发者页下载已配置包、通用模板或仅 Skill 规则包。完整安装步骤见 [客户端安装指南](../docs/integration/CLIENT-SETUP.md)。
+管理员可在开发者页下载已配置包、通用模板或仅 Skill 规则包。安装步骤唯一维护在 [客户端安装指南](../docs/integration/CLIENT-SETUP.md)，网站与独立 ZIP 均随包生成 INSTALL.md。包的 RELEASE.json 记录服务/插件版本及公开输入指纹；它不是生产恢复清单。
 
 ## 选择接入方式
 
@@ -35,7 +35,7 @@ python mcp-plugin/tools/build_remote_plugin.py --base-url https://notify.example
 
 ## 本机 stdio 接入
 
-在插件目录执行 `python -m pip install -r requirements.txt`。微信发送 `/getkey codex` 或在 Admin 创建独立客户端，将地址和 40 位数字密钥存入私有配置：
+在插件目录执行 `python -m pip install -r requirements.txt`。微信发送 `/getkey codex` 或在 Admin 创建独立客户端，将地址和该应用的有效 Key（新 nb_ 与旧数字 Key 均按字符串保存）存入私有配置：
 
 ```json
 {

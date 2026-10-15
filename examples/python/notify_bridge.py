@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -107,18 +108,63 @@ class NotifyBridge:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--config", type=Path, help="Private client.json; never prints its contents"
+    )
+    parser.add_argument(
+        "--identity-only", action="store_true", help="Only read identity; no registration or send"
+    )
+    parser.add_argument(
+        "--conversation-key", help="Stable logical conversation ID (or NOTIFY_CONVERSATION_KEY)"
+    )
+    parser.add_argument("--event-id", help="Stable event dedup key (or NOTIFY_EVENT_ID)")
+    parser.add_argument(
         "--send", action="store_true", help="Actually send one message; default is dry-run"
     )
     args = parser.parse_args()
-    client = NotifyBridge(os.environ["NOTIFY_BASE_URL"], os.environ["NOTIFY_API_KEY"])
-    bot_id = os.environ["NOTIFY_BOT_ID"]
+    if args.config:
+        try:
+            config = json.loads(args.config.read_text(encoding="utf-8-sig"))
+            if not isinstance(config, dict):
+                raise ValueError()
+        except (OSError, ValueError):
+            parser.error("Cannot read private JSON configuration; contents were not printed")
+    else:
+        config = dict(
+            base_url=os.environ.get("NOTIFY_BASE_URL"),
+            api_key=os.environ.get("NOTIFY_API_KEY"),
+            default_bot_id=os.environ.get("NOTIFY_BOT_ID"),
+        )
+    if (
+        not all(
+            isinstance(config.get(k), str) and config[k].strip() for k in ("base_url", "api_key")
+        )
+        or config["api_key"] == "CONFIGURE_SEPARATELY"
+    ):
+        parser.error("Configure base_url and api_key in a private file or environment")
+    client = NotifyBridge(
+        config["base_url"], config["api_key"], receiver_token=config.get("receiver_token")
+    )
+    bot_id = config.get("default_bot_id")
     identity = client.identity()
+    if args.identity_only:
+        print(
+            json.dumps(
+                {k: identity.get(k) for k in ("caller", "client_id", "bot_ids", "default_bot_id")},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
     if bot_id not in identity["bot_ids"]:
         raise SystemExit("Bot is not authorized for this client Key")
-    chat = client.register(os.environ["NOTIFY_CONVERSATION_KEY"], "接入测试")
-    result = client.send(
-        chat["id"], bot_id, "通知桥接入测试", os.environ["NOTIFY_EVENT_ID"], dry_run=not args.send
-    )
+    conversation_key = args.conversation_key or os.environ.get("NOTIFY_CONVERSATION_KEY")
+    event_id = args.event_id or os.environ.get("NOTIFY_EVENT_ID")
+    if not conversation_key or not event_id:
+        parser.error(
+            "Set a stable --conversation-key and --event-id (or their NOTIFY_* environment variables)"
+        )
+    chat = client.register(conversation_key, "接入测试")
+    result = client.send(chat["id"], bot_id, "通知桥接入测试", event_id, dry_run=not args.send)
     print(
         json.dumps(
             dict(

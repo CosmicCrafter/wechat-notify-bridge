@@ -6,6 +6,19 @@
 
 使用导出包时，无需安装 MCP。openapi.json 是接口规范；notify_bridge.py 是无额外依赖、无自动重发的 Python 示例。完整源码仓库中的对应位置为 server/openapi.json 和 examples/python/notify_bridge.py。
 
+## 从下载包直接运行
+
+在 notify-bridge-http 目录打开终端（完整文档包则在仓库/文档包根目录执行，脚本路径为 examples/python/notify_bridge.py）。Python 3.12+，无需额外依赖。先由获授权维护者配置 `.private/client.json`，不要把 Key 写在命令参数、终端历史或 AI 对话中。
+
+```sh
+python notify_bridge.py --config .private/client.json --identity-only
+python notify_bridge.py --config .private/client.json --conversation-key system-job-001 --event-id job-001-notice
+```
+
+第一条只核对应用身份与授权，不登记会话、不发消息；第二条登记稳定会话并执行 dry_run，尚未投递。确认独立目标和通知授权后，在第二条命令后加 `--send` 才真实发送。重复同一业务事件保持会话键、事件键和正文不变；不要为了重试改键。程序不会自动重发或启动长期轮询。
+
+已有 NOTIFY_BASE_URL / NOTIFY_API_KEY / NOTIFY_BOT_ID / NOTIFY_CONVERSATION_KEY / NOTIFY_EVENT_ID 环境变量方式保持可用；指定 --config 时整组地址和凭据来自该文件，避免混用两套身份。配置错误仅显示固定错误，不打印文件内容。
+
 ## 最小业务闭环
 
 1. GET /api/status：核对 client_id、授权 bot_ids 和 default_bot_id。只说明实际 API 身份，不证明宿主在线。

@@ -6,41 +6,64 @@ from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
+# Reader-oriented allowlist: historical designs and server deployment sources stay in the repository.
 FILES = [
-    "README.md",
-    "CONTRIBUTING.md",
-    "SECURITY.md",
+    "docs/integration/README.md",
+    "docs/integration/CLIENT-SETUP.md",
+    "docs/integration/AI-HOSTS.md",
+    "docs/integration/HTTP.md",
+    "docs/integration/RECEIVERS.md",
+    "docs/server/API.md",
+    "docs/server/BOTS.md",
+    "docs/server/FEISHU.md",
+    "docs/server/TASK-CARDS.md",
+    "docs/server/IMAGES.md",
+    "docs/server/CHAT.md",
+    "docs/server/REMOTE-MCP.md",
+    "docs/server/MCP-EVENTS.md",
+    "docs/server/DELIVERY-RELIABILITY.md",
+    "docs/wechat-markdown/微信Markdown排版指南.md",
     "server/openapi.json",
     "examples/python/notify_bridge.py",
-    "mcp-plugin/README.md",
-    "mcp-plugin/DESKTOP-WAKE.md",
-    "mcp-plugin/examples/mcp-client.json",
-    "mcp-plugin/examples/client.json",
 ]
-INTRO = "# 通知桥开发接入包\n\n先读 DEPLOYMENT.json 获取实际服务地址（在线下载包提供），然后读 docs/integration/README.md，再读 docs/server/API.md。\n接口规范：server/openapi.json；Python 示例：examples/python/notify_bridge.py。\n本包不含密钥和服务端安装程序。请让管理员另行提供服务地址和专属客户端 Key。\n完整 MCP 插件和服务器源码：https://github.com/CosmicCrafter/wechat-notify-bridge\n文档中未包含的部署/插件源码链接请在完整仓库查看。\n"
+DOCS = {
+    "guide": "docs/integration/README.md",
+    "setup": "docs/integration/CLIENT-SETUP.md",
+    "api": "docs/server/API.md",
+    "cards": "docs/server/TASK-CARDS.md",
+    "operations": "docs/product-v3/OPERATIONS.md",
+    "ai": "docs/integration/AI-HOSTS.md",
+    "http": "docs/integration/HTTP.md",
+}
+INTRO = """# 通知桥接入文档包
+
+先读 [接入指南](docs/integration/README.md)，按用途选择 [AI 安装](docs/integration/CLIENT-SETUP.md) 或 [HTTP 接入](docs/integration/HTTP.md)。
+在线下载的 DEPLOYMENT.json 提供实际 base_url 和 mcp_url；不要自行拼接迁移后的 MCP 地址。
+版本与公开源指纹见 RELEASE.json；接口规范 server/openapi.json，示例 examples/python/notify_bridge.py。
+本包不含真实 Key、MCP 可执行插件或服务端安装程序。请管理员另行提供私有凭据或从向导下载对应接入包。
+未收录的维护/源码资料链接会明确指向完整仓库；历史设计和验收记录不混入本包。
+"""
 
 
 def contents(root):
-    names = FILES + [p.relative_to(root).as_posix() for p in sorted((root / "docs").rglob("*.md"))]
+    import sys
+
+    sys.path.insert(0, str(ROOT / "mcp-plugin/tools"))
+    from package_checks import portable_markdown, release_metadata
+
     entries = {"START-HERE.md": INTRO.encode("utf-8")}
-    for name in names:
+    for name in FILES:
         path = root / name
         if path.is_symlink():
             raise ValueError("Symlinks are not developer kit inputs: " + name)
-        # All allowlisted inputs are UTF-8 text. Match Git LF checkout on every OS.
-        entries[name] = path.read_text(encoding="utf-8").encode("utf-8")
-    docs = {
-        key: (root / path).read_text(encoding="utf-8")
-        for key, path in {
-            "guide": "docs/integration/README.md",
-            "setup": "docs/integration/CLIENT-SETUP.md",
-            "api": "docs/server/API.md",
-            "cards": "docs/server/TASK-CARDS.md",
-            "operations": "docs/product-v3/OPERATIONS.md",
-            "ai": "docs/integration/AI-HOSTS.md",
-            "http": "docs/integration/HTTP.md",
-        }.items()
-    }
+        content = path.read_text(encoding="utf-8")
+        if path.suffix == ".md":
+            content = portable_markdown(content, name, set(FILES))
+        entries[name] = content.encode("utf-8")
+    release = release_metadata(root / "mcp-plugin", entries)
+    entries["RELEASE.json"] = json.dumps(release, ensure_ascii=False, indent=2).encode("utf-8")
+    docs = {key: (root / path).read_text(encoding="utf-8") for key, path in DOCS.items()}
+    docs.update(_sources=DOCS, _release=release)
     return entries, json.dumps(docs, ensure_ascii=False).encode("utf-8")
 
 

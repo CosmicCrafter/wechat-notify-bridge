@@ -8,7 +8,7 @@
 
 微信使用摘要、手机页交互及各 Bot 独立的上下文、计数和空闲心跳。飞书使用原生卡片，无微信的十条估算或续期心跳。未配置或停用时说明状态，不擅自换 Bot。
 
-`sendMessage`、`sendNotification`、`sendTaskCard` 和 `getDeliveryStatus` 都支持 `bot_id`。保存返回的 Bot ID、会话、去重键与原参数；重试和查回执保持一致，即使默认 Bot 后来改变也不改投其他 Bot。
+`sendMessage`、`sendNotification`、`sendTaskCard` 和 `getDeliveryStatus` 都支持 `bot_id`。保存原请求的目标参数、会话、去重键与正文，并另记实际 Bot ID。显式 Bot 请求继续传原 Bot；策略请求原本省略 bot_id/channel 时查询也保持省略，即使返回了实际 Bot 也不补入或改投。
 
 `getMessages` 按本聊天会话与游标读取已授权 Bot 的回复，`bot_id` 标明连接，`source` 标明微信、飞书或网页。回信沿用入站 Bot ID。飞书单聊可带标签或引用原通知回复；无明确归属的消息留在公共收件箱。
 

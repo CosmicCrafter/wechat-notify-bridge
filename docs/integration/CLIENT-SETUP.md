@@ -12,6 +12,10 @@
 
 ## 下载包里有什么
 
+网站“快速接入”生成选定应用的接入包；“手动配置”提供无真实 Key 的模板或仅规则包；“接口文档”下载的是接入文档，不是可运行 MCP 插件。维护部署应下载完整源码，不能拿接入包安装服务器。
+
+RELEASE.json 记录服务版本、独立插件版本及公开构建输入指纹；CONNECTION.json / DEPLOYMENT.json 提供实际地址。插件身份保持 wechat-notify-local，不能用服务器版本推断插件内容。
+
 已配置包的 `CONNECTION.json` 记录服务地址、接入方式、期望客户端身份和默认 Bot，不包含密钥。它描述路由偏好，不是服务器权限证明。
 
 本机已配置包额外包含 `.private/client.json`，其中有真实 Key。整个 ZIP 和解压目录都属于私有文件，不上传公开仓库，不作为附件发给 AI，不让 AI 阅读这个私有文件。Skill 正文不含 Key。分享给另一位用户或另一台机器，建议生成另一把独立 Key。
@@ -28,13 +32,13 @@
 4. Windows 若 `python` 不存在，可先使用 `py -3.12 tools/configure_client.py --prepare`。macOS/Linux 可使用已安装的 `python3`。必须先由用户安装 Python，包内不捆绑解释器。
 5. 包移动到其他目录后重新运行配置工具，以刷新绝对路径。不要把 Windows 的 `.venv` 直接复制到 macOS/Linux。
 
-通用模板中的 `.private/client.json` 使用 `CONFIGURE_SEPARATELY` 占位符。先用本地编辑器填入自己的服务地址、Key 和可选 default_bot_id，再运行准备命令。地址不是管理页 URL，不能以 `/admin/` 结尾。远程地址必须 HTTPS；本机 stdio 可连接明确的回环 HTTP 地址，如 `http://127.0.0.1:8092`，不会放行局域网或公网明文 HTTP。
+独立插件 ZIP 不携带私有配置；如果缺少 `.private/client.json`，先创建仅本人可访问的 `.private` 目录，将 `examples/client.json` 复制到该位置并填写，已有文件不要覆盖。网站通用模板中的 `.private/client.json` 使用 `CONFIGURE_SEPARATELY` 占位符。先用本地编辑器填入自己的服务地址、Key 和可选 default_bot_id，再运行准备命令。地址不是管理页 URL，不能以 `/admin/` 结尾。远程地址必须 HTTPS；本机 stdio 可连接明确的回环 HTTP 地址，如 `http://127.0.0.1:8092`，不会放行局域网或公网明文 HTTP。
 
 ## Codex：选择一种安装路径
 
 ### 路径 A：安装插件，同时加载 Skill 和 MCP
 
-完整接入包最外层包含 `.agents/plugins/marketplace.json` 和插件目录。使用支持插件的 Codex CLI：
+网站完整接入包最外层包含 `.agents/plugins/marketplace.json` 和插件目录。独立插件 ZIP 没有此外层 marketplace，优先使用路径 B，不能直接套用下面的 marketplace 命令。使用支持插件的 Codex CLI：
 
 ```sh
 codex plugin marketplace add "<完整解压根目录>"
@@ -69,6 +73,10 @@ Codex MCP 官方说明：https://developers.openai.com/codex/mcp 。上述 CLI �
 打开宿主授权页，用通知桥一次性手机登录码登录，选择 CONNECTION.json 中的应用并确认授权。管理端“系统设置→手机端登录”生成该码；微信也可发 `/web`。纯飞书不需要先绑定微信。手机码和管理密码独立，不将码或令牌粘贴到 AI 聊天。
 
 OAuth 由用户操作完成，ZIP 不会绕过授权，也不能静默替用户选择身份。完成后调用 getCallerIdentity，核对 client_id、授权 Bot 和默认 Bot；不一致时停止发送，重新选择正确身份。一个包的默认 Bot 说明不能代替服务端 Key 授权。
+
+## 受保护双向会话
+
+需要 F02 会话接收保护时，先读本包 F02-RECEIVERS.md（完整仓库为 docs/integration/RECEIVERS.md），为实际接收上下文配置独立 receiver_file，再注册或配对；默认 legacy 方式不会自动获得聊天强身份保护。详细宿主配置见 [AI 接入说明](AI-HOSTS.md)。不要将接收令牌交给模型。
 
 ## 三步验收，分别判断结果
 

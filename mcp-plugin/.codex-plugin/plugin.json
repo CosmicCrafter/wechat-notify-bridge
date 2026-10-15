@@ -1,6 +1,6 @@
 {
   "name": "wechat-notify-local",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "WeChat and optional Feishu notifications, native task cards and routed replies through HTTP API or OAuth-protected MCP.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",

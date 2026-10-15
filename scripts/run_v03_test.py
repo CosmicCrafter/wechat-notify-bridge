@@ -153,12 +153,21 @@ def main():
         action="store_true",
         help="Temporary F01 profile without an administrator, loopback 19866",
     )
+    parser.add_argument("--port", type=int, help="Independent loopback-only acceptance port")
+    parser.add_argument(
+        "--directory", type=Path, help="Independent test profile beneath repository .private"
+    )
     args = parser.parse_args()
-    port = 19866 if args.first_install else 19865
+    port = args.port or (19866 if args.first_install else 19865)
+    if not 1024 <= port <= 65535:
+        parser.error("Test port must be between 1024 and 65535")
     os.environ["WECHAT_PUBLIC_BASE_URL"] = f"http://127.0.0.1:{port}"
-    private = ROOT / (
+    private = args.directory or ROOT / (
         ".private/test-first-install-f01" if args.first_install else ".private/test-v03"
     )
+    private = private.resolve()
+    if not private.is_relative_to((ROOT / ".private").resolve()):
+        parser.error("Test profile must stay beneath repository .private; no production data")
     private.mkdir(parents=True, exist_ok=True)
     key_path = private / "encryption.key"
     if not key_path.exists():
@@ -225,7 +234,7 @@ def main():
     print(
         "No administrator created in the separate F01 first-install test profile."
         if args.first_install
-        else "Random local login stored in .private/test-v03/local-access.json; platform responses are simulated."
+        else "Random local login stored in the private test profile/local-access.json; platform responses are simulated."
     )
     try:
         uvicorn.run(app, host="127.0.0.1", port=port, access_log=False)

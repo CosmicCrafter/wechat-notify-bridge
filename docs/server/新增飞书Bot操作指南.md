@@ -20,7 +20,7 @@
 
 - [飞书开发者后台](https://open.feishu.cn/app)：需要应用创建、配置和发布权限。
 - 通知桥管理页：`https://你的域名/bridge/admin/`。
-- 当前自用部署：[Bot 管理](https://notify.sci-pi.cn/bridge/admin/#bots)、[接入密钥](https://notify.sci-pi.cn/bridge/admin/#keys)、[开发者文档](https://notify.sci-pi.cn/bridge/admin/#developer)。其他部署请替换域名及实际路径前缀。
+- 在自己的管理端进入“通信连接”“接入应用”“帮助与接入”。不要把他人部署地址当作自己的测试目标。
 
 顺序：**创建应用 → 机器人能力与权限 → 获取凭据和本人 Open ID → 通知桥保存配置 → 飞书验证回调并订阅 → 发布 → Key 授权 → 三项实测。**
 

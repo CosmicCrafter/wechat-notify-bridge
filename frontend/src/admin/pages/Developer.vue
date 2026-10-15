@@ -15,6 +15,14 @@ const docs = ref(null),
   tab = ref("quick"),
   reference = ref("guide"),
   step = ref(0);
+const referenceBase = computed(() => {
+  const source =
+    docs.value?._sources?.[reference.value] || "docs/integration/README.md";
+  return (
+    "https://github.com/CosmicCrafter/wechat-notify-bridge/blob/main/" +
+    source.slice(0, source.lastIndexOf("/") + 1)
+  );
+});
 const target = ref("codex"),
   transport = ref("remote"),
   credentialMode = ref("existing");
@@ -241,6 +249,11 @@ function reset() {
     <h2>把通知桥接入你的 AI 或程序</h2>
     <p class="help">
       选择接入方式，下载配置与使用规则。连接、消息送达和自动唤醒分别验收。
+    </p>
+    <p v-if="docs?._release" class="help">
+      资料：服务 {{ docs._release.server_version }} · 插件
+      {{ docs._release.plugin_version }}。安装与配置以包内 INSTALL.md /
+      README.md 为准。
     </p>
   </div>
   <el-tabs v-model="tab"
@@ -540,7 +553,7 @@ function reset() {
         <p class="help">已有程序可直接调用 HTTP API，不必安装 Skill。</p>
       </div>
       <el-button :loading="session.busy" @click="download('docs')"
-        >下载开发文档包</el-button
+        >下载接入文档包</el-button
       >
     </div>
     <el-tabs v-model="reference"
@@ -551,13 +564,7 @@ function reset() {
         name="http" /><el-tab-pane label="接入指南" name="guide" /><el-tab-pane
         label="HTTP 接口"
         name="api" /><el-tab-pane label="任务卡片" name="cards" /></el-tabs
-    ><Markdown
-      v-if="docs"
-      :text="docs[reference] || ''"
-      :base="
-        'https://github.com/CosmicCrafter/wechat-notify-bridge/blob/main/docs/' +
-        (reference === 'guide' ? 'integration/' : 'server/')
-      "
+    ><Markdown v-if="docs" :text="docs[reference] || ''" :base="referenceBase"
   /></el-card>
 </template>
 <style scoped>

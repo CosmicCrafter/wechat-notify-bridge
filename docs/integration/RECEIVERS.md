@@ -28,4 +28,4 @@ AI 主动 registerConversation(receiver_mode="protected", host_type="codex" 或 
 
 新增表/字段保留旧记录、Key、正文和旧 active=0 停用状态。使用既有一致性 SQLite backup，配套原加密密钥和匹配代码，在隔离无生产出口环境验证重开、解密、权限和历史。旧稳定二进制不会执行新接收/撤销策略，禁止只切旧代码继续使用新库。正式回退需授权并恢复匹配的升级前代码、数据、密钥和配置，先保全升级期间新增记录，不能声称旧快照覆盖后零丢失。
 
-本轮实际验证的是隔离 HTTP、真实 stdio SDK 和平台替身；真人飞书/微信、真实 Work/Dot/Codex/Claude 聊天及生产恢复未验证。
+本页维护当前接收契约，不累计各轮测试结果。R2 已验证真实 Codex 主动调用与跨能力拒绝，R1/R3 有真人收发和隔离恢复证据；具体宿主聊天强身份、Claude Code 与 Work/Dot 自动唤醒仍不能据此宣称通过。历史范围见完整仓库 docs/history/release-1.17.0.md；每个新环境仍须实际验收。

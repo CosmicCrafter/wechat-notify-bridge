@@ -15,13 +15,13 @@
 | Bot 授权 | 管理员给这把 Key 关联可调用的 Bot；通过状态接口获取实际 ID |
 | 默认 Bot | 可选；有多个 Bot 时建议发送中始终显式传 `bot_id` |
 
-不需要向接入方提供管理员 Key、飞书 App Secret、微信登录凭据或服务器 SSH。API Key 放在环境变量或私有文件中，不写进提示词、仓库和浏览器前端。当前未开放跨域接口，网页应用应由自己的后端转发。
+不需要向接入方提供管理账号密码、飞书 App Secret、微信登录凭据或服务器 SSH。API Key 放在环境变量或私有文件中，不写进提示词、仓库和浏览器前端。当前未开放跨域接口，网页应用应由自己的后端转发。
 
 ## 选择接入方式
 
 | 调用方 | 接入方式 | 入口 |
 | --- | --- | --- |
-| 支持远程 MCP 与 OAuth 的 AI | Streamable HTTP MCP | 服务地址 + `/mcp` |
+| 支持远程 MCP 与 OAuth 的 AI | Streamable HTTP MCP | 实例提供的 mcp_url，迁移后不自行按 base_url 拼接 |
 | 支持本机 MCP 的 AI | 本机 stdio 插件包装 HTTP API | [MCP 配置](../../mcp-plugin/README.md) |
 | 普通程序，或由 AI 编写的程序 | HTTPS JSON + Bearer Key | [完整接口文档](../server/API.md) |
 
@@ -54,6 +54,12 @@
 | getTaskCard | GET /api/conversations/{id}/tasks/{task_id} |
 | updateTaskCard | POST /api/conversations/{id}/tasks/{task_id}/state |
 | getImage | GET /api/conversations/{id}/images/{image_id} |
+| getConversationHistory | GET /api/conversations/{id}/history |
+| claimMessage | POST /api/inbox/{id}/claim |
+| renewMessageClaim | POST /api/inbox/{id}/renew |
+| reportMessage | POST /api/inbox/{id}/report |
+| getConversationLifecycle | GET /api/conversations/{id}/lifecycle |
+| reportMonitorState | POST /api/conversations/{id}/monitor |
 
 ## 给其他 AI 的接入说明
 

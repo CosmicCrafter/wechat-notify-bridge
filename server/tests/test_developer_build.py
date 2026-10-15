@@ -15,36 +15,26 @@ spec.loader.exec_module(builder)
 
 @pytest.fixture
 def source(tmp_path):
-    for name in builder.FILES + [
-        "docs/integration/README.md",
-        "docs/integration/CLIENT-SETUP.md",
-        "docs/server/API.md",
-        "docs/server/TASK-CARDS.md",
-        "docs/product-v3/OPERATIONS.md",
-        "docs/integration/AI-HOSTS.md",
-        "docs/integration/HTTP.md",
-    ]:
+    for name in set(builder.FILES + list(builder.DOCS.values())):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("fixture " + name, encoding="utf-8")
+    (tmp_path / "server/openapi.json").write_text('{"info":{"version":"1.17.1"}}', encoding="utf-8")
+    plugin = tmp_path / "mcp-plugin/plugin.json"
+    plugin.parent.mkdir(parents=True, exist_ok=True)
+    plugin.write_text('{"version":"1.11.0"}', encoding="utf-8")
     builder.build(tmp_path)
     return tmp_path
 
 
 @pytest.mark.parametrize(
-    "change", ["source", "new_doc", "removed_doc", "json", "zip", "extra_member", "duplicate"]
+    "change", ["source", "json", "zip", "extra_member", "duplicate"]
 )
 def test_check_detects_drift_without_repairing_outputs(source, change):
     out = source / "server/src/wechat_bridge/web/admin"
     builder.build(source, check=True)
     if change == "source":
-        (source / "README.md").write_text("changed", encoding="utf-8")
-    elif change == "new_doc":
-        (source / "docs/new.md").write_text("new", encoding="utf-8")
-    elif change == "removed_doc":
-        (source / "docs/new.md").write_text("old", encoding="utf-8")
-        builder.build(source)
-        (source / "docs/new.md").unlink()
+        (source / "docs/integration/README.md").write_text("changed", encoding="utf-8")
     elif change == "json":
         (out / "developer-docs.json").write_bytes(b"{}")
     elif change == "zip":
@@ -53,7 +43,7 @@ def test_check_detects_drift_without_repairing_outputs(source, change):
         with zipfile.ZipFile(out / "developer-kit.zip", "a") as archive:
             if change == "duplicate":
                 with pytest.warns(UserWarning):
-                    archive.writestr("README.md", "duplicate")
+                    archive.writestr("docs/integration/README.md", "duplicate")
             else:
                 archive.writestr("unexpected.env", "fixture")
     before = {p.name: p.read_bytes() for p in out.iterdir()}
@@ -65,7 +55,7 @@ def test_check_detects_drift_without_repairing_outputs(source, change):
 
 
 def test_check_ignores_checkout_line_endings(source):
-    path = source / "README.md"
+    path = source / "docs/integration/README.md"
     path.write_bytes(b"first\r\nsecond\r\n")
     builder.build(source)
     archive = source / "server/src/wechat_bridge/web/admin/developer-kit.zip"
@@ -74,3 +64,12 @@ def test_check_ignores_checkout_line_endings(source):
     builder.build(source, check=True)
     builder.build(source)
     assert archive.read_bytes() == original
+
+
+def test_unrelated_history_does_not_enter_or_invalidate_client_kit(source):
+    path = source / "docs/history/new-evidence.md"
+    path.parent.mkdir(parents=True)
+    path.write_text("historical evidence", encoding="utf-8")
+    builder.build(source, check=True)
+    with zipfile.ZipFile(source / "server/src/wechat_bridge/web/admin/developer-kit.zip") as archive:
+        assert path.relative_to(source).as_posix() not in archive.namelist()

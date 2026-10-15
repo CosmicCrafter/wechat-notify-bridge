@@ -146,7 +146,7 @@ def mount_remote_mcp(app):
             raise ValueError(
                 "host_receiver_storage_unverified: remote registration must not return a receiver secret to the model"
             )
-        context_request = getattr(mcp.get_context().request_context,"request",None)
+        context_request = getattr(mcp.get_context().request_context, "request", None)
         receiver = getattr(context_request, "headers", {}).get("X-Notify-Receiver")
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url=base, timeout=30

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Notify Bridge API",
-    "version": "1.17.0"
+    "version": "1.17.1"
   },
   "paths": {
     "/api/receivers/exchange": {

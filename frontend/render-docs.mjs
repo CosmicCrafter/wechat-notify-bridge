@@ -1,8 +1,12 @@
-// Build static public HTML with the project's existing Markdown parser. No runtime JS or CDN.
+// Static Markdown remains readable without JavaScript; local scripts enhance it.
 import { createRequire } from "node:module";
+import { readFile } from "node:fs/promises";
 import { resolve, posix } from "node:path";
 const require = createRequire(resolve(process.argv[2], "package.json"));
 const { marked, Renderer } = require("marked");
+const asset = async (name) =>
+  readFile(new URL(`./docs/${name}`, import.meta.url), "utf8");
+const navigation = JSON.parse(await asset("navigation.json"));
 let input = "";
 for await (const chunk of process.stdin) input += chunk;
 const data = JSON.parse(input);
@@ -15,12 +19,13 @@ const escape = (text) =>
       ],
   );
 function render(markdown) {
-  const renderer = new Renderer();
-  const headings = new Map();
+  const renderer = new Renderer(),
+    headings = new Map(),
+    toc = [];
   renderer.html = ({ text }) => escape(text);
   renderer.image = ({ text }) => escape(text || "");
   renderer.table = function (token) {
-    return `<div class="table-scroll">${Renderer.prototype.table.call(this, token)}</div>`;
+    return `<div class="table-scroll" role="region" aria-label="数据表格" tabindex="0">${Renderer.prototype.table.call(this, token)}</div>`;
   };
   renderer.link = function ({ href, tokens }) {
     const label = this.parser.parseInline(tokens);
@@ -44,34 +49,108 @@ function render(markdown) {
     const count = headings.get(slug) || 0;
     headings.set(slug, count + 1);
     const id = slug + (count ? `-${count}` : "");
-    return `<h${depth} id="${escape(id)}">${this.parser.parseInline(tokens)}</h${depth}>`;
+    const label = this.parser.parseInline(tokens);
+    if (depth === 2 || depth === 3) toc.push({ id, depth, label });
+    return `<h${depth} id="${escape(id)}">${label}</h${depth}>`;
   };
-  return marked.parse(markdown, { renderer, gfm: true });
+  return { html: marked.parse(markdown, { renderer, gfm: true }), toc };
 }
-const topics = [
-  ["index.html", "接入总览"],
-  ["integration/HTTP.html", "HTTP 与示例"],
-  ["integration/CLIENT-SETUP.html", "Codex / Claude MCP"],
-  ["integration/RECEIVERS.html", "会话与接收协议"],
-  ["server/API.html", "API 与错误说明"],
-  ["server/TASK-CARDS.html", "任务卡片"],
-  ["server/DELIVERY-RELIABILITY.html", "投递与重试"],
-];
-const output = {};
+const output = {},
+  search = [];
+const home = await asset("home.html");
 for (const page of data.pages) {
-  const relative = (target) => posix.relative(posix.dirname(page.path), target);
-  const nav = topics
+  const relative = (target) =>
+    posix.relative(posix.dirname(page.path), target) || "./";
+  const href = (target) => escape(relative(target));
+  const meta = navigation
+    .flatMap((g) =>
+      g.pages.map((p) => ({
+        path: p[0],
+        label: p[1],
+        summary: p[2],
+        group: g.group,
+      })),
+    )
+    .find((p) => p.path === page.path) || {
+    label: page.title,
+    summary: "开发者接入参考",
+    group: "文档",
+  };
+  const nav = navigation
     .map(
-      ([path, label]) =>
-        `<a href="${relative(path)}"${path === page.path ? ' aria-current="page"' : ""}>${label}</a>`,
+      (g) =>
+        `<div class="nav-label">${escape(g.group)}</div>` +
+        g.pages
+          .filter(([path]) => data.pages.some((p) => p.path === path))
+          .map(
+            ([path, label]) =>
+              `<a class="nav-link" href="${href(path)}"${path === page.path ? ' aria-current="page"' : ""}><span class="nav-mark" aria-hidden="true">▸</span>${escape(label)}</a>`,
+          )
+          .join(""),
     )
     .join("");
+  const rendered = render(page.markdown);
+  // Text-only search data, generated with the same Markdown parser as the article.
+  const plain = (page.path === "index.html" ? home : rendered.html)
+    .replace(/<[^>]+>/g, " ")
+    .replace(
+      /&(?:amp|lt|gt|quot|#39);/g,
+      (m) =>
+        ({
+          "&amp;": "&",
+          "&lt;": "<",
+          "&gt;": ">",
+          "&quot;": '"',
+          "&#39;": "'",
+        })[m],
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  search.push({
+    path: page.path,
+    title: meta.label,
+    summary: meta.summary,
+    content: plain,
+  });
+  const footer = `服务 ${escape(data.release.server_version)} · 插件 ${escape(data.release.plugin_version)}`;
+  const resources = `<a href="${href(page.markdown_path)}">↗ 阅读 Markdown</a><a href="${href("openapi.json")}">API OpenAPI</a><a href="${href("llms.txt")}">✳ AI 索引</a><a href="${href("download.zip")}">下载文档包</a>`;
+  const article = `<main class="doc-main" id="content"><div class="crumbs"><a href="${href("index.html")}">开发文档</a><span>/</span><span>${escape(meta.group)}</span><span>/</span><span>${escape(meta.label)}</span></div><header class="doc-head"><div class="eyebrow"><span class="dot"></span>${escape(meta.group)}</div><h1 id="${escape((rendered.html.match(/<h1 id="([^"]*)"/) || [])[1] || "page-title")}">${escape(page.title)}</h1><p class="subtitle">${escape(meta.summary)}</p><div class="doc-tools">${resources}</div></header><div class="doc-content"><article>${rendered.html.replace(/^<h1\b[^>]*>[\s\S]*?<\/h1>\s*/, "")}</article></div><div class="doc-note"><strong>注意：</strong>公开文档不包含你的服务 Key、Bot Secret 或私人消息。调用接口仍须认证和授权，实例地址以管理员提供值为准。</div><footer class="doc-bottom"><span>${footer}</span><a href="${href("index.html")}">返回文档首页 ↑</a></footer></main><aside class="toc" aria-label="本页目录"><div class="toc-title">本页目录</div>${rendered.toc.map((h) => `<a class="${h.depth === 3 ? "is-level-3" : ""}" href="#${escape(h.id)}">${h.label}</a>`).join("")}<div class="resources"><a href="${href(page.markdown_path)}">阅读纯文本版本 ↗</a></div></aside>`;
+  const body =
+    page.path === "index.html"
+      ? `<main class="doc-main" id="content">${home}<footer class="home-footer"><span>Notify Bridge 开发者文档 · ${footer}</span><span>通用公开资料 · 接口调用另行授权</span></footer></main>`
+      : article;
   output[page.path] =
-    `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escape(page.title)} · Notify Bridge</title><link rel="stylesheet" href="${relative("style.css")}"></head><body><header><a class="brand" href="${relative("index.html")}">↗ Notify Bridge</a><span>公开开发文档</span><small>服务 ${escape(data.release.server_version)} · 插件 ${escape(data.release.plugin_version)}</small></header><div class="docs-shell"><aside><nav aria-label="开发文档导航">${nav}</nav><p class="help">阅读文档无需登录。调用接口仍需应用授权，管理功能和消息记录保持鉴权。</p></aside><main><div class="doc-actions"><a href="${relative(page.markdown_path)}">读取 Markdown</a><a href="${relative("openapi.json")}">OpenAPI</a><a href="${relative("examples/python/notify_bridge.py")}">Python 示例</a><a href="${relative("download.zip")}">下载公开文档</a></div><article>${render(page.markdown)}</article><footer>通用资料不包含实例配置或真实凭据。实际接入地址和权限由服务维护者提供；旧 /openapi.json 仍需应用认证。</footer></main></div></body></html>`;
+    `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${escape(meta.summary)}"><title>${escape(meta.label)} · Notify Bridge 开发文档</title><link rel="stylesheet" href="${href("style.css")}"><link rel="alternate" type="text/markdown" title="此页 Markdown 源" href="${href(page.markdown_path)}"><link rel="alternate" type="text/plain" title="AI 文档索引" href="${href("llms.txt")}"><link rel="alternate" type="application/json" title="OpenAPI 3.1" href="${href("openapi.json")}"></head><body data-version="${escape(data.release.server_version)}" data-root="${escape(relative("index.html").replace(/index\.html$/, ""))}"><a class="skip-link" href="#content">跳转正文</a><header class="topbar"><button class="top-icon menu-toggle js-only" id="menuToggle" aria-label="打开文档目录" aria-controls="sidebar" aria-expanded="false">☰</button><a class="brand" href="${href("index.html")}"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 16V8m5 11V5m5 12V7m5 8v-4"/><path d="M2 20h20"/></svg></span><span>Notify Bridge</span></a><span class="top-sep"></span><span class="edition">开发者文档</span><div class="top-spacer"></div><button class="top-action search-trigger js-only" id="searchOpen"><span class="search-label">⌕ 搜索文档...</span><kbd class="search-label">Ctrl K</kbd><span class="search-mobile-icon" aria-hidden="true">⌕</span><span class="sr-only">搜索文档</span></button><a href="${href("llms.txt")}" class="top-action hide-mobile">AI 索引 ↗</a><button class="top-icon js-only" id="themeToggle" aria-label="切换深色模式">◐</button><span class="version-chip">v${escape(data.release.server_version)}</span></header><div class="screen-overlay" id="screenOverlay"></div><div class="app-shell"><aside class="sidebar" id="sidebar" aria-label="文档目录"><nav>${nav}</nav><div class="side-bottom"><span class="dot"></span><strong>公开文档 · 无需登录</strong><p>阅读与下载通用资料无需身份验证。调用 API、管理连接仍须授权。</p><a href="${href("llms.txt")}">AI 阅读索引 ↗</a></div></aside><div class="page-layout${page.path === "index.html" ? " home-layout" : ""}">${body}</div></div><a id="scrollTop" class="scrolltop js-only" href="#content" aria-label="返回顶部">↑</a><dialog id="searchDialog" class="search-dialog" aria-label="搜索开发者文档"><form class="search-header" method="dialog"><span aria-hidden="true">⌕</span><input id="searchInput" type="search" aria-label="搜索关键词" placeholder="搜索 HTTP、MCP、会话、授权..." autocomplete="off"><button class="close-search" aria-label="关闭搜索">ESC</button></form><div class="search-results" id="searchResults" aria-live="polite"></div><div class="search-bottom">全文搜索 · Ctrl / ⌘ + K 打开 · ESC 关闭</div></dialog><script src="${href("script.js")}" defer></script></body></html>`;
 }
-output["style.css"] =
-  data.theme +
-  `
-body{line-height:1.75}header{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:20px 5%;background:#fff;border-bottom:1px solid #e7ebf2}.brand{font-size:20px;font-weight:750}header small{margin-left:auto;color:#7b8799}.docs-shell{display:grid;grid-template-columns:240px minmax(0,1fr);max-width:1320px;margin:24px auto;padding:0 24px;gap:28px}aside{align-self:start;position:sticky;top:24px}nav{display:flex;flex-direction:column;gap:6px}nav a{padding:10px 14px;border-radius:8px;color:#40506a}nav a:hover,nav a[aria-current]{background:#e9efff;color:var(--el-color-primary)}main{min-width:0;background:#fff;border:1px solid #e7ebf2;border-radius:12px;padding:30px 36px}.doc-actions{display:flex;flex-wrap:wrap;gap:16px;font-size:14px;padding-bottom:18px;border-bottom:1px solid #e7ebf2;margin-bottom:24px}article h1{margin-bottom:18px}article h2{margin-top:32px;padding-top:10px}article h3{margin-top:24px}pre{overflow:auto;background:#f4f6fa;border:1px solid #e3e8f1;border-radius:8px;padding:16px;line-height:1.6}code{font-family:Consolas,monospace;font-size:.9em;overflow-wrap:anywhere}p code,li code,td code{background:#f1f4fa;padding:2px 5px;border-radius:4px}.table-scroll{max-width:100%;overflow-x:auto}table{width:100%;min-width:600px;border-collapse:collapse;font-size:14px}th{white-space:nowrap}th,td{text-align:left;vertical-align:top;border:1px solid #dfe5ee;padding:10px 12px}th{background:#f5f7fb}blockquote{margin:16px 0;padding:10px 18px;border-left:3px solid var(--el-color-primary);background:#f5f7fd}footer{margin-top:36px;border-top:1px solid #e7ebf2;padding-top:18px;color:#7b8799;font-size:12px}:target{scroll-margin-top:20px}a:hover{text-decoration:underline}@media(max-width:760px){header{padding:16px;gap:8px 16px}header small{width:100%;margin-left:0}.docs-shell{display:block;padding:0 12px;margin:16px auto}aside{position:static;margin-bottom:16px}nav{flex-direction:row;flex-wrap:wrap;gap:4px}nav a{font-size:13px;padding:7px 10px}aside .help{margin:8px}main{padding:20px 16px}article h1{font-size:24px}.doc-actions{gap:10px 16px}}
+output["style.css"] = await asset("site.css");
+output["script.js"] = await asset("site.js");
+output["search-index.json"] = JSON.stringify({
+  release: data.release,
+  pages: search,
+});
+output["llms.txt"] = `# Notify Bridge 开发者文档
+
+> 服务 ${data.release.server_version} · MCP 插件 ${data.release.plugin_version}。统一消息中转站；阅读公开资料无需登录，调用 API 仍需应用授权。
+
+接入使用管理员提供的实际 base_url / mcp_url 与私有凭据。不要从文档地址推测 MCP 地址。共享应用 Key 不证明具体宿主聊天身份；protected 会话另需 X-Notify-Receiver。先核对身份，再 dry_run；真实发送另需明确授权。
+
+${navigation
+  .map(
+    (g) =>
+      `## ${g.group}\n\n${g.pages
+        .map(([path, label, summary]) => {
+          const p = data.pages.find((p) => p.path === path);
+          return p ? `- [${label}](${p.markdown_path}): ${summary}` : "";
+        })
+        .filter(Boolean)
+        .join("\n")}`,
+  )
+  .join("\n\n")}
+
+## 规范与示例
+
+- [OpenAPI 3.1](openapi.json)
+- [Python 示例](examples/python/notify_bridge.py)
+- [公开文档包](download.zip)
 `;
 process.stdout.write(JSON.stringify(output));

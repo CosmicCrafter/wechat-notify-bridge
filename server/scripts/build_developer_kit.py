@@ -143,9 +143,18 @@ def build_public(root, entries, *, check):
             for name in ("frontend/render-docs.mjs", "frontend/src/shared/theme.css")
         },
     }
+    for asset in sorted((root / "frontend/docs").iterdir()):
+        if asset.is_symlink() or not asset.is_file():
+            raise ValueError("Invalid documentation build asset")
+        inputs[asset.relative_to(root).as_posix()] = asset.read_bytes().replace(b"\r\n", b"\n")
     for name, value in sorted(inputs.items()):
         digest.update(name.encode() + b"\0" + value + b"\0")
-    expected_rendered = {page["path"] for page in pages} | {"style.css"}
+    expected_rendered = {page["path"] for page in pages} | {
+        "style.css",
+        "script.js",
+        "search-index.json",
+        "llms.txt",
+    }
     output = root / "server/src/wechat_bridge/web/admin/public-docs.zip"
     if check:
         try:

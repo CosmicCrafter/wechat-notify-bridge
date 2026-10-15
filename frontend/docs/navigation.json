@@ -1,0 +1,66 @@
+[
+  {
+    "group": "开始使用",
+    "pages": [
+      ["index.html", "文档首页", "统一消息中转站 · 按目标开始接入"],
+      [
+        "integration/README.html",
+        "快速开始",
+        "身份、授权、最小接入流程与工具对照"
+      ],
+      ["integration/HTTP.html", "HTTP 接入", "服务器与业务系统通知"],
+      [
+        "integration/CLIENT-SETUP.html",
+        "AI / MCP 接入",
+        "Codex、Claude Code 与其他 MCP 宿主"
+      ]
+    ]
+  },
+  {
+    "group": "通信与会话",
+    "pages": [
+      [
+        "integration/RECEIVERS.html",
+        "会话接收与绑定",
+        "独立接收凭据与准确路由"
+      ],
+      ["server/CHAT.html", "会话与回复", "共享历史、手机与管理端回复"],
+      ["server/TASK-CARDS.html", "交互任务与卡片", "人工选择、答复与任务状态"],
+      [
+        "server/DELIVERY-RELIABILITY.html",
+        "可靠投递",
+        "发送回执、去重与异常恢复"
+      ]
+    ]
+  },
+  {
+    "group": "接口与渠道",
+    "pages": [
+      ["server/API.html", "API 与错误码", "字段、鉴权、响应与错误参考"],
+      ["server/BOTS.html", "Bot 与应用授权", "通信连接与接入应用的权限边界"],
+      ["server/FEISHU.html", "飞书连接", "飞书收发、消息事件与卡片配置"],
+      ["server/IMAGES.html", "图片与附件", "上传、下载与会话附件"],
+      [
+        "wechat-markdown/微信Markdown排版指南.html",
+        "微信消息排版",
+        "平台格式差异与排版参考"
+      ]
+    ]
+  },
+  {
+    "group": "AI / 高级接入",
+    "pages": [
+      [
+        "integration/AI-HOSTS.html",
+        "AI 宿主差异",
+        "工具调用、会话身份与自动唤醒分别验收"
+      ],
+      [
+        "server/REMOTE-MCP.html",
+        "远程 MCP 与授权",
+        "实际 MCP 地址、OAuth 授权与撤销"
+      ],
+      ["server/MCP-EVENTS.html", "事件与唤醒", "订阅、回调和宿主能力限制"]
+    ]
+  }
+]

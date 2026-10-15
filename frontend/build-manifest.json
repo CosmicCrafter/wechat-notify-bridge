@@ -49,7 +49,7 @@
     "src/shared/receiver-state.js": "8c45f14a27e6e9ca6c1609e4df6dab8c7a87719d1bc2d4ca17bec3772ce5681b",
     "src/shared/theme.css": "c0ee98c1a3d9da44fe5b2bdbb001b854be055ec39ed56745d63017b328dee0fb",
     "build.mjs": "2b53e5a6740567a5450e79dfdb1da165e4f5d6be90c7cd2ea5cf924607308459",
-    "package.json": "191db54a59090304dc5e64dc8260349b965f2e636d59f78fc08b0256a1980f8e",
+    "package.json": "64ce5f653a58e26f292eb3d925bc40b420bc065b28828fbd6eddd30f50c52d67",
     "package-lock.json": "45dab1c6cbcf42036cdd2ae2afc9e3ae22bc9a99a9ab44463ffb10e471e4e63d"
   },
   "outputs": {

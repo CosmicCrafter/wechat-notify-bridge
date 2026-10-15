@@ -39,6 +39,8 @@ def mount_documentation(app):
             ".json": "application/json",
             ".py": "text/plain",
             ".css": "text/css",
+            ".js": "text/javascript",
+            ".txt": "text/plain",
         }.get(PurePosixPath(path).suffix)
         if media is None:
             raise HTTPException(404)

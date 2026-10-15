@@ -1,0 +1,106 @@
+<section class="hero">
+  <div class="hero-tag"><span class="dot"></span> OPEN DOCUMENTATION</div>
+  <h1>让程序与 AI 的消息，<br />以一种方式抵达你。</h1>
+  <p>
+    Codex、服务器或其他业务系统只需接入 Notify
+    Bridge；飞书、微信、会话回复与通知记录由中转站统一处理。选择你要做的事，从这里开始。
+  </p>
+  <div class="hero-cta">
+    <a class="btn-primary" href="integration/README.html"
+      >5 分钟了解接入 <span>→</span></a
+    ><a class="btn-outline" href="integration/HTTP.html"
+      >查看 HTTP 示例 <span>↗</span></a
+    >
+  </div>
+  <div class="hero-foot">
+    <span>✓ HTTP / MCP 统一入口</span><span>✓ 会话关联与收件</span
+    ><span>✓ 无需登录阅读文档</span>
+  </div>
+</section>
+<div class="home-intro">
+  <div>
+    <h2>你今天想完成什么？</h2>
+    <p>按目标选择，暂时不需要了解全部接口。</p>
+  </div>
+  <a href="integration/README.html">浏览完整接入指南 →</a>
+</div>
+<div class="card-grid">
+  <a class="path-card" href="integration/HTTP.html"
+    ><span class="path-icon">⌘</span><strong>给业务系统加通知</strong>
+    <p>用 HTTP 接入服务器、定时任务或现有项目，先核对身份，再执行无害测试。</p>
+    <span class="path-link">开始 HTTP 接入 →</span></a
+  ><a class="path-card" href="integration/CLIENT-SETUP.html"
+    ><span class="path-icon">✳</span><strong>让 AI 与手机通信</strong>
+    <p>为 Codex、Claude Code 等宿主配置 MCP；了解会话绑定与接收方式。</p>
+    <span class="path-link">查看 AI 接入 →</span></a
+  ><a class="path-card" href="integration/RECEIVERS.html"
+    ><span class="path-icon">◎</span><strong>理解双向会话</strong>
+    <p>了解一个应用多个会话、接收权限、领取回执和断线恢复的边界。</p>
+    <span class="path-link">查看会话协议 →</span></a
+  >
+</div>
+<div class="strip-grid">
+  <section class="strip">
+    <h3>只需要给 AI 一个文档网址</h3>
+    <p>
+      直接告诉 Codex：“我要把这个项目接入 Notify Bridge，你先看开发者文档。” AI
+      可以从同一个首页找到相关的 Markdown、OpenAPI 和接入示例。
+    </p>
+    <div class="link-box">
+      <code data-docs-url>本站文档根网址</code
+      ><button class="js-only" type="button" data-copy-root>复制网址</button>
+    </div>
+    <div class="file-links">
+      <a href="llms.txt">AI 文档索引</a><a href="index.md">Markdown</a
+      ><a href="openapi.json">OpenAPI</a><a href="download.zip">离线文档包</a>
+    </div>
+    <div class="hint">
+      AI
+      需支持网页访问，才能自行发现相关指南。阅读公开文档不授予调用权限；实际接入地址与凭据由管理员另行提供。
+    </div>
+  </section>
+  <section class="strip">
+    <h3>第一次接入的建议顺序</h3>
+    <p>按最小路径验证，避免把配置保存误认为消息送达。</p>
+    <div class="steps">
+      <span class="step-num">1</span>
+      <div>
+        <strong>选择接入方式</strong><span>HTTP 程序或 MCP AI 宿主</span>
+      </div>
+    </div>
+    <div class="steps">
+      <span class="step-num">2</span>
+      <div>
+        <strong>核对身份与授权</strong><span>使用管理员签发的应用凭据</span>
+      </div>
+    </div>
+    <div class="steps">
+      <span class="step-num">3</span>
+      <div>
+        <strong>先 dry_run，再真实验证</strong
+        ><span>确认平台收件、回复与回执</span>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="home-intro">
+  <div>
+    <h2>深入了解通信机制</h2>
+    <p>解释身份、状态和异常处理，方便长期维护。</p>
+  </div>
+</div>
+<div class="card-grid">
+  <a class="path-card" href="server/DELIVERY-RELIABILITY.html"
+    ><span class="path-icon">↻</span><strong>可靠发送与去重</strong>
+    <p>平台已接受、结果未知、准备失败为什么不能混在一起？</p>
+    <span class="path-link">查看可靠性说明 →</span></a
+  ><a class="path-card" href="server/TASK-CARDS.html"
+    ><span class="path-icon">☷</span><strong>交互任务与答复</strong>
+    <p>人从飞书或手机答复，系统如何准确保存一份有效决定？</p>
+    <span class="path-link">查看交互协议 →</span></a
+  ><a class="path-card" href="server/API.html"
+    ><span class="path-icon">&#123; &#125;</span><strong>接口与错误参考</strong>
+    <p>直接查询接口字段、鉴权、响应与状态语义。</p>
+    <span class="path-link">打开 API 参考 →</span></a
+  >
+</div>

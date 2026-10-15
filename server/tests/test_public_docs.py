@@ -39,8 +39,9 @@ def test_public_documents_need_neither_login_nor_database():
             assert response.headers["content-type"].startswith(content_type)
             assert "location" not in response.headers and "set-cookie" not in response.headers
         page = client.get("/docs/").text
-        assert "getCallerIdentity" in page and "公开开发文档" in page
-        assert "<script" not in page and 'href="openapi.json"' in page
+        assert "HTTP 接入" in page and "公开文档" in page
+        assert '<script src="script.js" defer></script>' in page and 'href="openapi.json"' in page
+        assert 'href="integration/CLIENT-SETUP.html"' in page
         schema = client.get("/docs/openapi.json").json()
         assert not any(p.startswith(("/admin", "/chat")) for p in schema["paths"])
         assert "X-Notify-Receiver" in json.dumps(schema)
@@ -126,14 +127,41 @@ def test_public_links_work_behind_existing_bridge_prefix():
         client.close()
 
 
+def test_public_enhancement_is_local_and_articles_keep_static_navigation():
+    import re
+
+    client = TestClient(create_app(run_workers=False))
+    try:
+        script = client.get("/docs/script.js")
+        assert script.status_code == 200
+        assert script.headers["content-type"].startswith("text/javascript")
+        assert "unsafe-inline" not in script.headers["content-security-policy"]
+        index = client.get("/docs/search-index.json").json()
+        assert index["release"] == client.get("/docs/RELEASE.json").json()
+        assert len(index["pages"]) == 16
+        assert "X-Notify-Receiver" in next(
+            p["content"] for p in index["pages"] if p["path"] == "integration/HTTP.html"
+        )
+        for page in index["pages"]:
+            html = client.get("/docs/" + page["path"]).text
+            ids = re.findall(r'\bid="([^"]+)"', html)
+            assert len(ids) == len(set(ids)), page["path"]
+            assert '<main class="doc-main" id="content">' in html
+            if page["path"] != "index.html":
+                assert "<article>" in html and 'aria-label="本页目录"' in html
+                assert re.search(r'<h1 id="[^"]+">', html)
+    finally:
+        client.close()
+
+
 @pytest.mark.skipif(not shutil.which("node"), reason="Node only needed to build public HTML")
 def test_static_renderer_escapes_html_and_rejects_active_urls():
     data = dict(
         pages=[
             dict(
-                path="index.html",
+                path="test.html",
                 title="test",
-                markdown_path="index.md",
+                markdown_path="test.md",
                 markdown='# Test\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n```python\nprint("ok")\n```',
             )
         ],
@@ -148,6 +176,6 @@ def test_static_renderer_escapes_html_and_rejects_active_urls():
         encoding="utf-8",
         check=True,
     )
-    html = json.loads(r.stdout)["index.html"]
-    assert "<script" not in html and "&lt;script&gt;" in html
+    html = json.loads(r.stdout)["test.html"]
+    assert html.count("<script") == 1 and "&lt;script&gt;" in html
     assert 'href="javascript:' not in html and 'class="language-python"' in html

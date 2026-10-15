@@ -6,8 +6,8 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "node --test tests/contracts.test.mjs",
-    "format": "prettier --write src tests build.mjs render-docs.mjs package.json",
-    "format:check": "prettier --check src tests build.mjs render-docs.mjs package.json"
+    "format": "prettier --write src tests docs build.mjs render-docs.mjs package.json",
+    "format:check": "prettier --check src tests docs build.mjs render-docs.mjs package.json"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.0",

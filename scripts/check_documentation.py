@@ -111,8 +111,13 @@ def check_html_links(entries):
             for key in ("href", "src"):
                 if key in attrs:
                     self.links.append(attrs[key])
-            if tag == "script":
-                raise ValueError("Public documentation must not need runtime scripts")
+            if any(key.startswith("on") for key in attrs):
+                raise ValueError("Inline document event handlers are forbidden")
+            if tag == "script" and (
+                set(attrs) != {"src", "defer"}
+                or attrs.get("src") not in ("script.js", "../script.js")
+            ):
+                raise ValueError("Only the local progressive documentation script is allowed")
 
     pages = {}
     for name, value in entries.items():

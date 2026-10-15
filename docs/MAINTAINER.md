@@ -28,7 +28,7 @@
 | `mcp-plugin` | 独立宿主插件、技能与桌面接收器 |
 | `scripts` | 构建、同步副本、检查、源码交付 |
 
-前端只改 `frontend/src`。`server/src/wechat_bridge/web` 为需随 Python 包交付的生成产物，不是另一套源码。旧原生页面脚本和重复的 vendor 包已清理；升级后刷新旧页面。
+管理端、手机端与 OAuth 前端改 `frontend/src`；公开文档展示改 `frontend/render-docs.mjs` 和 `frontend/docs`。`server/src/wechat_bridge/web` 为需随 Python 包交付的生成产物，不是另一套源码。旧原生页面脚本和重复的 vendor 包已清理；升级后刷新旧页面。
 
 插件中的共享工具和错误映射由 `scripts/sync_shared.py` 从服务器源码同步。不要两边分别维护。数据库表、包名和 `/wechat` 兼容入口沿用历史名称，不能仅为改名破坏客户端兼容。
 
@@ -39,7 +39,7 @@
 | HTTP 路由、请求模型、接收授权头 | api/ 源码 → `create_app().openapi()` → server/openapi.json；API.md 解释操作语义，不另造接口 |
 | 服务版本 / 插件版本 | wechat_bridge/__init__.py / mcp-plugin/plugin.json；项目清单及兼容插件清单必须一致，插件独立版本不随服务号猜测 |
 | 网站七类帮助正文 | docs/integration、docs/server、product-v3/OPERATIONS.md → build_developer_kit.py → developer-docs.json；前端按 _sources 解析链接 |
-| 公开文档站 | 同一用途白名单 → build_developer_kit.py 调用现有 marked 构建 HTML/Markdown/OpenAPI → public-docs.zip → /docs/；网页直接含正文，无运行时脚本。--check 比对输入与产物摘要，无需 Node |
+| 公开文档站 | 同一用途白名单 → build_developer_kit.py 调用现有 marked 构建 HTML/Markdown/OpenAPI → public-docs.zip → /docs/；网页直接含正文，本地脚本仅增强搜索、复制、主题。frontend/docs 的展示模板/导航是 UI 维护源，全文索引和 llms.txt 自动生成。--check 比对输入与产物摘要，无需 Node |
 | 开发者文档 ZIP | build_developer_kit.py 的用途白名单；排除历史设计，未收录源码链接明确指向完整仓库 |
 | AI / HTTP 接入包 | 插件 Skill、CLIENT-SETUP.md、HTTP.md、RECEIVERS.md、示例和 OpenAPI → build_onboarding_assets.py → 模板；services/onboarding.py 仅在内存加入实例连接配置 |
 | 独立插件 ZIP | mcp-plugin/tools/build_local_plugin.py 或 build_remote_plugin.py，复用同一安装说明与 Skill |

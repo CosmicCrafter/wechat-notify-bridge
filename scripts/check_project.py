@@ -20,7 +20,10 @@ def check():
     )
     node = shutil.which("node")
     if node:
-        for script in sorted((ROOT / "frontend/src").rglob("*.js")):
+        for script in sorted(
+            list((ROOT / "frontend/src").rglob("*.js"))
+            + list((ROOT / "frontend/docs").glob("*.js"))
+        ):
             subprocess.run([node, "--check", str(script)], check=True)
         subprocess.run(
             [node, "--check", str(ROOT / "server/src/wechat_bridge/web/admin/app.js")], check=True

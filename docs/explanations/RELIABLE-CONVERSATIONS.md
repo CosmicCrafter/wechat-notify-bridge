@@ -98,6 +98,6 @@ AI 主动创建前，先为实际接收上下文配置独立 `receiver_file`，�
 
 ## 证据和已知限制
 
-实现锚点为 receivers、inbox_claims、lifecycle、notification_routing；现有测试分别覆盖同 Key 双会话拒绝、观察者、租约竞争/续期/迟到报告、离线停止、分流与未知结果不重投。[F02 验收索引](../f02/DELIVERY.md)保留历史范围；具体测试文件可在完整源码中核验。
+实现锚点为 receivers、inbox_claims、lifecycle、notification_routing；现有测试分别覆盖同 Key 双会话拒绝、观察者、租约竞争/续期/迟到报告、离线停止、分流与未知结果不重投。[准确路由案例](../cases/ACCURATE-ROUTING.md)、[离线恢复案例](../cases/OFFLINE-RECOVERY.md)与[证据索引](../cases/EVIDENCE.md)区分实现、回归及真人验证；具体测试可在完整源码中核验。
 
 R2 的特定 Codex 主动调用、R1/R3 真人收发与隔离恢复不能自动扩大为所有宿主的强身份或自动唤醒。新环境仍须逐层验收；不承诺无限保留、外部事务恰好一次或平台送达 SLA。

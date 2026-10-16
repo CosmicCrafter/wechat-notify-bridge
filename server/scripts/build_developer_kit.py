@@ -14,6 +14,12 @@ ROOT = Path(__file__).resolve().parents[2]
 # Reader-oriented allowlist: historical designs and server deployment sources stay in the repository.
 FILES = [
     "docs/tutorials/FIRST-INTEGRATION.md",
+    "docs/guides/TROUBLESHOOTING.md",
+    "docs/DOCUMENTATION-STANDARD.md",
+    "docs/cases/ACCURATE-ROUTING.md",
+    "docs/cases/OFFLINE-RECOVERY.md",
+    "docs/cases/DOCUMENTATION-DELIVERY.md",
+    "docs/cases/EVIDENCE.md",
     "docs/explanations/RELIABLE-CONVERSATIONS.md",
     "docs/reference/HTTP-CONTRACT.md",
     "docs/MAINTAINER.md",

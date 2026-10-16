@@ -12,6 +12,18 @@ AI 主动 registerConversation(receiver_mode="protected", host_type="codex" 或 
 
 ## HTTP、补查与执行
 
+直接 HTTP 程序按以下顺序操作；这是当前实现的操作语义，不是 OpenAPI 已声明的完整成功响应模型：
+
+| 操作 | 请求与观察结果 | 安全要求 |
+|---|---|---|
+| 主动登记 | POST /api/conversations，conversation_key 稳定、receiver_mode=protected、host_type=http；首次响应有 id 与 receiver_setup | 重复同键只返回会话，不重新给 setup |
+| 保存 setup | 在受控进程读取 receiver_setup.receiver_token 与 challenge | 两者进私有存储，不打印完整响应、不进入模型上下文 |
+| 验证 | POST /api/receivers/verify；原应用 Bearer 加 X-Notify-Receiver；JSON 的 challenge 使用首次返回值 | 验证成功后删除已用 challenge；仅有应用 Key 不算完成 |
+| 复查 | GET /api/conversations/{id}/receiver 检查绑定元数据 | 能读元数据不证明能读消息；观察者不具有写权限 |
+| 收件与处理 | GET /api/inbox 明确 conversation_id；领取/续期/报告继续带原应用与本会话能力 | A/B 会话各自保存能力；失败不去头降级，不猜另一会话 |
+
+管理员创建的会话先由配对文件的 pairing_code 调用 /api/receivers/exchange 取得 setup；兑换时不带接收头，之后仍执行验证。HTTP 应用负责自己的私有存储，stdio 包则由既有适配器管理 receiver_file；不要混为一个自动安装步骤。
+
 业务程序从首次受保护注册或管理员配对取得 setup，私有保存并用 /api/receivers/verify 完成 challenge。请求带原应用 Bearer 与 X-Notify-Receiver。保存每会话 inbox 游标；事件回调只提醒，离线后用持久收件补查，不自动启动 AI。
 
 protected 领取默认租约 120 秒，可设 30～900 秒，返回 claim_id/generation/lease_expires。续期用 /api/inbox/{id}/renew；报告带当前 generation。超时接管需新的 request_id，递增代际，旧领取者不能覆盖新结果；过期后重复旧 request_id 返回 inbox_claim_expired。执行端仍需以稳定 inbox_id 幂等处理外部副作用，不能承诺恰好一次。旧 legacy 的 generation=0、lease_expires=null，保留原领取合同，不具有 protected 的租约恢复保证。

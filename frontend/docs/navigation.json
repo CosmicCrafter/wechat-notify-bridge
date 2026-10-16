@@ -81,6 +81,11 @@
   {
     "group": "部署与维护",
     "pages": [
+      [
+        "guides/TROUBLESHOOTING.html",
+        "故障排查",
+        "按实际失败层级定位，保留原请求和权限边界"
+      ],
       ["MAINTAINER.html", "维护与构建", "职责、权威源、检查与升级入口"],
       [
         "server/CONFIGURATION.html",
@@ -91,6 +96,36 @@
         "operations/ADMIN.html",
         "管理员操作与恢复",
         "账号初始化、改密、验证码与终端兜底"
+      ]
+    ]
+  },
+  {
+    "group": "工程实践",
+    "pages": [
+      [
+        "cases/ACCURATE-ROUTING.html",
+        "案例：准确路由",
+        "从应用 Key 到可验证接收能力的取舍"
+      ],
+      [
+        "cases/OFFLINE-RECOVERY.html",
+        "案例：离线与租约",
+        "接管、代际屏障和外部副作用边界"
+      ],
+      [
+        "cases/DOCUMENTATION-DELIVERY.html",
+        "案例：文档交付",
+        "人类与 AI 同源阅读、安装与验证"
+      ],
+      [
+        "cases/EVIDENCE.html",
+        "案例证据与局限",
+        "实现、测试、历史与真人结果的层级"
+      ],
+      [
+        "DOCUMENTATION-STANDARD.html",
+        "文档内容规范",
+        "按任务与规模选择内容深度"
       ]
     ]
   }

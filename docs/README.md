@@ -21,3 +21,8 @@
 ## 历史与验收
 
 [历史索引](history/README.md) 保留发布、设计和当时验收范围；[DOC-01](history/doc-01.md) 记录文档网站候选与验收，[REFINE-01 交付](history/refine-01.md) 保留上一轮整理证据。历史材料不属于当前部署步骤，也不默认进入接入包。
+
+
+## DOC-02 阅读路径
+
+新用户按[第一次接入](tutorials/FIRST-INTEGRATION.md)实际操作；开发者查[API 运行语义与错误](server/API.md)和[生成字段合同](reference/HTTP-CONTRACT.md)；理解取舍看[可靠收件原理](explanations/RELIABLE-CONVERSATIONS.md)及[三篇工程案例](cases/EVIDENCE.md)；现场问题从[故障排查](guides/TROUBLESHOOTING.md)进入。维护者参考[文档内容规范](DOCUMENTATION-STANDARD.md)，按本项目实际规模使用，不自动扩展为全局 Skill 或规范。

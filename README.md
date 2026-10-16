@@ -253,3 +253,8 @@ python scripts/build_release.py
 完整开发步骤见 [贡献指南](CONTRIBUTING.md)，模块边界见 [架构说明](docs/architecture.md)，私有数据与密钥管理见 [安全说明](SECURITY.md)。管理页与手机页源码位于 `frontend/`，修改后执行 `python scripts/build_frontend.py`。
 
 安装服务依赖后可执行 `python -m wechat_bridge` 启动本机实例；首次运行在用户目录 `.notify-bridge` 生成独立数据和加密密钥，仅监听 `127.0.0.1:8092`。管理端使用账号密码；数据库建立后由获授权的维护者按[终端初始化说明](docs/product-v3/OPERATIONS.md)建立账号。本地入口不自动配置公网HTTPS，飞书服务端回调仍需可达的HTTPS地址。
+
+
+## 文档内容与工程案例（DOC-02 候选）
+
+[第一次接入](docs/tutorials/FIRST-INTEGRATION.md)、[AI 多会话与可靠收件](docs/explanations/RELIABLE-CONVERSATIONS.md)、[HTTP API 参考与错误处理](docs/server/API.md)分别面向操作、理解和查询；参数来自[OpenAPI 生成的合同](docs/reference/HTTP-CONTRACT.md)。[故障排查](docs/guides/TROUBLESHOOTING.md)、[真实工程案例与证据](docs/cases/EVIDENCE.md)和[内容规范](docs/DOCUMENTATION-STANDARD.md)由同一网站承载。DOC-02 尚未部署，不以候选内容推断生产能力或新宿主已通过验收。

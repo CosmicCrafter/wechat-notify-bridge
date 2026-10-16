@@ -289,6 +289,11 @@ def render_public(root, pages, release):
 
 def build_public(root, entries, *, check):
     public, pages = public_contents(entries)
+    # build() has just written or verified this canonical Markdown/OpenAPI package.
+    # Include it verbatim so an extracted static site has no server-only download hole.
+    public["download.zip"] = (
+        root / "server/src/wechat_bridge/web/admin/developer-kit.zip"
+    ).read_bytes()
     groups = navigation(root)
     paths = [p[0] for g in groups for p in g["pages"]]
     if len(paths) != len(set(paths)) or set(paths) != {p["path"] for p in pages}:

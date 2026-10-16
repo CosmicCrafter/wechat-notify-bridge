@@ -7,6 +7,9 @@ import shutil
 import subprocess
 import sys
 import zipfile
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
+import httpx
 
 import pytest
 from fastapi.testclient import TestClient
@@ -16,6 +19,47 @@ from wechat_bridge.app import create_app
 from test_portal import portal, ADMIN
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.mark.parametrize("prefix", ["", "/bridge/docs"])
+def test_extracted_static_site_has_a_real_same_release_download(tmp_path, prefix):
+    directory = tmp_path / prefix.lstrip("/")
+    directory.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(ROOT / "server/src/wechat_bridge/web/admin/public-docs.zip") as archive:
+        archive.extractall(directory)
+
+    class Handler(SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(tmp_path), **kwargs)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    worker = Thread(target=server.serve_forever, daemon=True)
+    worker.start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}{prefix}/"
+        page = httpx.get(base)
+        assert page.status_code == 200 and 'href="download.zip"' in page.text
+        download = httpx.get(base + "download.zip")
+        assert download.status_code == 200
+        assert (
+            download.content
+            == (ROOT / "server/src/wechat_bridge/web/admin/developer-kit.zip").read_bytes()
+        )
+        with zipfile.ZipFile(io.BytesIO(download.content)) as archive:
+            assert archive.testzip() is None
+            assert (
+                json.loads(archive.read("RELEASE.json"))["server_version"]
+                == json.loads((directory / "RELEASE.json").read_text(encoding="utf-8"))[
+                    "server_version"
+                ]
+            )
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=3)
 
 
 def test_public_documents_need_neither_login_nor_database():

@@ -1,6 +1,6 @@
 # HTTP API 参考与错误处理
 
-**技术参考 · 适用服务 1.18.0。** 首次接入先看[教程](../tutorials/FIRST-INTEGRATION.md)，本页用于查询和故障决策。
+**技术参考 · 适用服务 1.19.0。** 首次接入先看[教程](../tutorials/FIRST-INTEGRATION.md)，本页用于查询和故障决策。
 
 首次接入总览见 [开发者接入指南](../integration/README.md)。机器可读规范见 [OpenAPI 3.1](../../server/openapi.json)，匿名可读服务地址后的 `GET /docs/openapi.json`（同源通用规范）；原 `GET /openapi.json` 仍需客户端鉴权并提供实例配置地址。公开文档不会开放管理 API、消息或私有接入包。下述 JSON 示例均为示意数据，不含真实凭据。
 

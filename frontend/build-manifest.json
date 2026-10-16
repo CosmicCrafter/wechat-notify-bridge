@@ -49,8 +49,8 @@
     "src/shared/receiver-state.js": "8c45f14a27e6e9ca6c1609e4df6dab8c7a87719d1bc2d4ca17bec3772ce5681b",
     "src/shared/theme.css": "c0ee98c1a3d9da44fe5b2bdbb001b854be055ec39ed56745d63017b328dee0fb",
     "build.mjs": "2b53e5a6740567a5450e79dfdb1da165e4f5d6be90c7cd2ea5cf924607308459",
-    "package.json": "64ce5f653a58e26f292eb3d925bc40b420bc065b28828fbd6eddd30f50c52d67",
-    "package-lock.json": "45dab1c6cbcf42036cdd2ae2afc9e3ae22bc9a99a9ab44463ffb10e471e4e63d"
+    "package.json": "30dd02df1a6573300962e4ff95ea9abe86e4e037a42725b239d292d70de442e8",
+    "package-lock.json": "580c4a988e99262352cac9bdb8d197266a91433a16d46db30e70f274f611e47e"
   },
   "outputs": {
     "admin/index.html": "041c04b1ca4ede1bbbb9fc03c190841161ac5a7a7398346ba8f43acac763aec6",

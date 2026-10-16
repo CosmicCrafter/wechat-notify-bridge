@@ -137,7 +137,9 @@ def test_links_check_real_headings_and_missing_targets():
             check_links(broken)
 
 
-@pytest.mark.parametrize("href", ["missing.html", "api.html#missing", "javascript:alert(1)"])
+@pytest.mark.parametrize(
+    "href", ["missing.html", "download.zip", "api.html#missing", "javascript:alert(1)"]
+)
 def test_public_html_guard_rejects_broken_or_active_links(href):
     entries = {
         "index.html": ('<a href="' + href + '">link</a>').encode(),
@@ -160,13 +162,32 @@ def test_public_html_guard_rejects_broken_or_active_links(href):
         "missing_alternate",
         "external_script",
         "inline_handler",
+        "missing_download",
+        "broken_download",
+        "stale_download",
     ],
 )
 def test_doc01_guard_rejects_broken_discovery_or_active_content(damage):
     path = ROOT / "server/src/wechat_bridge/web/admin/public-docs.zip"
     with zipfile.ZipFile(path) as archive:
         entries = {n: archive.read(n) for n in archive.namelist()}
-    if damage.startswith("missing_") and damage in ("missing_llms", "missing_script"):
+    if damage in ("missing_download", "broken_download", "stale_download"):
+        if damage == "missing_download":
+            entries.pop("download.zip")
+        elif damage == "broken_download":
+            entries["download.zip"] = b"not a zip"
+        else:
+            with zipfile.ZipFile(io.BytesIO(entries["download.zip"])) as z:
+                nested = {n: z.read(n) for n in z.namelist()}
+            release = json.loads(nested["RELEASE.json"])
+            release["public_source_sha256"] = "0" * 64
+            nested["RELEASE.json"] = json.dumps(release).encode()
+            stream = io.BytesIO()
+            with zipfile.ZipFile(stream, "w") as z:
+                for name, value in nested.items():
+                    z.writestr(name, value)
+            entries["download.zip"] = stream.getvalue()
+    elif damage.startswith("missing_") and damage in ("missing_llms", "missing_script"):
         entries.pop("llms.txt" if damage == "missing_llms" else "script.js")
     elif damage in ("wrong_search_version", "missing_search_page", "empty_search_content"):
         search = json.loads(entries["search-index.json"])
@@ -216,6 +237,7 @@ def test_doc01_build_guard_catches_changed_presentation_inputs_without_node(tmp_
         "frontend/render-docs.mjs",
         "frontend/src/shared/theme.css",
         "server/src/wechat_bridge/web/admin/public-docs.zip",
+        "server/src/wechat_bridge/web/admin/developer-kit.zip",
     ]
     paths += [p.relative_to(ROOT).as_posix() for p in (ROOT / "frontend/docs").iterdir()]
     for name in paths:

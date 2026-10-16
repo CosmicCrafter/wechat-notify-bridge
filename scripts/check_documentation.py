@@ -139,7 +139,7 @@ def check_html_links(entries):
             target = (
                 posixpath.normpath(posixpath.join(posixpath.dirname(name), path)) if path else name
             )
-            if target != "download.zip" and target not in entries:
+            if target not in entries:
                 raise ValueError("Missing public HTML target: " + name + " -> " + href)
             if anchor and target in pages and anchor not in pages[target].ids:
                 raise ValueError("Missing public HTML anchor: " + name + " -> " + href)
@@ -220,6 +220,7 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
             raise ValueError("Historical material entered client documentation package")
     elif flavor == "public":
         required += [
+            "download.zip",
             "llms.txt",
             "script.js",
             "search-index.json",
@@ -306,6 +307,18 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
         check_ai_discovery(entries, release, public=flavor == "public")
     if flavor == "public":
         check_html_links(entries)
+        try:
+            check_archive(
+                entries["download.zip"],
+                "docs",
+                server_version=server_version,
+                plugin_version=plugin_version,
+            )
+            with zipfile.ZipFile(io.BytesIO(entries["download.zip"])) as download:
+                if json.loads(download.read("RELEASE.json")) != release:
+                    raise ValueError("Static site download differs from its documentation release")
+        except (zipfile.BadZipFile, KeyError) as exc:
+            raise ValueError("Invalid static site documentation download") from exc
     return len(entries)
 
 

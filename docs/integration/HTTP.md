@@ -6,6 +6,49 @@
 
 使用导出包时，无需安装 MCP。openapi.json 是接口规范；notify_bridge.py 是无额外依赖、无自动重发的 Python 示例。完整源码仓库中的对应位置为 server/openapi.json 和 examples/python/notify_bridge.py。
 
+首次管理员准备、应用授权和配置结构，可从服务 /docs/ 导航进入“第一次接入”。本页用于运行与二次开发；字段以同站“请求字段合同”及包内 OpenAPI 为准，使用下方查询示例扩展自己的程序，不另造后台 Agent。
+
+## 只读取回复或回执，不再次发送
+
+将以下代码保存为 `read_replies.py`，与下载的 `notify_bridge.py` 放在同一目录。在文档 ZIP 中该目录是 examples/python；在 HTTP 专用包中是包根。配置由受控进程读取，示例只输出 ID 和状态，不打印 Key、令牌或私人正文，也不自动保存游标：
+
+```python
+import argparse
+import json
+from pathlib import Path
+from notify_bridge import NotifyBridge
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--config", type=Path, required=True)
+parser.add_argument("--conversation-id", required=True)
+parser.add_argument("--after-id", type=int, default=0)
+parser.add_argument("--event-id")
+args = parser.parse_args()
+try:
+    config = json.loads(args.config.read_text(encoding="utf-8-sig"))
+    client = NotifyBridge(config["base_url"], config["api_key"],
+                          receiver_token=config.get("receiver_token"))
+except (OSError, ValueError, KeyError, TypeError):
+    raise SystemExit("Private configuration unavailable; contents not printed")
+if args.event_id:
+    receipt = client.receipt(args.conversation_id, config["default_bot_id"], args.event_id)
+    print(json.dumps({"status": receipt.get("status"),
+                      "message_id": receipt.get("message_id")}))
+else:
+    inbox = client.inbox(args.conversation_id, args.after_id)
+    print(json.dumps({"message_ids": [m["id"] for m in inbox["messages"]],
+                      "next_after_id": inbox["next_after_id"]}))
+```
+
+```sh
+python read_replies.py --config "<私有配置绝对路径>" --conversation-id "<登记返回的ID>" --after-id 0
+python read_replies.py --config "<私有配置绝对路径>" --conversation-id "<登记返回的ID>" --event-id "<原事件键>"
+```
+
+预期是本会话的消息 ID/下一游标，或原事件回执状态。空列表可能只是尚无新回复，不代表宿主唤醒失败。查询失败不会自动重发。该回执示例适用于明确 default_bot_id 的显式目标请求；策略请求原本省略目标时，应直接用 request("GET", "/api/deliveries", query=...) 保持原省略方式。
+
+生产程序应先将未处理输入安全持久化或处理完成，再提交游标，确保重启可重读并以消息 ID 幂等；不要把“客户端已读取”当作工作完成。示例不维护本地业务队列，不承诺恰好一次执行。
+
 ## 从下载包直接运行
 
 在 notify-bridge-http 目录打开终端（完整文档包则在仓库/文档包根目录执行，脚本路径为 examples/python/notify_bridge.py）。Python 3.12+，无需额外依赖。先由获授权维护者配置 `.private/client.json`，不要把 Key 写在命令参数、终端历史或 AI 对话中。
@@ -45,3 +88,6 @@ python notify_bridge.py --config .private/client.json --conversation-key system-
 后续读/发/history/task/claim/report 均带原应用认证与会话接收头。示例 NotifyBridge 构造可传 receiver_token；claim 返回 generation，report 用 generation=原值，lease 到期前 renew。不能把共享 Key 当作已验证 AI 聊天身份。详细说明见[会话接收协议](RECEIVERS.md)。
 
 应用策略/会话偏好由管理员配置；未指定目标才允许路由，level=urgent 需授权并受间隔限制。显式目标不会覆盖。查询原策略请求回执时，bot_id/channel 仍省略，不因返回实际 B 而改变请求。muted 代表消息保存但没有普通平台发送；平台接收不等于鸣响或业务完成。
+
+
+本页 CLI 登记的是 legacy 会话。需要租约接管时，先按接收协议建立 protected 绑定，再以相同应用认证和私有接收能力查询、领取、续期和报告；不能把 legacy 的 generation=0 / 无租约当成同等恢复保证。

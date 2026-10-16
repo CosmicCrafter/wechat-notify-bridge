@@ -76,7 +76,14 @@ def test_download_guard_rejects_damaged_http_and_mcp_packages(damage):
         base_url="https://notify.example.com/bridge",
         mcp_url="https://notify.example.com/wechat/mcp",
     )
-    check_archive(blob, flavor, server_version=__version__, plugin_version="1.11.0")
+    check_archive(
+        blob,
+        flavor,
+        server_version=__version__,
+        plugin_version=json.loads((ROOT / "mcp-plugin/plugin.json").read_text(encoding="utf-8"))[
+            "version"
+        ],
+    )
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         entries = {n: z.read(n) for n in z.namelist()}
     root = "notify-bridge-http/" if flavor == "http" else "wechat-notify-local/"
@@ -112,7 +119,12 @@ def test_download_guard_rejects_damaged_http_and_mcp_packages(damage):
             z.writestr(name, content)
     with pytest.raises(ValueError):
         check_archive(
-            buffer.getvalue(), flavor, server_version=__version__, plugin_version="1.11.0"
+            buffer.getvalue(),
+            flavor,
+            server_version=__version__,
+            plugin_version=json.loads(
+                (ROOT / "mcp-plugin/plugin.json").read_text(encoding="utf-8")
+            )["version"],
         )
 
 
@@ -185,7 +197,12 @@ def test_doc01_guard_rejects_broken_discovery_or_active_content(damage):
             archive.writestr(name, content)
     with pytest.raises(ValueError):
         check_archive(
-            buffer.getvalue(), "public", server_version=__version__, plugin_version="1.11.0"
+            buffer.getvalue(),
+            "public",
+            server_version=__version__,
+            plugin_version=json.loads(
+                (ROOT / "mcp-plugin/plugin.json").read_text(encoding="utf-8")
+            )["version"],
         )
 
 

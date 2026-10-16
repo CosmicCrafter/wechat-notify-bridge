@@ -20,7 +20,9 @@ def source(tmp_path, monkeypatch):
     for name in set(builder.FILES + list(builder.DOCS.values())):
         path = tmp_path / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("fixture " + name, encoding="utf-8")
+        path.write_bytes((ROOT / name).read_bytes()) if path.suffix == ".svg" else path.write_text(
+            "fixture " + name, encoding="utf-8"
+        )
     (tmp_path / "server/openapi.json").write_text(
         json.dumps({"info": {"version": __version__}}), encoding="utf-8"
     )

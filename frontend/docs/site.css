@@ -520,6 +520,26 @@ kbd {
   max-width: 100%;
   height: auto;
 }
+.doc-figure {
+  margin: 22px 0;
+}
+.diagram-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+.diagram-scroll img {
+  display: block;
+  width: 100%;
+  min-width: 620px;
+}
+.doc-figure figcaption {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .doc-content a {
   overflow-wrap: anywhere;
 }

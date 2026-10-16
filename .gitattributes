@@ -8,5 +8,6 @@
 *.js text eol=lf
 *.css text eol=lf
 *.html text eol=lf
+*.svg text eol=lf
 *.vue text eol=lf
 *.mjs text eol=lf

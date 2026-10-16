@@ -57,7 +57,7 @@ notify-bridge/
 
 朋友接手维护请先读 [维护手册](docs/MAINTAINER.md)，目录导航见 [文档索引](docs/README.md)。前端源码在 `frontend/src/`；运行用静态资源由构建生成。
 
-当前源码版本为 **v1.18.0**，MCP 插件 **1.11.0**，已发布保护基线为 **`a33517f`**，见 [发布说明与上线检查](docs/history/release-1.18.0.md)。[DOC-01 新文档网站](docs/history/doc-01.md) 为隔离候选，未替换正式站；REFINE-01 及 [v1.17.1](docs/history/release-1.17.1.md) 的历史证据和旧稳定标签仍保留。实例实际版本以健康接口、镜像和受保护发布清单核对。账号初始化、升级与恢复以 [管理与恢复](docs/product-v3/OPERATIONS.md) 为准。v0.3/F02 的设计与分批记录属于历史证据。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
+当前源码版本为 **v1.18.0**，MCP 插件 **1.11.1**，已发布保护基线为 **`a33517f`**，见 [发布说明与上线检查](docs/history/release-1.18.0.md)。[DOC-01 新文档网站](docs/history/doc-01.md) 为隔离候选，未替换正式站；REFINE-01 及 [v1.17.1](docs/history/release-1.17.1.md) 的历史证据和旧稳定标签仍保留。实例实际版本以健康接口、镜像和受保护发布清单核对。账号初始化、升级与恢复以 [管理与恢复](docs/product-v3/OPERATIONS.md) 为准。v0.3/F02 的设计与分批记录属于历史证据。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
 
 三条交付路径：[部署维护](docs/MAINTAINER.md)、[AI 宿主 MCP 接入](docs/integration/AI-HOSTS.md)、[业务系统 HTTP 接入](docs/integration/HTTP.md)。AI/HTTP 资料可基于已有应用导出，不自动创建重复身份或轮换 Key。
 

@@ -4,8 +4,13 @@
     "pages": [
       ["index.html", "文档首页", "统一消息中转站 · 按目标开始接入"],
       [
+        "tutorials/FIRST-INTEGRATION.html",
+        "第一次接入",
+        "从管理员准备到身份、dry_run 和双向验收"
+      ],
+      [
         "integration/README.html",
-        "快速开始",
+        "接入总览与工具",
         "身份、授权、最小接入流程与工具对照"
       ],
       ["integration/HTTP.html", "HTTP 接入", "服务器与业务系统通知"],
@@ -19,6 +24,11 @@
   {
     "group": "通信与会话",
     "pages": [
+      [
+        "explanations/RELIABLE-CONVERSATIONS.html",
+        "多会话与可靠收件",
+        "身份、绑定、租约、离线与通知分流的设计理由"
+      ],
       [
         "integration/RECEIVERS.html",
         "会话接收与绑定",
@@ -37,6 +47,11 @@
     "group": "接口与渠道",
     "pages": [
       ["server/API.html", "API 与错误码", "字段、鉴权、响应与错误参考"],
+      [
+        "reference/HTTP-CONTRACT.html",
+        "请求字段合同",
+        "从 OpenAPI 自动生成的参数、默认值和模型"
+      ],
       ["server/BOTS.html", "Bot 与应用授权", "通信连接与接入应用的权限边界"],
       ["server/FEISHU.html", "飞书连接", "飞书收发、消息事件与卡片配置"],
       ["server/IMAGES.html", "图片与附件", "上传、下载与会话附件"],
@@ -61,6 +76,22 @@
         "实际 MCP 地址、OAuth 授权与撤销"
       ],
       ["server/MCP-EVENTS.html", "事件与唤醒", "订阅、回调和宿主能力限制"]
+    ]
+  },
+  {
+    "group": "部署与维护",
+    "pages": [
+      ["MAINTAINER.html", "维护与构建", "职责、权威源、检查与升级入口"],
+      [
+        "server/CONFIGURATION.html",
+        "配置与数据保护",
+        "部署路径、密钥、数据和一致备份"
+      ],
+      [
+        "operations/ADMIN.html",
+        "管理员操作与恢复",
+        "账号初始化、改密、验证码与终端兜底"
+      ]
     ]
   }
 ]

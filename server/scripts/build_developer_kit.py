@@ -13,6 +13,12 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 # Reader-oriented allowlist: historical designs and server deployment sources stay in the repository.
 FILES = [
+    "docs/tutorials/FIRST-INTEGRATION.md",
+    "docs/explanations/RELIABLE-CONVERSATIONS.md",
+    "docs/reference/HTTP-CONTRACT.md",
+    "docs/MAINTAINER.md",
+    "docs/server/CONFIGURATION.md",
+    "docs/product-v3/OPERATIONS.md",
     "docs/integration/README.md",
     "docs/integration/CLIENT-SETUP.md",
     "docs/integration/AI-HOSTS.md",
@@ -30,6 +36,12 @@ FILES = [
     "docs/wechat-markdown/微信Markdown排版指南.md",
     "server/openapi.json",
     "examples/python/notify_bridge.py",
+]
+FILES += [p.relative_to(ROOT).as_posix() for p in sorted((ROOT / "docs/assets").glob("*.svg"))]
+SKILL_PREFIX = "mcp-plugin/skills/wechat-notify/"
+FILES += [SKILL_PREFIX + "SKILL.md"] + [
+    p.relative_to(ROOT).as_posix()
+    for p in sorted((ROOT / SKILL_PREFIX / "references").glob("*.md"))
 ]
 DOCS = {
     "guide": "docs/integration/README.md",
@@ -51,12 +63,98 @@ AI 可从 llms.txt 按需查阅同源接入资料；本 ZIP 是通用 Markdown/�
 """
 
 
+def markdown_title(content, fallback):
+    return next(
+        (line[2:] for line in content.decode("utf-8").splitlines() if line.startswith("# ")),
+        fallback,
+    )
+
+
+def validate_diagram(text):
+    """Only passive SVG primitives authored with the documentation may be published."""
+    import xml.etree.ElementTree as ET
+
+    if "<!DOCTYPE" in text.upper() or "<!ENTITY" in text.upper():
+        raise ValueError("Active SVG declaration")
+    allowed = {
+        "svg",
+        "title",
+        "desc",
+        "defs",
+        "marker",
+        "path",
+        "rect",
+        "g",
+        "text",
+        "tspan",
+        "line",
+        "polygon",
+        "circle",
+    }
+    root = ET.fromstring(text)
+    attributes = {
+        "viewBox",
+        "role",
+        "aria-labelledby",
+        "id",
+        "width",
+        "height",
+        "rx",
+        "fill",
+        "x",
+        "y",
+        "font-family",
+        "font-size",
+        "stroke",
+        "stroke-width",
+        "stroke-dasharray",
+        "marker-end",
+        "marker-start",
+        "markerWidth",
+        "markerHeight",
+        "refX",
+        "refY",
+        "orient",
+        "d",
+        "points",
+        "x1",
+        "x2",
+        "y1",
+        "y2",
+        "cx",
+        "cy",
+        "r",
+        "text-anchor",
+        "dominant-baseline",
+        "dy",
+        "transform",
+    }
+    for node in root.iter():
+        if (
+            not node.tag.startswith("{http://www.w3.org/2000/svg}")
+            or node.tag.split("}")[-1] not in allowed
+        ):
+            raise ValueError("Non-passive documentation diagram")
+        for name, value in node.attrib.items():
+            if (
+                name not in attributes
+                or name.split("}")[-1].lower().startswith("on")
+                or name.split("}")[-1] in {"href", "style"}
+                or re.search(r"(?:https?:|data:|javascript:|url\((?!#[\w-]+\)))", value, re.I)
+            ):
+                raise ValueError("Active or external documentation diagram attribute")
+
+
 def public_contents(entries):
     """Project the existing public allowlist, preserving one Markdown maintenance source."""
     from urllib.parse import quote
 
     mapping = {name: name.removeprefix("docs/") for name in entries}
     mapping["server/openapi.json"] = "openapi.json"
+    mapping["docs/product-v3/OPERATIONS.md"] = "operations/ADMIN.md"
+    for name in entries:
+        if name.startswith(SKILL_PREFIX):
+            mapping[name] = "skill/" + name.removeprefix(SKILL_PREFIX)
     mapping.pop("START-HERE.md")
     mapping.pop("llms.txt", None)
     public, pages = {}, []
@@ -71,7 +169,7 @@ def public_contents(entries):
             if target not in mapping:
                 raise ValueError("Public documentation target is not allowlisted: " + target)
             output = mapping[target]
-            if html and output.endswith(".md"):
+            if html and output.endswith(".md") and not output.startswith("skill/"):
                 output = output[:-3] + ".html"
             relative = posixpath.relpath(output, posixpath.dirname(destination) or ".")
             return (
@@ -89,6 +187,8 @@ def public_contents(entries):
                 (line[2:] for line in text.splitlines() if line.startswith("# ")), destination
             )
             page = destination[:-3] + ".html"
+            if source.startswith(SKILL_PREFIX):
+                continue
             pages.append(
                 dict(
                     path=page,
@@ -118,7 +218,7 @@ def navigation(root):
     return json.loads((root / "frontend/docs/navigation.json").read_text(encoding="utf-8"))
 
 
-def ai_index(groups, release, targets, *, schema, example):
+def ai_index(groups, release, targets, *, schema, example, rules=()):
     """Same index facts and titles, projected into website or portable package paths."""
     text = [
         "# Notify Bridge 开发者文档",
@@ -133,6 +233,13 @@ def ai_index(groups, release, targets, *, schema, example):
                 f"- [{label}]({targets[path]}): {summary}"
                 for path, label, summary in group["pages"]
             )
+        )
+    if rules:
+        text.extend(
+            [
+                "## Skill 规则与引用（只读，不授予调用权限）",
+                "\n".join(f"- [{label}]({path})" for path, label in rules),
+            ]
         )
     text.extend(
         [
@@ -151,6 +258,7 @@ def render_public(root, pages, release):
         pages=pages,
         release=release,
         theme=(root / "frontend/src/shared/theme.css").read_text(encoding="utf-8"),
+        images=[name.removeprefix("docs/") for name in FILES if name.endswith(".svg")],
     )
     result = subprocess.run(
         [node, str(root / "frontend/render-docs.mjs"), str(ROOT / "frontend")],
@@ -175,6 +283,11 @@ def build_public(root, entries, *, check):
         {p["path"]: p["markdown_path"] for p in pages},
         schema="openapi.json",
         example="examples/python/notify_bridge.py",
+        rules=[
+            (name, markdown_title(content, name))
+            for name, content in public.items()
+            if name.startswith("skill/") and name.endswith(".md")
+        ],
     )
     digest = hashlib.sha256()
     inputs = {
@@ -251,6 +364,8 @@ def contents(root):
         if path.is_symlink():
             raise ValueError("Symlinks are not developer kit inputs: " + name)
         content = path.read_text(encoding="utf-8")
+        if path.suffix == ".svg":
+            validate_diagram(content)
         if path.suffix == ".md":
             content = portable_markdown(content, name, set(FILES))
         entries[name] = content.encode("utf-8")
@@ -258,6 +373,7 @@ def contents(root):
     targets = {
         name.removeprefix("docs/")[:-3] + ".html": name for name in FILES if name.endswith(".md")
     }
+    targets["operations/ADMIN.html"] = "docs/product-v3/OPERATIONS.md"
     targets["index.html"] = "docs/integration/README.md"
     entries["llms.txt"] = ai_index(
         navigation(root),
@@ -265,6 +381,11 @@ def contents(root):
         targets,
         schema="server/openapi.json",
         example="examples/python/notify_bridge.py",
+        rules=[
+            (name, markdown_title(value, name))
+            for name, value in entries.items()
+            if name.startswith(SKILL_PREFIX) and name.endswith(".md")
+        ],
     )
     release = release_metadata(root / "mcp-plugin", entries, scope="developer-docs")
     entries["RELEASE.json"] = json.dumps(release, ensure_ascii=False, indent=2).encode("utf-8")
@@ -316,6 +437,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
+    import sys
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from build_api_reference import build as build_reference
+
+    build_reference(check=args.check)
     build(check=args.check)
     from build_onboarding_assets import build as build_onboarding
 

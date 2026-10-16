@@ -2,6 +2,8 @@
 
 适用于 AI、监控脚本、业务程序。服务负责向已绑定的微信/飞书 Bot 发消息、接收回复和任务决定；调用方负责业务判断及执行。
 
+第一次使用从[第一次接入 Notify Bridge](../tutorials/FIRST-INTEGRATION.md)开始：先由管理员准备连接和应用，再选择 HTTP/MCP，按身份、dry_run、真人收件、回复归属分层验收。本页保留接入总览与工具/HTTP 对照；原理见[AI 多会话通信与可靠收件](../explanations/RELIABLE-CONVERSATIONS.md)，字段与异常见[API 参考](../server/API.md)。
+
 公开入口为服务地址后的 `/docs/`，网页正文无需登录；AI 可直接读取 `/docs/index.md`、`/docs/integration/HTTP.md`、`/docs/integration/CLIENT-SETUP.md`、`/docs/integration/RECEIVERS.md` 与 `/docs/openapi.json`，通用文档 ZIP 为 `/docs/download.zip`。匿名资料不包含实例配置或真实凭据，也不授予调用权限。
 
 只把文档根网址交给能访问网页的 AI 即可开始阅读：首页包含 HTTP、AI/MCP 和会话协议入口，并链接 Markdown、OpenAPI 与自动生成的 `/docs/llms.txt`。网页正文与普通导航不依赖 JavaScript；本地脚本只增强全文搜索、复制和主题。`llms.txt` 是可发现的阅读索引，不保证所有 AI 宿主自动读取。离线通用资料包也含同源索引；它是 Markdown/接口/示例包，不是含凭据的 MCP 安装包。

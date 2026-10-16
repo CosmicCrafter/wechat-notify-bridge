@@ -18,12 +18,16 @@ const escape = (text) =>
         c
       ],
   );
-function render(markdown) {
+function render(markdown, pagePath) {
   const renderer = new Renderer(),
     headings = new Map(),
     toc = [];
   renderer.html = ({ text }) => escape(text);
-  renderer.image = ({ text }) => escape(text || "");
+  renderer.image = ({ href, text }) => {
+    const target = posix.normalize(posix.join(posix.dirname(pagePath), href));
+    if (!data.images?.includes(target)) return escape(text || "");
+    return `<figure class="doc-figure"><div class="diagram-scroll"><img src="${escape(href)}" alt="${escape(text)}" loading="lazy"></div><figcaption>${escape(text)}</figcaption></figure>`;
+  };
   renderer.table = function (token) {
     return `<div class="table-scroll" role="region" aria-label="数据表格" tabindex="0">${Renderer.prototype.table.call(this, token)}</div>`;
   };
@@ -89,7 +93,7 @@ for (const page of data.pages) {
           .join(""),
     )
     .join("");
-  const rendered = render(page.markdown);
+  const rendered = render(page.markdown, page.path);
   // Text-only search data, generated with the same Markdown parser as the article.
   const plain = (page.path === "index.html" ? home : rendered.html)
     .replace(/<[^>]+>/g, " ")

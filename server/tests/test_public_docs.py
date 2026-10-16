@@ -169,7 +169,12 @@ def test_public_enhancement_is_local_and_articles_keep_static_navigation():
         assert "unsafe-inline" not in script.headers["content-security-policy"]
         index = client.get("/docs/search-index.json").json()
         assert index["release"] == client.get("/docs/RELEASE.json").json()
-        assert len(index["pages"]) == 16
+        assert len(index["pages"]) == sum(
+            len(g["pages"])
+            for g in json.loads(
+                (ROOT / "frontend/docs/navigation.json").read_text(encoding="utf-8")
+            )
+        )
         assert "X-Notify-Receiver" in next(
             p["content"] for p in index["pages"] if p["path"] == "integration/HTTP.html"
         )

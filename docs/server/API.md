@@ -1,6 +1,8 @@
-# HTTP API 接口文档
+# HTTP API 参考与错误处理
 
-首次接入先看 [开发者接入指南](../integration/README.md)。机器可读规范见 [OpenAPI 3.1](../../server/openapi.json)，匿名可读服务地址后的 `GET /docs/openapi.json`（同源通用规范）；原 `GET /openapi.json` 仍需客户端鉴权并提供实例配置地址。公开文档不会开放管理 API、消息或私有接入包。下述 JSON 示例均为示意数据，不含真实凭据。
+**技术参考 · 适用服务 1.18.0。** 首次接入先看[教程](../tutorials/FIRST-INTEGRATION.md)，本页用于查询和故障决策。
+
+首次接入总览见 [开发者接入指南](../integration/README.md)。机器可读规范见 [OpenAPI 3.1](../../server/openapi.json)，匿名可读服务地址后的 `GET /docs/openapi.json`（同源通用规范）；原 `GET /openapi.json` 仍需客户端鉴权并提供实例配置地址。公开文档不会开放管理 API、消息或私有接入包。下述 JSON 示例均为示意数据，不含真实凭据。
 
 假设公开地址为 `https://notify.example.com/bridge`，下表的路径都相对于该地址。真实地址由部署者配置。
 
@@ -39,7 +41,7 @@ v0.3 新增：读取只标 client_read，不等于领取或执行；claim 返回
 }
 ```
 
-`dry_run: true` 只校验，不发微信；省略或设为 false 才实际发送。服务端根据密钥给正文加上 `[客户端名称]`。API 正文最多 20000 字符；微信展示内容（含标记和会话链接）最多 2000 字符，超出时发送短摘录。去重键最多 200 字符，不接受空白内容。调用方不能用 source 或 caller 参数覆盖身份。
+`dry_run: true` 只校验，不外发微信或飞书；省略或设为 false 才实际发送。服务端根据密钥给正文加上 `[客户端名称]`。API 正文最多 20000 字符；微信展示内容（含标记和会话链接）最多 2000 字符，超出时发送短摘录。去重键最多 200 字符，不接受空白内容。调用方不能用 source 或 caller 参数覆盖身份。
 
 ## 任务提醒
 
@@ -58,7 +60,7 @@ v0.3 新增：读取只标 client_read，不等于领取或执行；claim 返回
 
 ## 去重与结果
 
-同一客户端内，相同 dedup_key 和正文不会重复提交；同键不同正文返回 HTTP 409。不同客户端使用独立去重空间，查询发送记录也仅查本客户端。客户端改名或重置密钥不改变其稳定 ID，保留去重记录；旧版导入的客户端仍可查询原来的对应发送记录。`server-heartbeat-` 和 `server-command-` 前缀由服务器保留。
+在相同应用、会话和原目标的去重范围内，相同 dedup_key 与内容复用原记录；同键不同内容返回 HTTP 409。策略请求保留原来省略的目标，不把返回的实际 Bot 补回查询；显式 Bot 查询继续传原 Bot。不同客户端使用独立去重空间，查询发送记录也仅查本客户端。客户端改名或重置密钥不改变其稳定 ID，保留去重记录；旧版导入的客户端仍可查询原来的对应发送记录。`server-heartbeat-` 和 `server-command-` 前缀由服务器保留。
 
 HTTP 200 不等于发送成功：必须检查响应的 status，duplicate=true 也可能返回先前的失败结果。
 
@@ -109,43 +111,17 @@ conversation_key 为稳定宿主聊天 ID 或一次性生成后保存的唯一�
 
 多个聊天时，未提供 conversation_id 的发送返回 409 conversation_required，聊天已结束返回 409 conversation_closed，不属于本密钥返回 404。停用/删除客户端后不能发送，定向历史不会转入其他聊天或公共收件箱。legacy 聊天仅区分路由，不是额外鉴权边界；protected 会话另受本会话能力头约束，见条件性接收授权。服务只收存路由，宿主主动读取，不自动唤醒。
 
-服务器仅返回文本或语音转写文本及消息类型，不下载图片、视频或文件。返回的微信内容是外部输入，不能自动作为执行代码、审批或派发任务的授权。
+消息可包含文字和已支持的微信图片附件，按返回的附件 ID 获取，详见[图片与附件](IMAGES.md)；不等于支持任意视频/文件或飞书图片入站。所有外部内容都不能自动成为执行代码、审批或派发任务的授权。
 
 可导入的静态接口描述见 [openapi.json](../../server/openapi.json)。其中域名是占位符，使用前替换；服务运行时的 `/openapi.json` 根据 WECHAT_PUBLIC_BASE_URL 生成实际地址。
 
 ## 管理页面与绑定接口
 
-`GET /admin/` 及其 CSS/JS 为公开页面框架，不包含任何凭据、二维码或账号数据。根路径跳转到该页面。
-
-以下操作必须使用账号密码登录产生的管理员Cookie；写请求同时需要同源Origin、X-Admin-Request: 1与X-Admin-CSRF。不属于MCP工具，也不进入供AI使用的OpenAPI。尚未建立管理员账号时返回503，需通过[授权终端工具](../product-v3/OPERATIONS.md)初始化；原管理员Key不能用于初始化或鉴权。
-
-| 方法 | 路径 | 参数 / 用途 |
-| --- | --- | --- |
-| GET | /admin/api/status | 服务状态与扫码状态，不返回微信 token 或用户 ID |
-| POST | /admin/api/pairing/start | JSON `{ "replace": false }`；已有绑定时需明确为 true |
-| GET | /admin/api/pairing/qr?session_id=... | 受鉴权保护的 PNG，仅在二维码可用时返回 |
-| POST | /admin/api/pairing/verify | JSON `{ "session_id": "...", "code": "手机显示的数字" }` |
-| POST | /admin/api/pairing/cancel | JSON `{ "session_id": "..." }`；取消尚未确认的本次扫码 |
-
-活动扫码会话重复 start 会复用已有会话。结束后两秒内重复 start 返回 429。验证码与取消请求必须匹配当前 session_id，旧页面不能操作后来的会话。管理页面用独立管理Cookie请求二维码，再生成内存图片地址，不把认证凭据放进URL、本地存储或日志。所有响应禁止缓存，未开放跨域接口。
+管理员账号 Cookie、同源与 CSRF 和应用认证分开；应用 Key 不能调用管理接口。操作及原管理接口表集中在[管理与恢复](../product-v3/OPERATIONS.md#管理接口补充参考)，本页不再复制。
 
 ## 管理客户端
 
-以下接口同样仅接受独立管理账号会话；微信的同名操作作用于同一份客户端记录。
-
-| 方法 | 路径 | 用途 |
-| --- | --- | --- |
-| GET | /admin/api/clients | 返回客户端列表与 base_url；不返回密钥或哈希 |
-| POST | /admin/api/clients | JSON `{ "name": "codex" }`；创建并返回一次 api_key |
-| POST | /admin/api/clients/{id}/rename | JSON `{ "name": "开发助手" }`；保留密钥 |
-| POST | /admin/api/clients/{id}/rotate | 重置并返回一次新 api_key，同时重新启用 |
-| POST | /admin/api/clients/{id}/revoke | 停用，不返回原始密钥 |
-| POST | /admin/api/clients/{id}/delete | 删除客户端及其密钥，历史消息保留，不返回原始密钥 |
-
-创建/重置响应包含 `client`、字符串 `api_key`、`base_url`。名称重复返回 409，名称格式错误返回 422，ID 不存在返回 404。原始密钥只在这次响应中显示，响应丢失需重新重置；长期凭据表仅存 SHA-256 哈希。指令回复临时队列使用服务器主密钥加密，尝试发送后清除正文，结果未知不自动重发。
-
-删除接口仅供管理员使用，响应为被删除客户端的公开 `client` 信息。删除后旧密钥返回 401，列表移除该客户端，重启也不会从旧配置恢复。尚未发送的该客户端密钥回复会作废并清除；已发送消息无法撤回。同名重新创建会获得新 ID 和新密钥，使用独立去重空间，不继承旧客户端的发送回执。
-
+Key 一次展示、正常轮换、泄露撤销和旧 rotate 的兼容影响见[应用与连接](BOTS.md)及[管理操作](../product-v3/OPERATIONS.md)。不把应用 Key 当管理凭据。
 
 ## 手机会话链接与全文（1.4.0）
 
@@ -158,111 +134,11 @@ conversation_key 为稳定宿主聊天 ID 或一次性生成后保存的唯一�
 
 ## 完整客户端接口清单
 
-所有 `/api/` 请求使用 `Authorization: Bearer <客户端 Key>`；JSON 请求带 `Content-Type: application/json`。以下均相对服务地址（例如 `/wechat`），不是相对域名根路径。管理接口不属于第三方接入合同。
+路径、请求体、类型、必填/默认、长度/枚举/模式及规范声明响应已从 OpenAPI 自动投影到[HTTP 请求字段合同](../reference/HTTP-CONTRACT.md)。只修改实现并重新导出 OpenAPI，再生成该文档；不要手改第二套字段表。
 
-| 方法 | 路径 | 请求与主要响应 |
-| --- | --- | --- |
-| GET | `/api/status` | 无请求体；返回 caller、client_id、bots、bot_ids、default_bot_id、conversations |
-| GET | `/api/conversations` | query include_closed=false；返回 conversations、active_count |
-| POST | `/api/conversations` | body conversation_key、name?；返回会话对象，使用其 id |
-| POST | `/api/conversations/{id}/state` | body active；返回会话对象 |
-| POST | `/api/messages` | 见下表；返回发送回执 |
-| POST | `/api/notifications` | task、reason、need_user、dedup_key，加通用路由字段；返回发送回执 |
-| POST | `/api/task-cards` | title、prompt、conversation_id、dedup_key、模式字段，加 bot_id；返回回执及 task（dry_run 不创建任务） |
-| GET | `/api/deliveries` | query dedup_key 必填，conversation_id、bot_id、channel 可选；返回原发送回执或 not_found |
-| GET | `/api/inbox` | query conversation_id、after_id=0、limit=20（1–100）、include_unaddressed=false；返回 messages、next_after_id、content_is_untrusted |
-| GET | `/api/wake/events` | query conversation_id 必填、after_id?、limit=20（1–100）；返回 events 中的消息 id 与 next_after_id，不标记已读；省略 after_id 仅取当前末尾游标 |
-| GET | `/api/conversations/{id}/tasks/{task_id}` | 返回 `{task: {...}}` |
-| POST | `/api/conversations/{id}/tasks/{task_id}/state` | body status、result?；更新任务，可能返回 card_delivery |
-| GET | `/api/conversations/{id}/images/{image_id}` | 返回图片元信息及 base64 data；不是二进制响应，详见 [IMAGES](IMAGES.md) |
-| POST | `/api/receivers/exchange` | 私有 pairing_code 兑换能力；不携带接收头，不输出或记录秘密 |
-| POST | `/api/receivers/verify` | 待验证能力头与 challenge；验证后持能力访问原会话 |
-| GET | `/api/conversations/{id}/receiver` | 本应用接收状态元数据，不证明宿主聊天身份 |
-| GET | `/api/conversations/{id}/lifecycle` | 生命周期元数据；归档、静音、停止分开解释 |
-| POST | `/api/conversations/{id}/monitor` | 执行端按实际运行/停止情况报告；停止须匹配代际和领取回执 |
-| POST | `/api/inbox/{id}/claim` | request_id，lease_seconds 默认 120（30–900）；返回 claim_id、generation、lease_expires |
-| POST | `/api/inbox/{id}/renew` | 原 claim_id、generation 和 lease_seconds；过期后不能续租 |
-| POST | `/api/inbox/{id}/report` | 原领取与 generation、稳定报告 request_id；processing/completed/failed，终态不改写 |
-| GET | `/openapi.json` | 返回 OpenAPI 3.1；需要客户端鉴权 |
+当前 OpenAPI 对部分成功响应只声明空模型，不能由此推断具体 JSON 字段或断言错误不会发生。本页描述发送、收件和错误的运行语义；模型外校验仍以实现和回归为依据。原任务卡模式/选择约束集中在[任务卡片](TASK-CARDS.md)，图片返回形式见[图片与附件](IMAGES.md)。
 
-### 发送消息字段
-
-| 字段 | 类型 | 必填/默认 | 约束 |
-| --- | --- | --- | --- |
-| text | string | 必填 | 非空白，最多 20000 字符 |
-| dedup_key | string | 必填 | 非空白，最多 200 字符；一次业务事件固定值 |
-| conversation_id | string | 建议始终传 | 登记返回的会话 id；多个活跃会话时必须明确 |
-| bot_id | string | 默认 Key 的默认 Bot | 从 status.bots 选择，1–64 位字母/数字/下划线/短横线 |
-| channel | string/null | 可选 | wechat / feishu，只作平台过滤；不应代替 bot_id |
-| dry_run | boolean | false | true 时不发送、不创建消息历史，不能验证上游送达 |
-| level | string | info | info / warning / urgent；urgent 分流须有应用授权，显式目标保持原目标 |
-| retry_preparation | boolean | false | 仅明确未开始消息请求、原快照完整的飞书 not_sent 可按原参数显式重试准备 |
-
-飞书使用原生卡片展示全文，不附加网页入口；仍受编码后卡片内容 28000 字节限制，超限返回拒绝回执。微信长度、摘要与上下文限制见上文。
-
-```json
-{
-  "conversation_id": "0123456789abcdef0123456789abcdef",
-  "bot_id": "feishu-default",
-  "text": "备份任务已完成。",
-  "dedup_key": "backup-20261012-completed",
-  "dry_run": false
-}
-```
-
-### 任务提醒字段
-
-`task` 最多 200 字符，`reason` / `need_user` 各最多 800 字符，均非空白。`level` 默认 warning，可选 info / warning / urgent。`conversation_id`、`bot_id`、`channel`、`dedup_key`、`dry_run` 与普通消息一致。`source` 为兼容字段，不覆盖服务端身份。
-
-### 会话、回执与收件示例
-
-登记请求：
-
-```json
-{"conversation_key":"my-ai-chat-001","name":"开发助手"}
-```
-
-会话响应的关键字段（示意，可能包含其他字段）：
-
-```json
-{"id":"0123456789abcdef0123456789abcdef","name":"开发助手","active":true,"display_tag":"[my-ai]","reply_tag":"[my-ai-开发助手]"}
-```
-
-飞书发送回执示例：
-
-```json
-{"channel":"feishu","bot_id":"feishu-default","status":"api_accepted","duplicate":false,"attempted_at":1791797499.5,"error_code":null,"phone_delivery":"unconfirmed","diagnostics":{"http_status":200,"provider_message_id":"om_example","duration_ms":100},"message_id":100,"conversation_url":"https://notify.example.com/bridge/chat/?c=0123456789abcdef0123456789abcdef&m=100"}
-```
-
-`conversation_url` 是兼容的内部历史链接，飞书卡片不会展示它。时间戳采用 Unix 秒；调用方按自己的时区格式化。平台与历史版本间字段可能缺省或为 null；不要强制假设所有回执都有相同 diagnostics。
-
-收件示例：
-
-```json
-{"messages":[{"id":64,"received_at":1791797554.9,"message_at":1791797554.1,"conversation_id":"0123456789abcdef0123456789abcdef","route_status":"direct","text":"收到","source":"feishu","bot_id":"feishu-default","item_types":[1],"attachments":[]}],"next_after_id":64,"content_is_untrusted":true}
-```
-
-历史微信消息可能没有 source/bot_id，不要因此丢弃。回复携带 `task_response` 时按其 task_id 关联原任务。图片消息可能没有文字。程序只消费自己的会话；公共收件箱须显式选择，不能把无归属回复当作任意任务的批准。
-
-### 任务卡片字段与状态
-
-必填 conversation_id（32 位十六进制）、dedup_key、title（1–120 字符）、prompt（1–4000 字符）。expires_in 默认 86400 秒，范围 60–604800。模式及字段完整约束见 [任务卡片接口](TASK-CARDS.md) 和 OpenAPI 的 TaskCard / CardField schemas。
-
-| mode | 模式字段 |
-| --- | --- |
-| single | 2–8 个 options；allow_custom 默认 true |
-| multiple | 2–8 个 options；min_choices 默认 1，max_choices 默认选项数 |
-| confirm | 2–4 个 options；allow_custom 默认 false |
-| input | 不传 options；allow_custom=true；可传 input_hint |
-| form | 1–5 个 fields；不传 options，不允许 allow_custom=true |
-
-```json
-{"conversation_id":"0123456789abcdef0123456789abcdef","bot_id":"feishu-default","dedup_key":"release-42-confirm","title":"是否继续发布","prompt":"检查已完成，请选择。","mode":"confirm","options":[{"id":"continue","label":"继续"},{"id":"cancel","label":"取消"}]}
-```
-
-用户提交后由 pending 变成 answered。调用方可以将已答复任务更新为 processing，完成后更新为 completed，并附 result（最多 4000 字符）；取消用 cancelled。不要把尚未答复的任务标记为处理中/完成；终态不能重新打开。提交决定不意味着系统已执行，业务副作用由调用方控制。
-
-### 错误处理表
+## 错误处理与重试决策
 
 HTTP 错误通常为 `{"detail":"错误标识"}`；422 参数校验也可能返回 detail 数组。不要依赖错误文本固定措辞。
 
@@ -279,3 +155,31 @@ HTTP 错误通常为 `{"detail":"错误标识"}`；422 参数校验也可能返�
 | HTTP 200 + unconfirmed_do_not_retry | 未确认结果；不要自动换去重键再次推送 |
 
 飞书 `open_id cross app` 表示收件人 Open ID 属于另一个应用；必须获取本应用下的用户 ID。当前版本对部分上游 HTTP 错误仅记录 HTTPStatusError 与状态码，具体平台业务码可能需管理员排查，不能只凭 HTTP 400 判断原因。
+
+
+### 先确定失败发生在哪一层
+
+1. 请求未被服务接受：检查 HTTP/认证/参数；在发出平台请求前才能确认没有外发。
+2. HTTP 200：仍解析 status、duplicate、error_code、diagnostics。平台拒绝、静音、未知结果不能记“送达”。
+3. 网络超时 / 503：保留原请求，先 GET /api/deliveries 查原会话与去重键。不能把未拿到响应当作未发送。
+4. 只有明确 not_sent、飞书消息请求尚未开始且原快照完整时，才可保持全部原参数加 retry_preparation:true 显式重试准备。它不是通用重试开关。
+5. 回执 not_found 不自动证明永远未发送；同时检查原应用、会话、目标省略方式、服务状态和请求是否仍在途。不要因查错范围而换键再发。
+
+### 收件处理冲突不是发送重试
+
+| detail / 状态 | 原因与动作 |
+|---|---|
+| receiver_access_denied / receiver_scope_mismatch | 接收能力无效或不是本会话；停止内容访问，由管理员重新配对，不退回应用 Key |
+| inbox_already_claimed | 活租约已有其他领取者；观察状态，不抢占或重复外部副作用 |
+| inbox_claim_expired | protected 租约已过期；核对业务结果，使用新 attempt/request_id 接管，不重复旧领取键 |
+| inbox_fence_mismatch | 代际/绑定/claim 不匹配；旧进程不能继续写结果，重新核对当前处理者 |
+| request_id_content_conflict | 同一个报告键被用于不同内容；修正幂等记录，新状态使用新报告键 |
+| inbox_processing_final | 已 completed/failed；不改终态，不自动重做业务 |
+
+详细领取/离线顺序见[可靠收件原理](../explanations/RELIABLE-CONVERSATIONS.md)。API 的 `failed` 是应用报告的终态，不是服务承诺自动重试的队列。
+
+### 安全排障记录
+
+记录脱敏的时间、HTTP 状态、固定 detail/error_code、conversation_id、原目标与去重键、message_id、请求是否 dry_run、相关版本；不要保存 Authorization、接收令牌、验证码、完整敏感正文或平台 Secret。SDK 示例为防泄露只抛固定 HTTP 状态；需要 detail 时由受控后端安全解析响应，不把完整异常/配置打印到聊天。
+
+每次只改变已确认的错误项，再以原业务键核对。没有真实收件就写“平台接受/未确认”；没有真实宿主就写“协议/SDK 验证”。管理界面问题查[管理员操作](../product-v3/OPERATIONS.md)，平台约束查[投递可靠性](DELIVERY-RELIABILITY.md)。

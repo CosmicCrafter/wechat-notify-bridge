@@ -6,7 +6,7 @@ Notify Bridge 是站外通信服务。Codex、Claude Code 是调用方和维护�
 
 在接入应用里建立独立身份、授权通信连接并保存一次展示的 Key。导出多个宿主资料仍使用同一个应用；导出不自动换 Key。权限以服务器授权为准，包内默认连接只是偏好。
 
-本机 stdio 包调用 HTTP 服务，需要现有 Python 3.12+ 和已锁定 requirements。远程 MCP 使用公开 HTTPS 和用户 OAuth 授权，包里不含 Key 或 OAuth token。单独浏览器客户端不能访问你电脑的 localhost。
+本机 stdio 包调用 HTTP 服务，需要现有 Python 3.12+ 和包内 requirements 定义的兼容依赖范围。远程 MCP 使用公开 HTTPS 和用户 OAuth 授权，包里不含 Key 或 OAuth token。单独浏览器客户端不能访问你电脑的 localhost。
 
 ## 本机方式
 
@@ -31,10 +31,17 @@ Codex TOML 只需 mcp_servers 下的 URL，使用宿主 MCP OAuth 登录；Claud
 
 ## 文档依据
 
-已于 2026-10-14核对配置形式：[OpenAI MCP 官方文档](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)、[Claude Code MCP 官方文档](https://code.claude.com/docs/en/mcp)。本地 SDK/协议和包内配置验证不等于新安装的真人宿主验收。
+2026-10-16 核对官方配置说明：[OpenAI MCP 官方文档](https://developers.openai.com/codex/mcp/)、[Claude Code MCP 官方文档](https://code.claude.com/docs/en/mcp)。本地 SDK/协议和包内配置验证不等于新安装的真人宿主验收。
 
 ## F02 接收范围与隔离
 
 每个会话需独立的私有 receiver_file（绝对路径），与应用配置分开；管理端下载配对文件后放到该位置。本机适配器自动交换、验证并保存能力，模型结果不含令牌。首次 AI 主动 protected 注册也要求先配置此独立路径。未验证的远程宿主停在 legacy 或待绑定，不冒充聊天身份验证。普通应用 Key 不能直接读取 protected 会话。详见[会话接收协议](RECEIVERS.md)。
 
 私有 client.json 可设置 use_notification_policy:true，使省略目标的发送使用服务端策略；默认 false 保持旧默认 Bot 注入。为每个聊天指定路径不代表宿主能阻止同一用户下其他进程读该文件，真正宿主隔离须另行验收。归档、静音与外部停止分别处理。
+
+
+## 安装失败时先定位层级
+
+Skill 可见但无工具，检查 MCP 进程/解释器/路径；工具可见但身份错误，检查导出身份与实际服务，不试发通知；身份正确但收件被拒，检查 protected 能力与会话范围，不删除接收头降级。源码/文档包、独立插件、网站配置包的用途不同，先看[安装步骤](CLIENT-SETUP.md)。版本以各自 RELEASE.json 为准，不能把未经核对的 MCP serverInfo.version 当成插件发布版本。
+
+包内 skills/wechat-notify/SKILL.md 或公开首页的“Skill 规则”与其引用属于同一维护源；只负责操作规则，不授予服务器权限。

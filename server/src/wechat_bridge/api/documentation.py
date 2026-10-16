@@ -41,6 +41,7 @@ def mount_documentation(app):
             ".css": "text/css",
             ".js": "text/javascript",
             ".txt": "text/plain",
+            ".svg": "image/svg+xml",
         }.get(PurePosixPath(path).suffix)
         if media is None:
             raise HTTPException(404)

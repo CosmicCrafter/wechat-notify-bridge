@@ -14,7 +14,7 @@ AI 主动 registerConversation(receiver_mode="protected", host_type="codex" 或 
 
 业务程序从首次受保护注册或管理员配对取得 setup，私有保存并用 /api/receivers/verify 完成 challenge。请求带原应用 Bearer 与 X-Notify-Receiver。保存每会话 inbox 游标；事件回调只提醒，离线后用持久收件补查，不自动启动 AI。
 
-领取默认租约 120 秒，可设 30～900 秒，返回 claim_id/generation/lease_expires。续期用 /api/inbox/{id}/renew；报告带当前 generation。超时接管递增代际，旧领取者不能覆盖新结果。执行端仍需以稳定 inbox_id 幂等处理外部副作用，不能承诺恰好一次。旧 legacy generation=0 报告保持兼容。
+protected 领取默认租约 120 秒，可设 30～900 秒，返回 claim_id/generation/lease_expires。续期用 /api/inbox/{id}/renew；报告带当前 generation。超时接管需新的 request_id，递增代际，旧领取者不能覆盖新结果；过期后重复旧 request_id 返回 inbox_claim_expired。执行端仍需以稳定 inbox_id 幂等处理外部副作用，不能承诺恰好一次。旧 legacy 的 generation=0、lease_expires=null，保留原领取合同，不具有 protected 的租约恢复保证。
 
 ## 生命周期与通知
 
@@ -26,6 +26,8 @@ AI 主动 registerConversation(receiver_mode="protected", host_type="codex" 或 
 
 ## 迁移与回退
 
-新增表/字段保留旧记录、Key、正文和旧 active=0 停用状态。使用既有一致性 SQLite backup，配套原加密密钥和匹配代码，在隔离无生产出口环境验证重开、解密、权限和历史。旧稳定二进制不会执行新接收/撤销策略，禁止只切旧代码继续使用新库。正式回退需授权并恢复匹配的升级前代码、数据、密钥和配置，先保全升级期间新增记录，不能声称旧快照覆盖后零丢失。
+F02 迁移保留旧记录、Key、正文和旧 active=0 停用状态。使用一致性 SQLite backup，配套原加密密钥和匹配代码，在隔离无生产出口环境验证重开、解密、权限和历史。跨越 F02 的旧 1.16 二进制不会执行新接收/撤销策略，不能只切旧代码继续读新库；同结构版本也必须先用最新副本验证兼容后才决定保留新数据回退。正式恢复须有当次授权；先保全升级期间新增记录，不能覆盖旧快照后宣称零丢失。
+
+为什么需要这些步骤、故障时间线及 legacy/protected 的差异，见服务 /docs/ 导航中的“多会话与可靠收件”。具体字段约束见同站“请求字段合同”与公开 OpenAPI；HTTP 接入包也包含该规范，不是在这里维护另一份参数表。
 
 本页维护当前接收契约，不累计各轮测试结果。R2 已验证真实 Codex 主动调用与跨能力拒绝，R1/R3 有真人收发和隔离恢复证据；具体宿主聊天强身份、Claude Code 与 Work/Dot 自动唤醒仍不能据此宣称通过。历史范围见完整仓库 docs/history/release-1.17.0.md；每个新环境仍须实际验收。

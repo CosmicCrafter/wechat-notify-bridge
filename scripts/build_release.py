@@ -37,6 +37,7 @@ SUFFIXES = {
     ".mjs",
     ".vue",
     ".txt",
+    ".svg",
     ".conf",
 }
 TOP_FILES = (

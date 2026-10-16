@@ -119,7 +119,7 @@ def check_html_links(entries):
                 raise ValueError("Inline document event handlers are forbidden")
             if tag == "script" and (
                 set(attrs) != {"src", "defer"}
-                or attrs.get("src") not in ("script.js", "../script.js")
+                or re.fullmatch(r"(?:\.\./)*script\.js", attrs.get("src", "")) is None
             ):
                 raise ValueError("Only the local progressive documentation script is allowed")
 
@@ -212,7 +212,11 @@ def check_archive(blob, flavor, *, server_version, plugin_version):
             "examples/python/notify_bridge.py",
             "docs/integration/README.md",
         ]
-        if any(n.startswith(("docs/history/", "docs/product-", "docs/f02/")) for n in names):
+        if any(
+            n.startswith(("docs/history/", "docs/product-", "docs/f02/"))
+            and n != "docs/product-v3/OPERATIONS.md"
+            for n in names
+        ):
             raise ValueError("Historical material entered client documentation package")
     elif flavor == "public":
         required += [

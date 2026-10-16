@@ -26,7 +26,11 @@ def integration_document(root, filename, *, bundle=None):
     if path.is_symlink():
         raise ValueError("Symlink in integration documentation")
     text = path.read_text(encoding="utf-8")
-    return text.replace("](RECEIVERS.md)", "](F02-RECEIVERS.md)").encode("utf-8")
+    return (
+        text.replace("](RECEIVERS.md)", "](F02-RECEIVERS.md)")
+        .replace("](CLIENT-SETUP.md)", "](INSTALL.md)")
+        .encode("utf-8")
+    )
 
 
 def portable_markdown(text, name, included):

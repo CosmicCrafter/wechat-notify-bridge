@@ -73,6 +73,13 @@ def test_public_skill_and_diagrams_are_real_allowlisted_sources():
             "image/svg+xml"
         )
         assert response.content == (ROOT / "docs/assets" / name).read_bytes()
+    # The dimensions prevent late-loading figures from shifting a requested heading.
+    page = client.get("/docs/explanations/RELIABLE-CONVERSATIONS.html").text
+    assert 'width="720" height="375" loading="lazy"' in page
+    assert validate_diagram((ROOT / "docs/assets/inbox-lease.svg").read_text(encoding="utf-8")) == {
+        "width": 720,
+        "height": 375,
+    }
     assert client.get("/docs/assets/private.svg").status_code == 404
     client.close()
 

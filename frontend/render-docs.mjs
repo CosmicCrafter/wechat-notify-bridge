@@ -26,7 +26,8 @@ function render(markdown, pagePath) {
   renderer.image = ({ href, text }) => {
     const target = posix.normalize(posix.join(posix.dirname(pagePath), href));
     if (!data.images?.includes(target)) return escape(text || "");
-    return `<figure class="doc-figure"><div class="diagram-scroll"><img src="${escape(href)}" alt="${escape(text)}" loading="lazy"></div><figcaption>${escape(text)}</figcaption></figure>`;
+    const size = data.image_sizes[target];
+    return `<figure class="doc-figure"><div class="diagram-scroll" role="region" aria-label="${escape(text)}" tabindex="0"><img src="${escape(href)}" alt="${escape(text)}" width="${size.width}" height="${size.height}" loading="lazy"></div><figcaption>${escape(text)}</figcaption></figure>`;
   };
   renderer.table = function (token) {
     return `<div class="table-scroll" role="region" aria-label="数据表格" tabindex="0">${Renderer.prototype.table.call(this, token)}</div>`;

@@ -119,4 +119,4 @@ python examples/python/notify_bridge.py --config "<私有配置文件绝对路�
 | 双向归属 | 原会话读到本人回复 | 核对引用/标签、Bot 授权、接收绑定及游标 |
 | 自动唤醒 | 对应真实宿主自动处理且撤销后停止 | 单独检查宿主接收器/订阅；安装成功不算通过 |
 
-只完成前两步时应写“身份和 dry_run 通过，真人通信未验证”。继续开发参考[HTTP 业务闭环](../integration/HTTP.md)、[多会话与可靠收件](../integration/RECEIVERS.md)和[API 参数合同](../reference/HTTP-CONTRACT.md)。
+只完成前两步时应写“身份和 dry_run 通过，真人通信未验证”。继续开发参考[HTTP 业务闭环](../integration/HTTP.md)、[会话接收与绑定](../integration/RECEIVERS.md)、[可靠收件原理](../explanations/RELIABLE-CONVERSATIONS.md)和[API 参数合同](../reference/HTTP-CONTRACT.md)。

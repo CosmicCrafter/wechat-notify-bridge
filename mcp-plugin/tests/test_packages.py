@@ -11,6 +11,7 @@ import subprocess
 import pytest
 
 TOOLS = Path(__file__).resolve().parents[1] / "tools"
+PLUGIN_VERSION = json.loads((TOOLS.parent / "plugin.json").read_text(encoding="utf-8"))["version"]
 sys.path.insert(0, str(TOOLS))
 from package_checks import check, integration_document
 from build_local_plugin import build as local
@@ -30,7 +31,7 @@ def test_package_layout_and_references(tmp_path, transport):
         bundle.extractall(tmp_path / "unpacked")
     root = tmp_path / "unpacked/wechat-notify-local"
     manifest = check(root)
-    assert manifest["version"] == "1.11.0"
+    assert manifest["version"] == PLUGIN_VERSION
     assert (root / "INSTALL.md").is_file()
     assert json.loads((root / "RELEASE.json").read_text())["plugin_version"] == manifest["version"]
     sys.path.insert(0, str(TOOLS.parents[1] / "scripts"))
@@ -103,7 +104,7 @@ def test_extracted_local_plugin_builders_need_no_repository_docs(tmp_path, trans
     from check_documentation import check_archive
 
     check_archive(
-        output.read_bytes(), transport, server_version=__version__, plugin_version="1.11.0"
+        output.read_bytes(), transport, server_version=__version__, plugin_version=PLUGIN_VERSION
     )
 
 

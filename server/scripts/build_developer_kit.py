@@ -149,6 +149,11 @@ def validate_diagram(text):
                 or re.search(r"(?:https?:|data:|javascript:|url\((?!#[\w-]+\)))", value, re.I)
             ):
                 raise ValueError("Active or external documentation diagram attribute")
+    # Reserve layout before lazy images load, including when navigating to a later heading.
+    dimensions = re.fullmatch(r"0\s+0\s+([1-9]\d{0,4})\s+([1-9]\d{0,4})", root.get("viewBox", ""))
+    if not dimensions:
+        raise ValueError("Documentation diagram requires a positive integral viewBox")
+    return dict(width=int(dimensions[1]), height=int(dimensions[2]))
 
 
 def public_contents(entries):
@@ -265,6 +270,11 @@ def render_public(root, pages, release):
         release=release,
         theme=(root / "frontend/src/shared/theme.css").read_text(encoding="utf-8"),
         images=[name.removeprefix("docs/") for name in FILES if name.endswith(".svg")],
+        image_sizes={
+            name.removeprefix("docs/"): validate_diagram((root / name).read_text(encoding="utf-8"))
+            for name in FILES
+            if name.endswith(".svg")
+        },
     )
     result = subprocess.run(
         [node, str(root / "frontend/render-docs.mjs"), str(ROOT / "frontend")],

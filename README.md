@@ -57,7 +57,7 @@ notify-bridge/
 
 朋友接手维护请先读 [维护手册](docs/MAINTAINER.md)，目录导航见 [文档索引](docs/README.md)。前端源码在 `frontend/src/`；运行用静态资源由构建生成。
 
-当前源码版本为 **v1.19.0**，MCP 插件 **1.11.1**，已发布保护基线为 **`a33517f`**，见 [候选发布与恢复检查](docs/history/release-1.19.0.md)。[DOC-01](docs/history/doc-01.md) 与 [DOC-02](docs/history/doc-02.md) 已整合为 1.19.0 隔离候选，未替换正式站；REFINE-01 及 [v1.17.1](docs/history/release-1.17.1.md) 的历史证据和旧稳定标签仍保留。实例实际版本以健康接口、镜像和受保护发布清单核对。账号初始化、升级与恢复以 [管理与恢复](docs/product-v3/OPERATIONS.md) 为准。v0.3/F02 的设计与分批记录属于历史证据。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
+当前源码版本为 **v1.19.0**，MCP 插件 **1.11.1**，升级前保护基线为 **`a33517f`**，见 [发布与恢复检查](docs/history/release-1.19.0.md)。[DOC-01](docs/history/doc-01.md) 与 [DOC-02](docs/history/doc-02.md) 已整合为 1.19.0 文档版本，是否已替换正式站以实例发布清单为准；REFINE-01 及 [v1.17.1](docs/history/release-1.17.1.md) 的历史证据和旧稳定标签仍保留。实例实际版本以健康接口、镜像和受保护发布清单核对。账号初始化、升级与恢复以 [管理与恢复](docs/product-v3/OPERATIONS.md) 为准。v0.3/F02 的设计与分批记录属于历史证据。中转站不运行内部 Agent；Codex/Claude Code 是站外调用与维护助手。
 
 三条交付路径：[部署维护](docs/MAINTAINER.md)、[AI 宿主 MCP 接入](docs/integration/AI-HOSTS.md)、[业务系统 HTTP 接入](docs/integration/HTTP.md)。AI/HTTP 资料可基于已有应用导出，不自动创建重复身份或轮换 Key。
 
@@ -255,6 +255,6 @@ python scripts/build_release.py
 安装服务依赖后可执行 `python -m wechat_bridge` 启动本机实例；首次运行在用户目录 `.notify-bridge` 生成独立数据和加密密钥，仅监听 `127.0.0.1:8092`。管理端使用账号密码；数据库建立后由获授权的维护者按[终端初始化说明](docs/product-v3/OPERATIONS.md)建立账号。本地入口不自动配置公网HTTPS，飞书服务端回调仍需可达的HTTPS地址。
 
 
-## 文档内容与工程案例（DOC-02 候选）
+## 文档内容与工程案例
 
-[第一次接入](docs/tutorials/FIRST-INTEGRATION.md)、[AI 多会话与可靠收件](docs/explanations/RELIABLE-CONVERSATIONS.md)、[HTTP API 参考与错误处理](docs/server/API.md)分别面向操作、理解和查询；参数来自[OpenAPI 生成的合同](docs/reference/HTTP-CONTRACT.md)。[故障排查](docs/guides/TROUBLESHOOTING.md)、[真实工程案例与证据](docs/cases/EVIDENCE.md)和[内容规范](docs/DOCUMENTATION-STANDARD.md)由同一网站承载。DOC-02 尚未部署，不以候选内容推断生产能力或新宿主已通过验收。
+[第一次接入](docs/tutorials/FIRST-INTEGRATION.md)、[AI 多会话与可靠收件](docs/explanations/RELIABLE-CONVERSATIONS.md)、[HTTP API 参考与错误处理](docs/server/API.md)分别面向操作、理解和查询；参数来自[OpenAPI 生成的合同](docs/reference/HTTP-CONTRACT.md)。[故障排查](docs/guides/TROUBLESHOOTING.md)、[真实工程案例与证据](docs/cases/EVIDENCE.md)和[内容规范](docs/DOCUMENTATION-STANDARD.md)由同一网站承载。不以源码文档版本推断生产运行状态或新宿主已通过验收。
